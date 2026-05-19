@@ -1,4 +1,4 @@
-# Plan: Spawn Eagle Base, Enemies và baseline A* cho `MapF_TankTest`
+# Plan: Spawn Eagle Base, Enemies và baseline A\* cho `MapF_TankTest`
 
 ## Kết luận nhanh
 
@@ -7,12 +7,12 @@
 Thứ tự hợp lý nhất theo `DATN.md` và hiện trạng project:
 
 1. Hoàn thiện objective gameplay tối thiểu: spawn Eagle Base, spawn enemies, win/lose condition.
-2. Implement **A* trên grid từ `MapLoader`** làm baseline.
-3. Cho enemy dùng A* để đi tới Eagle/Base và bắn phá.
-4. Sau khi A* chạy ổn, mới làm multi-agent layer: reservation table / prioritized planning / LNS2 simplified.
+2. Implement **A\* trên grid từ `MapLoader`** làm baseline.
+3. Cho enemy dùng A\* để đi tới Eagle/Base và bắn phá.
+4. Sau khi A\* chạy ổn, mới làm multi-agent layer: reservation table / prioritized planning / LNS2 simplified.
 5. Unity NavMesh chỉ nên dùng như benchmark phụ hoặc fallback tham khảo, không nên là baseline chính cho đồ án MAPF grid.
 
-## Vì sao nên A* grid trước, không phải Unity NavMesh trước?
+## Vì sao nên A\* grid trước, không phải Unity NavMesh trước?
 
 Trong `DATN.md`, mục tiêu là MAPF trên môi trường grid/map, có pipeline:
 
@@ -35,7 +35,7 @@ Assets/MapData/random-32-32-10.map
 - `WorldToCell(Vector3 position)`
 - `TryFindWalkableNear(...)`
 
-Vì vậy A* grid là baseline khớp trực tiếp với đề tài hơn Unity NavMesh.
+Vì vậy A\* grid là baseline khớp trực tiếp với đề tài hơn Unity NavMesh.
 
 Unity NavMesh trong project 2D top-down này có vài điểm bất lợi:
 
@@ -44,7 +44,7 @@ Unity NavMesh trong project 2D top-down này có vài điểm bất lợi:
 - Khó đo các metric kiểu cell path length, timestep collision, reservation table.
 - Khi sang LNS2/Prioritized Planning vẫn phải quay lại biểu diễn grid/timestep.
 
-NavMesh vẫn có ích nếu sau này muốn so sánh “Unity built-in navigation vs custom grid A*”, nhưng không nên là bước đầu.
+NavMesh vẫn có ích nếu sau này muốn so sánh “Unity built-in navigation vs custom grid A\*”, nhưng không nên là bước đầu.
 
 ## Hiện trạng scene test
 
@@ -72,7 +72,7 @@ Chưa có:
 
 - Eagle/Base objective prefab hoặc script riêng
 - Enemy spawner theo cell
-- A* solver trên grid
+- A\* solver trên grid
 - AI follow path từ cell này sang cell khác
 - Game state win/lose trong scene test
 - Metrics/debug visualization cho pathfinding
@@ -97,7 +97,7 @@ Bước spawn này giúp kiểm tra:
 - Map cell -> world position có đúng không.
 - Enemy prefab có hoạt động trong map runtime không.
 - Bullet/collision/damage giữa enemy, player, Eagle có ổn không.
-- A* sau này có target cụ thể để đi tới.
+- A\* sau này có target cụ thể để đi tới.
 
 ## Spawn Eagle Base trước như thế nào?
 
@@ -195,7 +195,7 @@ enemySpawnCells = [(30, 1), (1, 30), (30, 30), (16, 1)]
 
 Nếu cell bị `@`, dùng `TryFindWalkableNear`.
 
-## A* baseline nên thiết kế thế nào?
+## A\* baseline nên thiết kế thế nào?
 
 ### Module đề xuất
 
@@ -254,7 +254,7 @@ Behavior:
 
 1. Lấy `start = map.WorldToCell(enemy.position)`.
 2. Lấy `goal = map.WorldToCell(target.position)`.
-3. A* tìm path.
+3. A\* tìm path.
 4. Follow từng waypoint bằng `TankController.HandleMoveBody(...)`.
 5. Nếu đến gần Eagle thì dừng và bắn.
 
@@ -274,13 +274,13 @@ GridEnemyAgent
 
 Trong bản test, có thể disable `DefaultEnemyAI` cũ và dùng `GridEnemyAgent` trực tiếp để tránh xung đột giữa patrol cũ và pathfinding mới.
 
-## Multi-agent/MAPF layer sau A*
+## Multi-agent/MAPF layer sau A\*
 
-Sau khi single-agent A* tới Eagle ổn, mới làm multi-agent:
+Sau khi single-agent A\* tới Eagle ổn, mới làm multi-agent:
 
-### Phase 1: Independent A*
+### Phase 1: Independent A\*
 
-Mỗi enemy tự A* tới Eagle, không tránh nhau.
+Mỗi enemy tự A\* tới Eagle, không tránh nhau.
 
 Metric:
 
@@ -318,12 +318,12 @@ Theo `DATN.md`, có 2 hướng:
 Chỉ nên bắt đầu khi:
 
 - Grid state export/import đã rõ.
-- A* baseline có metric.
+- A\* baseline có metric.
 - Scenario enemy/base đã ổn.
 
 ## Unity NavMesh nên nằm ở đâu?
 
-Đề xuất: không test NavMesh trước A*.
+Đề xuất: không test NavMesh trước A\*.
 
 Nếu vẫn muốn dùng NavMesh, đặt nó ở nhánh phụ:
 
@@ -333,7 +333,7 @@ Experiment: Unity NavMesh baseline
 
 Mục đích:
 
-- So sánh tốc độ setup và behavior với custom grid A*.
+- So sánh tốc độ setup và behavior với custom grid A\*.
 - Không dùng làm nền cho LNS2/MAPF chính.
 
 Điều kiện nếu làm NavMesh:
@@ -370,7 +370,7 @@ Done khi:
 - Console sạch.
 - Eagle có thể nhận damage.
 
-### Milestone 2 — Single-agent A*
+### Milestone 2 — Single-agent A\*
 
 File/script:
 
@@ -381,7 +381,7 @@ Assets/Scripts/Pathfinding/GridEnemyAgent.cs
 
 Việc cần làm:
 
-1. Implement A* 4-neighbor từ `MapLoader`.
+1. Implement A\* 4-neighbor từ `MapLoader`.
 2. Enemy tìm đường từ cell hiện tại tới Eagle cell.
 3. Enemy follow waypoint bằng `TankController`.
 4. Replan mỗi 0.5–1 giây.
@@ -393,12 +393,14 @@ Done khi:
 - Không đi xuyên `@`.
 - Có thể visualize path bằng Gizmos hoặc LineRenderer.
 
-### Milestone 3 — Multi-enemy A* baseline
+> **Cập nhật 2026-05-10 (`mapf_enemy_stuck_phase2_plan_v3.md` Phase A)**: cost function của A\* không còn là `1` mỗi step. Baseline mới là **soft cost map** trong `GridNavMask`: cell Chebyshev=1 từ vùng hard-block (`@` + inflated) nhận `+8`, Chebyshev=2 nhận `+2`, deep interior `+0`. Manhattan heuristic vẫn admissible (cost ≥ 1). Inflate radius=1 thuần không đủ chặn cọ với cluster 2x2 — soft cost map là cách tiếp cận thay thế giữ map không bị cô lập. Tham khảo `Assets/Scripts/Pathfinding/GridNavMask.GetCellCost`.
+
+### Milestone 3 — Multi-enemy A\* baseline
 
 Việc cần làm:
 
 1. Spawn 4 enemies.
-2. Mỗi enemy independent A* tới Eagle.
+2. Mỗi enemy independent A\* tới Eagle.
 3. Ghi metric đơn giản:
    - path length
    - replan count
@@ -408,7 +410,7 @@ Việc cần làm:
 
 Done khi:
 
-- Có demo “A* baseline chưa phối hợp”.
+- Có demo “A\* baseline chưa phối hợp”.
 - Có số liệu để so sánh với MAPF layer.
 
 ### Milestone 4 — Cooperative / MAPF simplified
@@ -418,7 +420,7 @@ Việc cần làm:
 1. Thêm reservation table theo timestep.
 2. Prioritized planner tạo path cho từng enemy.
 3. Tránh vertex collision và edge swap.
-4. So sánh với independent A*.
+4. So sánh với independent A\*.
 
 Done khi:
 
@@ -444,17 +446,17 @@ Việc cần làm:
 - Không nên phụ thuộc Unity NavMesh nếu mục tiêu là MAPF benchmark grid.
 - Không nên spawn enemy trên obstacle cell; luôn dùng `TryFindWalkableNear`.
 - Đạn tốc độ cao cần giữ linecast hiện tại để không xuyên obstacle/Eagle.
-- Tank movement hiện là continuous physics, còn A* là grid; path follower cần waypoint tolerance đủ rộng để không rung/lệch cell.
+- Tank movement hiện là continuous physics, còn A\* là grid; path follower cần waypoint tolerance đủ rộng để không rung/lệch cell.
 
 ## Đề xuất bước tiếp theo ngay
 
 Bước tiếp theo nên làm:
 
-```text
+```texts
 Milestone 1: MapScenarioBootstrap + EagleBase runtime object + spawn 2 enemies static
 ```
 
-Chưa cần A* ngay trong commit đầu tiên. Mục tiêu trước là có scenario gameplay đúng:
+Chưa cần A\* ngay trong commit đầu tiên. Mục tiêu trước là có scenario gameplay đúng:
 
 ```text
 Map + Player + Eagle + Enemy + Collision + Bullet damage

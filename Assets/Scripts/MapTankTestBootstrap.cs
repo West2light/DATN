@@ -38,6 +38,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         mapLoader.LoadAndBuild();
         SpawnPlayer();
         SetupCamera();
+        SpawnScenario();
     }
 
     private void LateUpdate()
@@ -45,6 +46,16 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (player != null && mainCamera != null)
         {
             mainCamera.transform.position = player.position + cameraOffset;
+        }
+    }
+
+    private void SpawnScenario()
+    {
+        MapScenarioBootstrap scenarioBootstrap = GetComponent<MapScenarioBootstrap>();
+        if (scenarioBootstrap != null)
+        {
+            scenarioBootstrap.mapLoader = mapLoader;
+            scenarioBootstrap.SpawnScenario();
         }
     }
 

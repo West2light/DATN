@@ -46,7 +46,8 @@ public class MapLoader : MonoBehaviour
     private int buildWidth;
     private int buildHeight;
     private Sprite fallbackSprite;
-    private const string MovementObstacleLayerName = "ObstaclesMovement";
+    private const string MovementObstacleLayerName = "Walls";
+    private const string LegacyMovementObstacleLayerName = "ObstaclesMovement";
     private const string BulletObstacleLayerName = "Hittable";
 
     public int Width => width;
@@ -232,7 +233,7 @@ public class MapLoader : MonoBehaviour
 
         if (!IsCellWalkable(cell))
         {
-            tile.layer = LayerMask.NameToLayer(MovementObstacleLayerName);
+            tile.layer = ResolveLayer(MovementObstacleLayerName, LegacyMovementObstacleLayerName);
             BoxCollider2D collider = tile.AddComponent<BoxCollider2D>();
             collider.size = Vector2.one;
             AddBulletHitbox(tile);
@@ -264,13 +265,19 @@ public class MapLoader : MonoBehaviour
     private void CreateBoundary(string name, Vector2 position, Vector2 size)
     {
         GameObject boundary = new GameObject(name);
-        boundary.layer = LayerMask.NameToLayer(MovementObstacleLayerName);
+        boundary.layer = ResolveLayer(MovementObstacleLayerName, LegacyMovementObstacleLayerName);
         boundary.transform.SetParent(tilesParent, false);
         boundary.transform.localPosition = position;
 
         BoxCollider2D collider = boundary.AddComponent<BoxCollider2D>();
         collider.size = size;
         AddBulletHitbox(boundary);
+    }
+
+    private int ResolveLayer(string layerName, string fallbackLayerName)
+    {
+        int layer = LayerMask.NameToLayer(layerName);
+        return layer >= 0 ? layer : LayerMask.NameToLayer(fallbackLayerName);
     }
 
     private Sprite PickSprite(char cell, Vector2Int mapCell)

@@ -198,6 +198,7 @@ GameObject:
   - component: {fileID: 366287511}
   - component: {fileID: 366287510}
   - component: {fileID: 366287509}
+  - component: {fileID: 366287512}
   m_Layer: 0
   m_Name: MapRuntime
   m_TagString: Untagged
@@ -257,6 +258,54 @@ MonoBehaviour:
   alternateGroundSpritePath: Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/tileGrass2.png
   obstacleSpritePath: Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/crateMetal.png
   treeSpritePath: Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/treeGreen_large.png
+--- !u!114 &366287512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 366287508}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c71e103ac27284144ab2100d1667f4f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapScenarioBootstrap
+  mapLoader: {fileID: 366287510}
+  eagleCell: {x: 16, y: 16}
+  eagleHealth: 500
+  eagleSprite: {fileID: 0}
+  eagleColor: {r: 1, g: 0.85, b: 0.25, a: 1}
+  eagleColliderSize: {x: 1.3, y: 1.3}
+  enemyPrefab: {fileID: 0}
+  enemyPrefabPath: Assets/Prefabs/StaticEnemy.prefab
+  enemyMovementData: {fileID: 0}
+  enemyMovementDataPath: Assets/Data/TankData/EnemyTankMovementData.asset
+  enemySpawnCells:
+  - {x: 30, y: 1}
+  - {x: 1, y: 30}
+  - {x: 24, y: 24}
+  - {x: 16, y: 1}
+  disableLegacyEnemyAI: 1
+  enemyReplanInterval: 0.75
+  enemyEagleShootingRange: 5
+  enemyPlayerShootingRange: 7
+  tankPhysicalRadius: 0.4
+  obstacleLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  useChebyshevInflateLegacy: 0
+  agentInflateRadius: 1
+  agentSoftRadius: 2
+  agentSoftCostNear: 8
+  agentSoftCostMid: 2
+  tankClearanceRadius: 0.35
+  agentEnableSmoothing: 0
+  scuffTimeout: 0.4
+  obstacleContactMask:
+    serializedVersion: 2
+    m_Bits: 0
+  drawAgentNavMask: 1
+  drawNavMaskHeatmap: 1
 --- !u!4 &366287511
 Transform:
   m_ObjectHideFlags: 0

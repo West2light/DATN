@@ -1,0 +1,5 @@
+- [Sub-agent roster](sub_agent_roster.md) — 7 specialists available in `.claude/agents/`, mapping owners to file scopes for dispatch
+- [Phase plan dispatch template](phase_plan_dispatch_template.md) — pattern for adding sub-agent assignment to multi-phase plans (v2 → v3 upgrade)
+- [Layer split requirement before Milestone 3](layer_split_milestone3.md) — Walls vs AgentBlocker split needed before multi-agent to avoid scuff false-positives
+- [Soft cost Chebyshev semantics with inflate](soft_cost_chebyshev_semantics.md) — when inflate>0 + soft cost coexist, measure Chebyshev to agent-walkable boundary not raw `@`
+- [Sub-agent dispatch tool not available](mcp_subagent_dispatch_unavailable.md) — no Agent/Task dispatch tool in this harness; self-execute while preserving gating contracts

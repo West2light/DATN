@@ -1,0 +1,402 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+public class MapScenarioBootstrap : MonoBehaviour
+{
+    private const string WallLayerName = "Walls";
+    private const string AgentBlockerLayerName = "AgentBlocker";
+    private const string LegacyMovementObstacleLayerName = "ObstaclesMovement";
+
+    public MapLoader mapLoader;
+
+    [Header("Eagle Base")]
+    public Vector2Int eagleCell = new Vector2Int(16, 16);
+    public int eagleHealth = 500;
+    public Sprite eagleSprite;
+    public Color eagleColor = Color.white;
+    public Vector2 eagleColliderSize = new Vector2(1.3f, 1.3f);
+
+    [Header("Enemies")]
+    public GameObject enemyPrefab;
+    public string enemyPrefabPath = "Assets/Prefabs/StaticEnemy.prefab";
+    public TankMovementData enemyMovementData;
+    public string enemyMovementDataPath = "Assets/Data/TankData/EnemyTankMovementData.asset";
+    public List<Vector2Int> enemySpawnCells = new List<Vector2Int>
+    {
+        new Vector2Int(30, 1),
+        new Vector2Int(1, 30),
+        new Vector2Int(30, 30),
+        new Vector2Int(16, 1)
+    };
+    public bool disableLegacyEnemyAI = true;
+    public float enemyReplanInterval = 0.75f;
+    public float enemyEagleShootingRange = 5f;
+    public float enemyPlayerShootingRange = 7f;
+
+    [Header("Phase v4.2: Physical hard inflate (preferred)")]
+    [Tooltip("Radius (world units) of the circle used by Physics2D.OverlapCircle to "
+        + "decide whether a tank can stand on a given cell. Default 0.45 = tank "
+        + "half-extent 0.348 + safety margin 0.1.")]
+    [SerializeField, Min(0f)] private float tankPhysicalRadius = 0.45f;
+    [Tooltip("Layers treated as hard obstacles for the physical inflate test. "
+        + "If 0, falls back to LayerMask.GetMask(\"Walls\") at run time; legacy "
+        + "ObstaclesMovement is only used if Walls is unavailable.")]
+    [SerializeField] private LayerMask obstacleLayerMask = 0;
+    [Tooltip("Ablation toggle (thesis). When true, navMask uses the legacy "
+        + "Chebyshev cell-grid inflate (agentInflateRadius) instead of the "
+        + "v4.2 physical OverlapCircle inflate.")]
+    [SerializeField] private bool useChebyshevInflateLegacy = false;
+
+    [Header("Soft cost layer (Phase A) and legacy Chebyshev inflate")]
+    // agentInflateRadius: deprecated by Phase v4.2 physical inflate.
+    // Retained as the radius used by the Chebyshev fallback when
+    // useChebyshevInflateLegacy == true (ablation study).
+    [Range(0, 3)] public int agentInflateRadius = 1;
+    [Range(0, 4)] public int agentSoftRadius = 2;
+    [Range(0, 50)] public int agentSoftCostNear = 8;
+    [Range(0, 50)] public int agentSoftCostMid = 2;
+    [SerializeField, Min(0f)] private float tankClearanceRadius = 0.4f;
+    // V4 default: smoothing OFF. Path raw 4-neighbor for deterministic follow.
+    // Toggle ON only for ablation study (thesis).
+    [SerializeField] private bool agentEnableSmoothing = false;
+    [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
+    [SerializeField] private LayerMask obstacleContactMask;
+    public bool drawAgentNavMask = true;
+    public bool drawNavMaskHeatmap = true;
+
+    private Transform scenarioRoot;
+    private GameObject eagleBase;
+    private GridNavMask navMask;
+    private readonly List<GameObject> enemies = new List<GameObject>();
+
+    public GameObject EagleBase => eagleBase;
+    public IReadOnlyList<GameObject> Enemies => enemies;
+
+    private void Reset()
+    {
+        // Default the obstacle mask so freshly added components Just Work in
+        // Edit Mode without manual Inspector wiring.
+        obstacleLayerMask = LayerMask.GetMask(WallLayerName);
+    }
+
+    [ContextMenu("Spawn Scenario Now")]
+    public void SpawnScenario()
+    {
+        ResolveReferences();
+        if (mapLoader == null || mapLoader.BuildWidth <= 0 || mapLoader.BuildHeight <= 0)
+        {
+            Debug.LogError("[MapScenarioBootstrap] Map must be loaded before spawning scenario.");
+            return;
+        }
+
+        ClearScenario();
+        scenarioRoot = new GameObject("ScenarioRuntime").transform;
+        scenarioRoot.SetParent(transform, false);
+        navMask = BuildNavMask();
+
+        eagleBase = SpawnEagleBase();
+        SpawnEnemies();
+    }
+
+    private GridNavMask BuildNavMask()
+    {
+        if (useChebyshevInflateLegacy)
+        {
+            // Ablation mode: legacy Chebyshev cell-grid inflate.
+            return new GridNavMask(mapLoader, agentInflateRadius, agentSoftRadius, agentSoftCostNear, agentSoftCostMid);
+        }
+
+        // V4.2 default: physical-based hard inflate via Physics2D.OverlapCircle.
+        // Physics2D queries can lag a frame behind Transform writes when colliders
+        // were just created; a sync makes this correct in both Play and Edit Mode.
+        Physics2D.SyncTransforms();
+
+        LayerMask mask = obstacleLayerMask.value != 0
+            ? obstacleLayerMask
+            : LayerMask.GetMask(WallLayerName);
+
+        if (mask.value == 0)
+        {
+            mask = LayerMask.GetMask(LegacyMovementObstacleLayerName);
+        }
+
+        // TODO(MapLoader): expose obstacle collider count so we can defensively
+        // warn when SpawnScenario runs before LoadAndBuild (would produce an
+        // empty hard-block mask). MapLoader.cs is out of scope for this dispatch.
+
+        return new GridNavMask(mapLoader, tankPhysicalRadius, mask, agentSoftRadius, agentSoftCostNear, agentSoftCostMid);
+    }
+
+    private void ResolveReferences()
+    {
+        if (mapLoader == null)
+        {
+            mapLoader = GetComponent<MapLoader>();
+        }
+
+        if (mapLoader == null)
+        {
+            mapLoader = FindFirstObjectByType<MapLoader>();
+        }
+
+    }
+
+    private GameObject SpawnEagleBase()
+    {
+        if (!mapLoader.TryFindWalkableNear(eagleCell, out Vector2Int spawnCell))
+        {
+            Debug.LogError("[MapScenarioBootstrap] Could not find a walkable Eagle spawn cell.");
+            return null;
+        }
+
+        GameObject eagle = new GameObject("EagleBase");
+        eagle.layer = LayerMask.NameToLayer("Hittable");
+        eagle.transform.SetParent(scenarioRoot, false);
+        eagle.transform.position = mapLoader.CellToWorld(spawnCell);
+
+        SpriteRenderer spriteRenderer = eagle.AddComponent<SpriteRenderer>();
+        spriteRenderer.sprite = eagleSprite != null ? eagleSprite : CreateWhiteSprite();
+        spriteRenderer.color = eagleColor;
+        spriteRenderer.sortingLayerName = "Eagle";
+        spriteRenderer.sortingOrder = 10;
+
+        BoxCollider2D collider = eagle.AddComponent<BoxCollider2D>();
+        collider.isTrigger = true;
+        collider.size = eagleColliderSize;
+
+        Damagable damagable = eagle.AddComponent<Damagable>();
+        damagable.OnDead = new UnityEvent();
+        damagable.OnHealthChange = new UnityEvent<float>();
+        damagable.OnHit = new UnityEvent();
+        damagable.OnHeal = new UnityEvent();
+        damagable.MaxHealth = eagleHealth;
+        damagable.Health = eagleHealth;
+
+        DestroyUtil destroyUtil = eagle.AddComponent<DestroyUtil>();
+        damagable.OnDead.AddListener(destroyUtil.DestroyHelper);
+        return eagle;
+    }
+
+    private void SpawnEnemies()
+    {
+        GameObject prefab = ResolveEnemyPrefab();
+        if (prefab == null)
+        {
+            Debug.LogError("[MapScenarioBootstrap] Enemy prefab is missing.");
+            return;
+        }
+
+        for (int i = 0; i < enemySpawnCells.Count; i++)
+        {
+            if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell))
+            {
+                continue;
+            }
+
+            GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
+            enemy.name = $"Enemy_{i + 1}";
+            ConfigureEnemy(enemy);
+            enemies.Add(enemy);
+        }
+    }
+
+    private void ConfigureEnemy(GameObject enemy)
+    {
+        TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
+        if (tankMover != null && tankMover.movementData == null)
+        {
+            tankMover.movementData = ResolveEnemyMovementData();
+        }
+
+        AddPlayerBlocker(enemy);
+        AddGridEnemyAgent(enemy);
+
+        if (disableLegacyEnemyAI)
+        {
+            DefaultEnemyAI[] aiComponents = enemy.GetComponentsInChildren<DefaultEnemyAI>(true);
+            for (int i = 0; i < aiComponents.Length; i++)
+            {
+                aiComponents[i].enabled = false;
+            }
+        }
+
+        AIDetector detector = enemy.GetComponentInChildren<AIDetector>(true);
+        if (detector != null && eagleBase != null)
+        {
+            detector.Target = eagleBase.transform;
+        }
+    }
+
+    private void AddGridEnemyAgent(GameObject enemy)
+    {
+        TankController tankController = enemy.GetComponentInChildren<TankController>();
+        if (tankController == null || eagleBase == null)
+        {
+            return;
+        }
+
+        GridEnemyAgent agent = enemy.AddComponent<GridEnemyAgent>();
+        agent.mapLoader = mapLoader;
+        agent.navMask = navMask;
+        agent.tankClearanceRadius = tankClearanceRadius;
+        agent.enableSmoothing = agentEnableSmoothing;
+        agent.eagleTarget = eagleBase.transform;
+        agent.playerTarget = GameObject.Find("Player")?.transform;
+        agent.tankController = tankController;
+        agent.replanInterval = enemyReplanInterval;
+        agent.eagleShootingRange = enemyEagleShootingRange;
+        agent.playerShootingRange = enemyPlayerShootingRange;
+        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Player", "Hittable", WallLayerName, LegacyMovementObstacleLayerName);
+        agent.obstacleContactMask = obstacleContactMask.value != 0
+            ? obstacleContactMask
+            : BuildObstacleContactMask();
+        agent.scuffTimeout = scuffTimeout;
+    }
+
+    private void AddPlayerBlocker(GameObject enemy)
+    {
+        TankController tankController = enemy.GetComponentInChildren<TankController>();
+        if (tankController == null)
+        {
+            return;
+        }
+
+        GameObject blocker = new GameObject("PlayerBlocker");
+        blocker.layer = ResolveLayer(AgentBlockerLayerName, LegacyMovementObstacleLayerName);
+        blocker.transform.SetParent(tankController.transform, false);
+
+        CapsuleCollider2D sourceCollider = tankController.GetComponent<CapsuleCollider2D>();
+        CapsuleCollider2D blockerCollider = blocker.AddComponent<CapsuleCollider2D>();
+        if (sourceCollider != null)
+        {
+            blockerCollider.size = sourceCollider.size;
+            blockerCollider.offset = sourceCollider.offset;
+            blockerCollider.direction = sourceCollider.direction;
+        }
+    }
+
+    private int ResolveLayer(string layerName, string fallbackLayerName)
+    {
+        int layer = LayerMask.NameToLayer(layerName);
+        return layer >= 0 ? layer : LayerMask.NameToLayer(fallbackLayerName);
+    }
+
+    private LayerMask BuildObstacleContactMask()
+    {
+        int wallLayer = LayerMask.NameToLayer(WallLayerName);
+        if (wallLayer >= 0)
+        {
+            return 1 << wallLayer;
+        }
+
+        return LayerMask.GetMask(LegacyMovementObstacleLayerName);
+    }
+
+    private void ClearScenario()
+    {
+        enemies.Clear();
+        Transform existingRoot = transform.Find("ScenarioRuntime");
+        if (existingRoot == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(existingRoot.gameObject);
+        }
+        else
+        {
+            DestroyImmediate(existingRoot.gameObject);
+        }
+    }
+
+    private Sprite CreateWhiteSprite()
+    {
+        Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply(false, true);
+        return Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1f);
+    }
+
+    private GameObject ResolveEnemyPrefab()
+    {
+        if (enemyPrefab != null)
+        {
+            return enemyPrefab;
+        }
+
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
+#else
+        return null;
+#endif
+    }
+
+    private TankMovementData ResolveEnemyMovementData()
+    {
+        if (enemyMovementData != null)
+        {
+            return enemyMovementData;
+        }
+
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
+#else
+        return null;
+#endif
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (mapLoader == null || navMask == null)
+        {
+            return;
+        }
+
+        float tile = mapLoader.tileSize;
+        Vector3 halfExtents = Vector3.one * tile * 0.35f;
+        Vector3 cellCubeSize = new Vector3(tile, tile, 0.01f) * 0.9f;
+
+        for (int y = 0; y < mapLoader.Height; y++)
+        {
+            for (int x = 0; x < mapLoader.Width; x++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                bool walkable = navMask.IsAgentWalkable(cell);
+                Vector3 center = mapLoader.CellToWorld(cell);
+
+                // Heatmap: filled red squares colored by soft-cost tier.
+                if (drawNavMaskHeatmap && walkable)
+                {
+                    int cost = navMask.GetCellCost(cell);
+                    if (cost == navMask.SoftCostNear && cost > 0)
+                    {
+                        Gizmos.color = new Color(1f, 0f, 0f, 0.6f); // đỏ đậm
+                        Gizmos.DrawCube(center, cellCubeSize);
+                    }
+                    else if (cost == navMask.SoftCostMid && cost > 0)
+                    {
+                        Gizmos.color = new Color(1f, 0f, 0f, 0.3f); // đỏ nhạt
+                        Gizmos.DrawCube(center, cellCubeSize);
+                    }
+                    // cost == 0 → no draw.
+                }
+
+                // Inflated/blocked-cell X marker (existing visual aid).
+                if (drawAgentNavMask && !walkable)
+                {
+                    Gizmos.color = Color.red;
+                    Gizmos.DrawLine(center - halfExtents, center + halfExtents);
+                    Gizmos.DrawLine(
+                        center + new Vector3(-halfExtents.x, halfExtents.y, 0f),
+                        center + new Vector3(halfExtents.x, -halfExtents.y, 0f));
+                }
+            }
+        }
+    }
+}
