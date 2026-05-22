@@ -126,6 +126,10 @@ public class MapTankTestBootstrap : MonoBehaviour
             damagable.OnDead.RemoveListener(destroyUtil.DestroyHelper);
             damagable.OnDead.AddListener(destroyUtil.DestroyHelper);
 
+            MapGameOverController gameOverController = MapGameOverController.Ensure();
+            damagable.OnDead.RemoveListener(gameOverController.BeginGameOver);
+            damagable.OnDead.AddListener(gameOverController.BeginGameOver);
+
             if (showPlayerHealthBar)
             {
                 Slider healthBar = EnsurePlayerHealthBar();

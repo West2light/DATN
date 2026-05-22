@@ -185,6 +185,9 @@ public class MapScenarioBootstrap : MonoBehaviour
         DestroyUtil destroyUtil = eagle.AddComponent<DestroyUtil>();
         damagable.OnDead.AddListener(destroyUtil.DestroyHelper);
 
+        MapGameOverController gameOverController = MapGameOverController.Ensure();
+        damagable.OnDead.AddListener(gameOverController.BeginGameOver);
+
         Slider healthBar = EnsureEagleHealthBar();
         if (healthBar != null)
         {
