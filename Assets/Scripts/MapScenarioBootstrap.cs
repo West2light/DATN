@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -71,6 +72,8 @@ public class MapScenarioBootstrap : MonoBehaviour
     private Transform scenarioRoot;
     private GameObject eagleBase;
     private GridNavMask navMask;
+    private int enemiesAlive;
+    private Text enemyCountText;
     private readonly List<GameObject> enemies = new List<GameObject>();
 
     public GameObject EagleBase => eagleBase;
@@ -178,7 +181,98 @@ public class MapScenarioBootstrap : MonoBehaviour
 
         DestroyUtil destroyUtil = eagle.AddComponent<DestroyUtil>();
         damagable.OnDead.AddListener(destroyUtil.DestroyHelper);
+
+        Slider healthBar = EnsureEagleHealthBar();
+        if (healthBar != null)
+        {
+            healthBar.value = 1f;
+            damagable.OnHealthChange.AddListener(healthBar.SetValueWithoutNotify);
+        }
+
         return eagle;
+    }
+
+    private Slider EnsureEagleHealthBar()
+    {
+        GameObject existingCanvas = GameObject.Find("EagleHealthHud");
+        Transform existing = existingCanvas != null ? existingCanvas.transform.Find("HealthBar") : null;
+        if (existing != null && existing.TryGetComponent(out Slider existingSlider))
+        {
+            return existingSlider;
+        }
+
+        GameObject canvasObject = new GameObject("EagleHealthHud");
+        canvasObject.layer = LayerMask.NameToLayer("UI");
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingLayerName = "UI";
+        canvas.sortingOrder = 20;
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = 0.8f;
+
+        RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+        canvasRect.localScale = Vector3.one;
+        canvasRect.sizeDelta = Vector2.zero;
+
+        GameObject labelObject = new GameObject("BaseLabel");
+        labelObject.layer = LayerMask.NameToLayer("UI");
+        labelObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform labelRect = labelObject.AddComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMax = new Vector2(0f, 1f);
+        labelRect.pivot = new Vector2(0f, 1f);
+        labelRect.anchoredPosition = new Vector2(24f, -48f);
+        labelRect.sizeDelta = new Vector2(46f, 18f);
+
+        Text label = labelObject.AddComponent<Text>();
+        label.text = "BASE";
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 14;
+        label.alignment = TextAnchor.MiddleLeft;
+        label.color = Color.white;
+
+        GameObject healthBarObject = new GameObject("HealthBar");
+        healthBarObject.layer = LayerMask.NameToLayer("UI");
+        healthBarObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform healthBarRect = healthBarObject.AddComponent<RectTransform>();
+        healthBarRect.anchorMin = new Vector2(0f, 1f);
+        healthBarRect.anchorMax = new Vector2(0f, 1f);
+        healthBarRect.pivot = new Vector2(0f, 1f);
+        healthBarRect.anchoredPosition = new Vector2(76f, -48f);
+        healthBarRect.sizeDelta = new Vector2(120f, 18f);
+
+        Image background = healthBarObject.AddComponent<Image>();
+        background.color = Color.black;
+
+        Slider slider = healthBarObject.AddComponent<Slider>();
+        slider.interactable = false;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.value = 1f;
+        slider.targetGraphic = background;
+
+        GameObject fillObject = new GameObject("HealthFill");
+        fillObject.layer = LayerMask.NameToLayer("UI");
+        fillObject.transform.SetParent(healthBarObject.transform, false);
+
+        RectTransform fillRect = fillObject.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.pivot = new Vector2(0.5f, 0.5f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        Image fill = fillObject.AddComponent<Image>();
+        fill.color = Color.yellow;
+        slider.fillRect = fillRect;
+
+        return slider;
     }
 
     private void SpawnEnemies()
@@ -189,6 +283,9 @@ public class MapScenarioBootstrap : MonoBehaviour
             Debug.LogError("[MapScenarioBootstrap] Enemy prefab is missing.");
             return;
         }
+
+        enemiesAlive = 0;
+        enemyCountText = EnsureEnemyCountText();
 
         for (int i = 0; i < enemySpawnCells.Count; i++)
         {
@@ -201,7 +298,10 @@ public class MapScenarioBootstrap : MonoBehaviour
             enemy.name = $"Enemy_{i + 1}";
             ConfigureEnemy(enemy);
             enemies.Add(enemy);
+            enemiesAlive++;
         }
+
+        UpdateEnemyCountText();
     }
 
     private void ConfigureEnemy(GameObject enemy)
@@ -214,6 +314,7 @@ public class MapScenarioBootstrap : MonoBehaviour
 
         AddPlayerBlocker(enemy);
         AddGridEnemyAgent(enemy);
+        TrackEnemyDeath(enemy);
 
         if (disableLegacyEnemyAI)
         {
@@ -228,6 +329,76 @@ public class MapScenarioBootstrap : MonoBehaviour
         if (detector != null && eagleBase != null)
         {
             detector.Target = eagleBase.transform;
+        }
+    }
+
+    private void TrackEnemyDeath(GameObject enemy)
+    {
+        Damagable damagable = enemy.GetComponentInChildren<Damagable>();
+        if (damagable == null) return;
+
+        damagable.OnDead.RemoveListener(OnEnemyDead);
+        damagable.OnDead.AddListener(OnEnemyDead);
+    }
+
+    private void OnEnemyDead()
+    {
+        enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
+        UpdateEnemyCountText();
+    }
+
+    private Text EnsureEnemyCountText()
+    {
+        GameObject existingCanvas = GameObject.Find("EnemyCountHud");
+        Transform existing = existingCanvas != null ? existingCanvas.transform.Find("EnemyCountText") : null;
+        if (existing != null && existing.TryGetComponent(out Text existingText))
+        {
+            return existingText;
+        }
+
+        GameObject canvasObject = new GameObject("EnemyCountHud");
+        canvasObject.layer = LayerMask.NameToLayer("UI");
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingLayerName = "UI";
+        canvas.sortingOrder = 20;
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = 0.8f;
+
+        GameObject textObject = new GameObject("EnemyCountText");
+        textObject.layer = LayerMask.NameToLayer("UI");
+        textObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform textRect = textObject.AddComponent<RectTransform>();
+        textRect.anchorMin = new Vector2(0f, 1f);
+        textRect.anchorMax = new Vector2(0f, 1f);
+        textRect.pivot = new Vector2(0f, 1f);
+        textRect.anchoredPosition = new Vector2(24f, -72f);
+        textRect.sizeDelta = new Vector2(172f, 18f);
+
+        Text text = textObject.AddComponent<Text>();
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = 14;
+        text.alignment = TextAnchor.MiddleLeft;
+        text.color = Color.white;
+
+        return text;
+    }
+
+    private void UpdateEnemyCountText()
+    {
+        if (enemyCountText == null)
+        {
+            enemyCountText = EnsureEnemyCountText();
+        }
+
+        if (enemyCountText != null)
+        {
+            enemyCountText.text = $"ENEMY: {enemiesAlive}";
         }
     }
 

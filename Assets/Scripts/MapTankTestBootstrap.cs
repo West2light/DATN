@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -15,6 +16,11 @@ public class MapTankTestBootstrap : MonoBehaviour
     [Range(0.5f, 3f)]
     [Tooltip("Hệ số phóng to tank người chơi so với 1 ô map")]
     public float playerScale = 1.3f;
+    [Min(1)]
+    [Tooltip("Máu player trong các scene MapF, khớp với Lvl1.")]
+    public int playerMaxHealth = 20;
+    [Tooltip("Hiện thanh máu player ở HUD góc trái trong các scene MapF.")]
+    public bool showPlayerHealthBar = true;
     public Camera mainCamera;
 
     [Range(0.3f, 1f)]
@@ -104,6 +110,116 @@ public class MapTankTestBootstrap : MonoBehaviour
         {
             tankMover.movementData = ResolveMovementData();
         }
+
+        Damagable damagable = tank.GetComponentInChildren<Damagable>();
+        if (damagable != null)
+        {
+            damagable.MaxHealth = playerMaxHealth;
+            damagable.Health = playerMaxHealth;
+
+            DestroyUtil destroyUtil = tank.GetComponent<DestroyUtil>();
+            if (destroyUtil == null)
+            {
+                destroyUtil = tank.AddComponent<DestroyUtil>();
+            }
+
+            damagable.OnDead.RemoveListener(destroyUtil.DestroyHelper);
+            damagable.OnDead.AddListener(destroyUtil.DestroyHelper);
+
+            if (showPlayerHealthBar)
+            {
+                Slider healthBar = EnsurePlayerHealthBar();
+                if (healthBar != null)
+                {
+                    healthBar.value = 1f;
+                    damagable.OnHealthChange.RemoveListener(healthBar.SetValueWithoutNotify);
+                    damagable.OnHealthChange.AddListener(healthBar.SetValueWithoutNotify);
+                }
+            }
+        }
+    }
+
+    private Slider EnsurePlayerHealthBar()
+    {
+        GameObject existingCanvas = GameObject.Find("PlayerHealthHud");
+        Transform existing = existingCanvas != null ? existingCanvas.transform.Find("HealthBar") : null;
+        if (existing != null && existing.TryGetComponent(out Slider existingSlider))
+        {
+            return existingSlider;
+        }
+
+        GameObject canvasObject = new GameObject("PlayerHealthHud");
+        canvasObject.layer = LayerMask.NameToLayer("UI");
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingLayerName = "UI";
+        canvas.sortingOrder = 20;
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = 0.8f;
+
+        RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+        canvasRect.localScale = Vector3.one;
+        canvasRect.sizeDelta = Vector2.zero;
+
+        GameObject labelObject = new GameObject("HpLabel");
+        labelObject.layer = LayerMask.NameToLayer("UI");
+        labelObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform labelRect = labelObject.AddComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMax = new Vector2(0f, 1f);
+        labelRect.pivot = new Vector2(0f, 1f);
+        labelRect.anchoredPosition = new Vector2(24f, -24f);
+        labelRect.sizeDelta = new Vector2(46f, 18f);
+
+        Text label = labelObject.AddComponent<Text>();
+        label.text = "HP";
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 14;
+        label.alignment = TextAnchor.MiddleLeft;
+        label.color = Color.white;
+
+        GameObject healthBarObject = new GameObject("HealthBar");
+        healthBarObject.layer = LayerMask.NameToLayer("UI");
+        healthBarObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform healthBarRect = healthBarObject.AddComponent<RectTransform>();
+        healthBarRect.anchorMin = new Vector2(0f, 1f);
+        healthBarRect.anchorMax = new Vector2(0f, 1f);
+        healthBarRect.pivot = new Vector2(0f, 1f);
+        healthBarRect.anchoredPosition = new Vector2(76f, -24f);
+        healthBarRect.sizeDelta = new Vector2(120f, 18f);
+
+        Image background = healthBarObject.AddComponent<Image>();
+        background.color = Color.black;
+
+        Slider slider = healthBarObject.AddComponent<Slider>();
+        slider.interactable = false;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.value = 1f;
+        slider.targetGraphic = background;
+
+        GameObject fillObject = new GameObject("HealthFill");
+        fillObject.layer = LayerMask.NameToLayer("UI");
+        fillObject.transform.SetParent(healthBarObject.transform, false);
+
+        RectTransform fillRect = fillObject.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.pivot = new Vector2(0.5f, 0.5f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        Image fill = fillObject.AddComponent<Image>();
+        fill.color = Color.red;
+        slider.fillRect = fillRect;
+
+        return slider;
     }
 
     private void WirePlayerInput(GameObject tank)
