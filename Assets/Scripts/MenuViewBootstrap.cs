@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class MenuViewBootstrap : MonoBehaviour
 {
@@ -120,14 +123,36 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private void ConfigureButtons()
     {
-        ConfigureButton("ContinueBtn", new Vector2(0f, 28f), "CONTINUE");
+        ConfigureButton("ContinueBtn", new Vector2(0f, 28f), "EXIT");
         ConfigureButton("StartBtn", new Vector2(0f, -82f), "START");
-        ConfigureContinueButtonAction();
+        ConfigureExitButtonAction();
+        ConfigureStartButtonAction();
     }
 
-    private void ConfigureContinueButtonAction()
+    private void ConfigureExitButtonAction()
     {
         GameObject buttonObject = GameObject.Find("ContinueBtn");
+        if (buttonObject == null || !buttonObject.TryGetComponent(out Button button))
+        {
+            return;
+        }
+
+        button.onClick = new Button.ButtonClickedEvent();
+        button.onClick.AddListener(ExitGame);
+    }
+
+    private void ExitGame()
+    {
+#if UNITY_EDITOR
+        EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    private void ConfigureStartButtonAction()
+    {
+        GameObject buttonObject = GameObject.Find("StartBtn");
         if (buttonObject == null || !buttonObject.TryGetComponent(out Button button))
         {
             return;
