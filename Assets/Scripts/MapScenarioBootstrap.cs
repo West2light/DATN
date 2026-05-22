@@ -20,6 +20,9 @@ public class MapScenarioBootstrap : MonoBehaviour
     public Sprite eagleSprite;
     public Color eagleColor = Color.white;
     public Vector2 eagleColliderSize = new Vector2(1.3f, 1.3f);
+    public bool spawnEagleNearPlayer = true;
+    [Min(1)] public int eagleMinPlayerDistanceCells = 3;
+    [Min(1)] public int eagleMaxPlayerDistanceCells = 7;
 
     [Header("Enemies")]
     public GameObject enemyPrefab;
@@ -150,7 +153,7 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private GameObject SpawnEagleBase()
     {
-        if (!mapLoader.TryFindWalkableNear(eagleCell, out Vector2Int spawnCell))
+        if (!TryResolveEagleSpawnCell(out Vector2Int spawnCell))
         {
             Debug.LogError("[MapScenarioBootstrap] Could not find a walkable Eagle spawn cell.");
             return null;
@@ -190,6 +193,53 @@ public class MapScenarioBootstrap : MonoBehaviour
         }
 
         return eagle;
+    }
+
+    private bool TryResolveEagleSpawnCell(out Vector2Int spawnCell)
+    {
+        if (spawnEagleNearPlayer)
+        {
+            Transform player = GameObject.Find("Player")?.transform;
+            if (player != null && TryFindRandomWalkableNearPlayer(player, out spawnCell))
+            {
+                return true;
+            }
+        }
+
+        return mapLoader.TryFindWalkableNear(eagleCell, out spawnCell);
+    }
+
+    private bool TryFindRandomWalkableNearPlayer(Transform player, out Vector2Int spawnCell)
+    {
+        Vector2Int playerCell = mapLoader.WorldToCell(player.position);
+        int minDistance = Mathf.Max(1, eagleMinPlayerDistanceCells);
+        int maxDistance = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
+        int minDistanceSqr = minDistance * minDistance;
+        int maxDistanceSqr = maxDistance * maxDistance;
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int y = playerCell.y - maxDistance; y <= playerCell.y + maxDistance; y++)
+        {
+            for (int x = playerCell.x - maxDistance; x <= playerCell.x + maxDistance; x++)
+            {
+                Vector2Int candidate = new Vector2Int(x, y);
+                Vector2Int delta = candidate - playerCell;
+                int distanceSqr = delta.sqrMagnitude;
+                if (distanceSqr < minDistanceSqr || distanceSqr > maxDistanceSqr) continue;
+                if (!mapLoader.IsWalkable(candidate)) continue;
+
+                candidates.Add(candidate);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            spawnCell = default;
+            return false;
+        }
+
+        spawnCell = candidates[Random.Range(0, candidates.Count)];
+        return true;
     }
 
     private Slider EnsureEagleHealthBar()
