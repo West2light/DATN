@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -40,6 +41,9 @@ public class MapScenarioBootstrap : MonoBehaviour
     public float enemyReplanInterval = 0.75f;
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
+    public bool loadNextMapWhenAllEnemiesDead = true;
+    public string nextMapSceneName = "MapF_TankTest_LNS2";
+    [Min(0f)] public float nextMapLoadDelay = 1f;
 
     [Header("Phase v4.2: Physical hard inflate (preferred)")]
     [Tooltip("Radius (world units) of the circle used by Physics2D.OverlapCircle to "
@@ -77,6 +81,7 @@ public class MapScenarioBootstrap : MonoBehaviour
     private GridNavMask navMask;
     private int enemiesAlive;
     private Text enemyCountText;
+    private bool nextMapLoading;
     private readonly List<GameObject> enemies = new List<GameObject>();
 
     public GameObject EagleBase => eagleBase;
@@ -398,6 +403,17 @@ public class MapScenarioBootstrap : MonoBehaviour
     {
         enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
         UpdateEnemyCountText();
+
+        if (loadNextMapWhenAllEnemiesDead && enemiesAlive == 0 && !nextMapLoading)
+        {
+            nextMapLoading = true;
+            Invoke(nameof(LoadNextMap), nextMapLoadDelay);
+        }
+    }
+
+    private void LoadNextMap()
+    {
+        SceneManager.LoadScene(nextMapSceneName);
     }
 
     private Text EnsureEnemyCountText()
