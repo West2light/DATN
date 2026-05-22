@@ -18,6 +18,9 @@ public class Turret : MonoBehaviour
     [SerializeField]
     private int bulletPoolCount = 10;
 
+    // Gốc xe tăng sở hữu tháp pháo này — đạn bắn ra sẽ bỏ qua mọi collider của nó.
+    private Transform tankRoot;
+
     public UnityEvent OnShoot, OnCantShoot;
     public UnityEvent<float> OnReloading;
 
@@ -25,6 +28,9 @@ public class Turret : MonoBehaviour
     {
         tankColliders = GetComponentsInParent<Collider2D>();
         bulletPool = GetComponent<ObjectPool>();
+
+        TankController tankController = GetComponentInParent<TankController>();
+        tankRoot = tankController != null ? tankController.transform : transform.root;
     }
 
     private void Start()
@@ -58,7 +64,7 @@ public class Turret : MonoBehaviour
                 GameObject bullet = bulletPool.CreateObject();
                 bullet.transform.position = barrel.position;
                 bullet.transform.localRotation = barrel.rotation;
-                bullet.GetComponent<Bullet>().Initialize(turretData.bulletData);
+                bullet.GetComponent<Bullet>().Initialize(turretData.bulletData, tankRoot);
 
                 foreach (var collider in tankColliders)
                 {
