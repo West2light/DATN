@@ -57,6 +57,14 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void SpawnScenario()
     {
+        MapScenarioBootstrapLNS2 lns2Bootstrap = GetComponent<MapScenarioBootstrapLNS2>();
+        if (lns2Bootstrap != null)
+        {
+            lns2Bootstrap.mapLoader = mapLoader;
+            lns2Bootstrap.SpawnScenario();
+            return;
+        }
+
         MapScenarioBootstrap scenarioBootstrap = GetComponent<MapScenarioBootstrap>();
         if (scenarioBootstrap != null)
         {

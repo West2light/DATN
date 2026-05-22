@@ -1,0 +1,267 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+/// <summary>
+/// Bản sao MapScenarioBootstrap dùng GridEnemyAgentLNS2 thay GridEnemyAgent.
+///
+/// Thay đổi so với MapScenarioBootstrap:
+///  - AddGridEnemyAgentLNS2: dùng GridEnemyAgentLNS2 + frankWolfeMs
+///  - Không dùng GridNavMask (LNS2 tự build neighbor list)
+///  - Bỏ inflate/soft-cost fields (thesis: compare A* vs LNS2 thuần)
+///
+/// Dùng cho scene MapF_TankTest_LNS2.
+/// Gắn component này cùng chỗ với MapLoader trên cùng một GameObject.
+/// </summary>
+public class MapScenarioBootstrapLNS2 : MonoBehaviour
+{
+    private const string WallLayerName                    = "Walls";
+    private const string AgentBlockerLayerName            = "AgentBlocker";
+    private const string LegacyMovementObstacleLayerName  = "ObstaclesMovement";
+
+    public MapLoader mapLoader;
+
+    [Header("Eagle Base")]
+    public Vector2Int eagleCell        = new Vector2Int(16, 16);
+    public int        eagleHealth      = 500;
+    public Sprite     eagleSprite;
+    public Color      eagleColor       = Color.white;
+    public Vector2    eagleColliderSize = new Vector2(1.3f, 1.3f);
+
+    [Header("Enemies")]
+    public GameObject      enemyPrefab;
+    public string          enemyPrefabPath     = "Assets/Prefabs/StaticEnemy.prefab";
+    public TankMovementData enemyMovementData;
+    public string          enemyMovementDataPath = "Assets/Data/TankData/EnemyTankMovementData.asset";
+    public List<Vector2Int> enemySpawnCells = new List<Vector2Int>
+    {
+        new Vector2Int(30,  1),
+        new Vector2Int( 1, 30),
+        new Vector2Int(30, 30),
+        new Vector2Int(16,  1)
+    };
+    public bool  disableLegacyEnemyAI   = true;
+    public float enemyReplanInterval    = 0.75f;
+    public float enemyEagleShootingRange  = 5f;
+    public float enemyPlayerShootingRange = 7f;
+
+    [Header("LNS2")]
+    [Tooltip("Time budget (ms) cho Frank-Wolfe iterations mỗi lần replan.")]
+    [Min(1f)] public float frankWolfeMs = 15f;
+
+    [Header("Stuck recovery")]
+    [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
+    [SerializeField] private LayerMask obstacleContactMask;
+
+    private Transform scenarioRoot;
+    private GameObject eagleBase;
+    private readonly List<GameObject> enemies = new List<GameObject>();
+
+    public GameObject              EagleBase => eagleBase;
+    public IReadOnlyList<GameObject> Enemies => enemies;
+
+    // ── Entry point ────────────────────────────────────────────────────────
+
+    [ContextMenu("Spawn Scenario Now")]
+    public void SpawnScenario()
+    {
+        ResolveReferences();
+        if (mapLoader == null || mapLoader.BuildWidth <= 0 || mapLoader.BuildHeight <= 0)
+        {
+            Debug.LogError("[MapScenarioBootstrapLNS2] Map must be loaded before spawning scenario.");
+            return;
+        }
+
+        // Reset LNS2Planner khi spawn lại để tránh stale agent IDs
+        // (LNS2Planner.Init sẽ tự clear nếu cùng MapLoader instance)
+        LNS2Planner.Init(mapLoader);
+
+        ClearScenario();
+        scenarioRoot = new GameObject("ScenarioRuntime_LNS2").transform;
+        scenarioRoot.SetParent(transform, false);
+
+        eagleBase = SpawnEagleBase();
+        SpawnEnemies();
+    }
+
+    // ── Eagle ──────────────────────────────────────────────────────────────
+
+    private GameObject SpawnEagleBase()
+    {
+        if (!mapLoader.TryFindWalkableNear(eagleCell, out Vector2Int spawnCell))
+        {
+            Debug.LogError("[MapScenarioBootstrapLNS2] Could not find walkable Eagle spawn cell.");
+            return null;
+        }
+
+        GameObject eagle = new GameObject("EagleBase");
+        eagle.layer = LayerMask.NameToLayer("Hittable");
+        eagle.transform.SetParent(scenarioRoot, false);
+        eagle.transform.position = mapLoader.CellToWorld(spawnCell);
+
+        SpriteRenderer sr = eagle.AddComponent<SpriteRenderer>();
+        sr.sprite           = eagleSprite != null ? eagleSprite : CreateWhiteSprite();
+        sr.color            = eagleColor;
+        sr.sortingLayerName = "Eagle";
+        sr.sortingOrder     = 10;
+
+        BoxCollider2D col = eagle.AddComponent<BoxCollider2D>();
+        col.isTrigger = true;
+        col.size      = eagleColliderSize;
+
+        Damagable dmg = eagle.AddComponent<Damagable>();
+        dmg.OnDead        = new UnityEvent();
+        dmg.OnHealthChange = new UnityEvent<float>();
+        dmg.OnHit         = new UnityEvent();
+        dmg.OnHeal        = new UnityEvent();
+        dmg.MaxHealth = eagleHealth;
+        dmg.Health    = eagleHealth;
+
+        DestroyUtil du = eagle.AddComponent<DestroyUtil>();
+        dmg.OnDead.AddListener(du.DestroyHelper);
+        return eagle;
+    }
+
+    // ── Enemies ────────────────────────────────────────────────────────────
+
+    private void SpawnEnemies()
+    {
+        GameObject prefab = ResolveEnemyPrefab();
+        if (prefab == null)
+        {
+            Debug.LogError("[MapScenarioBootstrapLNS2] Enemy prefab is missing.");
+            return;
+        }
+
+        for (int i = 0; i < enemySpawnCells.Count; i++)
+        {
+            if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell)) continue;
+
+            GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
+            enemy.name = $"EnemyLNS2_{i + 1}";
+            ConfigureEnemy(enemy);
+            enemies.Add(enemy);
+        }
+    }
+
+    private void ConfigureEnemy(GameObject enemy)
+    {
+        TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
+        if (tankMover != null && tankMover.movementData == null)
+            tankMover.movementData = ResolveEnemyMovementData();
+
+        AddPlayerBlocker(enemy);
+        AddGridEnemyAgentLNS2(enemy);
+
+        if (disableLegacyEnemyAI)
+        {
+            foreach (DefaultEnemyAI ai in enemy.GetComponentsInChildren<DefaultEnemyAI>(true))
+                ai.enabled = false;
+        }
+
+        AIDetector detector = enemy.GetComponentInChildren<AIDetector>(true);
+        if (detector != null && eagleBase != null)
+            detector.Target = eagleBase.transform;
+    }
+
+    private void AddGridEnemyAgentLNS2(GameObject enemy)
+    {
+        TankController tankController = enemy.GetComponentInChildren<TankController>();
+        if (tankController == null || eagleBase == null) return;
+
+        GridEnemyAgentLNS2 agent = enemy.AddComponent<GridEnemyAgentLNS2>();
+        agent.mapLoader          = mapLoader;
+        agent.eagleTarget        = eagleBase.transform;
+        agent.playerTarget       = GameObject.Find("Player")?.transform;
+        agent.tankController     = tankController;
+        agent.replanInterval     = enemyReplanInterval;
+        agent.frankWolfeMs       = frankWolfeMs;
+        agent.eagleShootingRange  = enemyEagleShootingRange;
+        agent.playerShootingRange = enemyPlayerShootingRange;
+        agent.lineOfSightMask    = LayerMask.GetMask("Agent", "Player", "Hittable",
+                                       WallLayerName, LegacyMovementObstacleLayerName);
+        agent.obstacleContactMask = obstacleContactMask.value != 0
+            ? obstacleContactMask
+            : BuildObstacleContactMask();
+        agent.scuffTimeout = scuffTimeout;
+    }
+
+    private void AddPlayerBlocker(GameObject enemy)
+    {
+        TankController tankController = enemy.GetComponentInChildren<TankController>();
+        if (tankController == null) return;
+
+        GameObject blocker = new GameObject("PlayerBlocker");
+        blocker.layer = ResolveLayer(AgentBlockerLayerName, LegacyMovementObstacleLayerName);
+        blocker.transform.SetParent(tankController.transform, false);
+
+        CapsuleCollider2D src     = tankController.GetComponent<CapsuleCollider2D>();
+        CapsuleCollider2D blockerCol = blocker.AddComponent<CapsuleCollider2D>();
+        if (src != null)
+        {
+            blockerCol.size      = src.size;
+            blockerCol.offset    = src.offset;
+            blockerCol.direction = src.direction;
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    private void ResolveReferences()
+    {
+        if (mapLoader == null) mapLoader = GetComponent<MapLoader>();
+        if (mapLoader == null) mapLoader = FindFirstObjectByType<MapLoader>();
+    }
+
+    private int ResolveLayer(string layerName, string fallback)
+    {
+        int layer = LayerMask.NameToLayer(layerName);
+        return layer >= 0 ? layer : LayerMask.NameToLayer(fallback);
+    }
+
+    private LayerMask BuildObstacleContactMask()
+    {
+        int wallLayer = LayerMask.NameToLayer(WallLayerName);
+        return wallLayer >= 0 ? (LayerMask)(1 << wallLayer) : LayerMask.GetMask(LegacyMovementObstacleLayerName);
+    }
+
+    private void ClearScenario()
+    {
+        enemies.Clear();
+        Transform existing = transform.Find("ScenarioRuntime_LNS2");
+        if (existing == null) return;
+        if (Application.isPlaying) Destroy(existing.gameObject);
+        else DestroyImmediate(existing.gameObject);
+    }
+
+    private Sprite CreateWhiteSprite()
+    {
+        Texture2D tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+        tex.SetPixel(0, 0, Color.white);
+        tex.Apply(false, true);
+        return Sprite.Create(tex, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1f);
+    }
+
+    private GameObject ResolveEnemyPrefab()
+    {
+        if (enemyPrefab != null) return enemyPrefab;
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
+#else
+        return null;
+#endif
+    }
+
+    private TankMovementData ResolveEnemyMovementData()
+    {
+        if (enemyMovementData != null) return enemyMovementData;
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
+#else
+        return null;
+#endif
+    }
+}
