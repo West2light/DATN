@@ -92,6 +92,8 @@ public class MapLoader : MonoBehaviour
         ComputeBuildWindow();
         BuildTiles();
         CreateMapBounds();
+
+        FitCamera();
     }
 
     public bool IsWalkable(Vector2Int cell)
@@ -152,6 +154,26 @@ public class MapLoader : MonoBehaviour
 
         result = default;
         return false;
+    }
+
+    private void FitCamera()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        float mapWidthWorld = buildWidth * tileSize;
+        float mapHeightWorld = buildHeight * tileSize;
+
+        // zoom gần hơn một chút
+        float padding = 0.85f;
+
+        float verticalSize = mapHeightWorld / 2f;
+        float horizontalSize = (mapWidthWorld / cam.aspect) / 2f;
+
+        cam.orthographicSize =
+            Mathf.Max(verticalSize, horizontalSize) * padding;
+
+        cam.transform.position = new Vector3(0, 0, -10);
     }
 
     private char[][] ReadMapFile(string filePath, out int mapWidth, out int mapHeight)

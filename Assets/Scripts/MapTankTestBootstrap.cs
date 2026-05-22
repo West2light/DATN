@@ -11,11 +11,20 @@ public class MapTankTestBootstrap : MonoBehaviour
     public TankMovementData movementData;
     public string movementDataPath = "Assets/Data/TankData/PlayerTankMovementData.asset";
     public Vector2Int playerSpawnCell = new Vector2Int(1, 1);
+
+    [Range(0.5f, 3f)]
+    [Tooltip("Hệ số phóng to tank người chơi so với 1 ô map")]
+    public float playerScale = 1.3f;
     public Camera mainCamera;
-    public float cameraOrthographicSize = 9f;
+
+    [Range(0.3f, 1f)]
+    [Tooltip("Hệ số zoom: 1 = viewport vừa khít cạnh ngắn của map, nhỏ hơn = zoom gần hơn")]
+    public float cameraZoom = 0.7f;
     public Vector3 cameraOffset = new Vector3(0f, 0f, -10f);
 
     private Transform player;
+    private float mapWidthWorld;
+    private float mapHeightWorld;
 
     private void Start()
     {
@@ -43,10 +52,7 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (player != null && mainCamera != null)
-        {
-            mainCamera.transform.position = player.position + cameraOffset;
-        }
+        UpdateCameraPosition();
     }
 
     private void SpawnScenario()
@@ -83,6 +89,8 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void ConfigureTank(GameObject tank)
     {
+        tank.transform.localScale = Vector3.one * playerScale;
+
         TankMover tankMover = tank.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)
         {
@@ -127,11 +135,44 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
 
         mainCamera.orthographic = true;
-        mainCamera.orthographicSize = cameraOrthographicSize;
-        if (player != null)
+
+        mapWidthWorld = mapLoader.BuildWidth * mapLoader.tileSize;
+        mapHeightWorld = mapLoader.BuildHeight * mapLoader.tileSize;
+
+        // Kích thước orthographic lớn nhất mà viewport vẫn nằm gọn trong map
+        // (không lộ vùng nền xanh ngoài map). cameraZoom < 1 để zoom gần hơn.
+        float maxSizeByHeight = mapHeightWorld / 2f;
+        float maxSizeByWidth = mapWidthWorld / (2f * mainCamera.aspect);
+        float fitSize = Mathf.Min(maxSizeByHeight, maxSizeByWidth);
+
+        mainCamera.orthographicSize = Mathf.Max(0.01f, fitSize * cameraZoom);
+
+        UpdateCameraPosition();
+    }
+
+    private void UpdateCameraPosition()
+    {
+        if (player == null || mainCamera == null)
         {
-            mainCamera.transform.position = player.position + cameraOffset;
+            return;
         }
+
+        Vector3 target = player.position + cameraOffset;
+
+        // Kẹp camera trong biên map để không bao giờ lộ vùng ngoài map.
+        float halfHeight = mainCamera.orthographicSize;
+        float halfWidth = halfHeight * mainCamera.aspect;
+
+        float minX = -mapWidthWorld / 2f + halfWidth;
+        float maxX = mapWidthWorld / 2f - halfWidth;
+        float minY = -mapHeightWorld / 2f + halfHeight;
+        float maxY = mapHeightWorld / 2f - halfHeight;
+
+        // Nếu viewport rộng/cao hơn map theo trục nào đó thì căn giữa trục đó.
+        target.x = minX <= maxX ? Mathf.Clamp(target.x, minX, maxX) : 0f;
+        target.y = minY <= maxY ? Mathf.Clamp(target.y, minY, maxY) : 0f;
+
+        mainCamera.transform.position = target;
     }
 
     private GameObject ResolveTankPrefab()
