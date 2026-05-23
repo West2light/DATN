@@ -243,9 +243,10 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         input.OnShoot.RemoveListener(controller.HandleShoot);
         input.OnMoveBody.RemoveListener(controller.HandleMoveBody);
+        input.OnMoveBody.RemoveListener(controller.HandleMoveWorldDirection);
         input.OnMoveTurret.RemoveListener(controller.HandleTurretMovement);
         input.OnShoot.AddListener(controller.HandleShoot);
-        input.OnMoveBody.AddListener(controller.HandleMoveBody);
+        input.useWorldMovement = true;
         input.OnMoveTurret.AddListener(controller.HandleTurretMovement);
     }
 
