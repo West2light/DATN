@@ -21,6 +21,7 @@ public static class LNS2Planner
     // ── Grid ──────────────────────────────────────────────────────────────
     private static MapLoader _ml;
     private static int _cols, _rows, _size;
+    private static int _obstacleInflateRadius;
 
     // flow[cell*4 + d] = số lượng trajectory đang dùng cạnh đó
     private static int[] _flow;
@@ -42,13 +43,17 @@ public static class LNS2Planner
 
     // ── Init ──────────────────────────────────────────────────────────────
 
-    public static void Init(MapLoader ml)
+    public static void Init(MapLoader ml) => Init(ml, 1);
+
+    public static void Init(MapLoader ml, int obstacleInflateRadius)
     {
-        if (IsReady && _ml == ml) return;
+        int inflateRadius = Mathf.Max(0, obstacleInflateRadius);
+        if (IsReady && _ml == ml && _obstacleInflateRadius == inflateRadius) return;
         _ml   = ml;
         _cols = ml.Width;
         _rows = ml.Height;
         _size = _cols * _rows;
+        _obstacleInflateRadius = inflateRadius;
         _flow = new int[_size * 4];
         BuildNbrs();
         _h.Clear();
@@ -65,18 +70,69 @@ public static class LNS2Planner
         for (int flat = 0; flat < _size; flat++)
         {
             int r = flat / _cols, c = flat % _cols;
-            if (!_ml.IsWalkable(new Vector2Int(c, r)))
+            if (!IsAgentWalkable(new Vector2Int(c, r)))
             {
                 _nbrs[flat] = Array.Empty<int>();
                 continue;
             }
             var list = new List<int>(4);
-            if (c + 1 < _cols && _ml.IsWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
-            if (r + 1 < _rows && _ml.IsWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
-            if (c - 1 >= 0    && _ml.IsWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
-            if (r - 1 >= 0    && _ml.IsWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
+            if (c + 1 < _cols && IsAgentWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
+            if (r + 1 < _rows && IsAgentWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
+            if (c - 1 >= 0    && IsAgentWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
+            if (r - 1 >= 0    && IsAgentWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
             _nbrs[flat] = list.ToArray();
         }
+    }
+
+    public static bool IsAgentWalkable(Vector2Int cell)
+    {
+        if (_ml == null || !_ml.IsWalkable(cell))
+        {
+            return false;
+        }
+
+        for (int y = cell.y - _obstacleInflateRadius; y <= cell.y + _obstacleInflateRadius; y++)
+        {
+            for (int x = cell.x - _obstacleInflateRadius; x <= cell.x + _obstacleInflateRadius; x++)
+            {
+                Vector2Int candidate = new Vector2Int(x, y);
+                if (!_ml.IsInside(candidate) || !_ml.IsWalkable(candidate))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public static bool TryFindAgentWalkableNear(Vector2Int preferredCell, out Vector2Int result)
+    {
+        if (IsAgentWalkable(preferredCell))
+        {
+            result = preferredCell;
+            return true;
+        }
+
+        int maxRadius = Mathf.Max(_cols, _rows);
+        for (int radius = 1; radius <= maxRadius; radius++)
+        {
+            for (int y = preferredCell.y - radius; y <= preferredCell.y + radius; y++)
+            {
+                for (int x = preferredCell.x - radius; x <= preferredCell.x + radius; x++)
+                {
+                    Vector2Int candidate = new Vector2Int(x, y);
+                    if (IsAgentWalkable(candidate))
+                    {
+                        result = candidate;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        result = default;
+        return false;
     }
 
     // ── Registration ──────────────────────────────────────────────────────
