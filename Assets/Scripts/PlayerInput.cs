@@ -8,6 +8,9 @@ public class PlayerInput : MonoBehaviour
 {
     [SerializeField]
     private Camera mainCamera;
+    [Tooltip("Diep.io style: WASD moves directly in world/screen directions; mouse only aims turret.")]
+    public bool useWorldMovement = true;
+    private TankController tankController;
 
     public UnityEvent OnShoot = new UnityEvent();
     public UnityEvent<Vector2> OnMoveBody = new UnityEvent<Vector2>();
@@ -17,6 +20,7 @@ public class PlayerInput : MonoBehaviour
     {
         if (mainCamera == null)
             mainCamera = Camera.main;
+        tankController = GetComponent<TankController>();
     }
 
     // Update is called once per frame
@@ -51,6 +55,22 @@ public class PlayerInput : MonoBehaviour
     private void GetBodyMovement()
     {
         Vector2 movementVector = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-        OnMoveBody?.Invoke(movementVector.normalized);
+        movementVector = movementVector.normalized;
+
+        if (useWorldMovement)
+        {
+            if (tankController == null)
+            {
+                tankController = GetComponent<TankController>();
+            }
+
+            if (tankController != null)
+            {
+                tankController.HandleMoveWorldDirection(movementVector);
+                return;
+            }
+        }
+
+        OnMoveBody?.Invoke(movementVector);
     }
 }

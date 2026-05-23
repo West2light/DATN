@@ -19,27 +19,27 @@ using UnityEditor;
 /// </summary>
 public class MapScenarioBootstrapLNS2 : MonoBehaviour
 {
-    private const string WallLayerName                    = "Walls";
-    private const string AgentBlockerLayerName            = "AgentBlocker";
-    private const string LegacyMovementObstacleLayerName  = "ObstaclesMovement";
+    private const string WallLayerName = "Walls";
+    private const string AgentBlockerLayerName = "AgentBlocker";
+    private const string LegacyMovementObstacleLayerName = "ObstaclesMovement";
 
     public MapLoader mapLoader;
 
     [Header("Eagle Base")]
-    public Vector2Int eagleCell        = new Vector2Int(16, 16);
-    public int        eagleHealth      = 500;
-    public Sprite     eagleSprite;
-    public Color      eagleColor       = Color.white;
-    public Vector2    eagleColliderSize = new Vector2(1.3f, 1.3f);
-    public bool       spawnEagleNearPlayer = true;
+    public Vector2Int eagleCell = new Vector2Int(16, 16);
+    public int eagleHealth = 500;
+    public Sprite eagleSprite;
+    public Color eagleColor = Color.white;
+    public Vector2 eagleColliderSize = new Vector2(1.3f, 1.3f);
+    public bool spawnEagleNearPlayer = true;
     [Min(1)] public int eagleMinPlayerDistanceCells = 3;
     [Min(1)] public int eagleMaxPlayerDistanceCells = 7;
 
     [Header("Enemies")]
-    public GameObject      enemyPrefab;
-    public string          enemyPrefabPath     = "Assets/Prefabs/StaticEnemy.prefab";
+    public GameObject enemyPrefab;
+    public string enemyPrefabPath = "Assets/Prefabs/StaticEnemy.prefab";
     public TankMovementData enemyMovementData;
-    public string          enemyMovementDataPath = "Assets/Data/TankData/EnemyTankMovementData.asset";
+    public string enemyMovementDataPath = "Assets/Data/TankData/EnemyTankMovementData.asset";
     public List<Vector2Int> enemySpawnCells = new List<Vector2Int>
     {
         new Vector2Int(30,  1),
@@ -47,9 +47,9 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         new Vector2Int(30, 30),
         new Vector2Int(16,  1)
     };
-    public bool  disableLegacyEnemyAI   = true;
-    public float enemyReplanInterval    = 0.75f;
-    public float enemyEagleShootingRange  = 5f;
+    public bool disableLegacyEnemyAI = true;
+    public float enemyReplanInterval = 0.75f;
+    public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
     [Min(1)]
     [Tooltip("Máu enemy trong scene LNS2, khớp với Lvl1.")]
@@ -58,8 +58,6 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     [Header("LNS2")]
     [Tooltip("Time budget (ms) cho Frank-Wolfe iterations mỗi lần replan.")]
     [Min(1f)] public float frankWolfeMs = 15f;
-    [Tooltip("Số ô inflate obstacle cho LNS2. 1 = enemy không đi qua ô kề thùng/tường.")]
-    [Min(0)] public int enemyObstacleInflateRadius = 1;
 
     [Header("Stuck recovery")]
     [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
@@ -71,7 +69,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     private Text enemyCountText;
     private readonly List<GameObject> enemies = new List<GameObject>();
 
-    public GameObject              EagleBase => eagleBase;
+    public GameObject EagleBase => eagleBase;
     public IReadOnlyList<GameObject> Enemies => enemies;
 
     // ── Entry point ────────────────────────────────────────────────────────
@@ -88,7 +86,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
 
         // Reset LNS2Planner khi spawn lại để tránh stale agent IDs
         // (LNS2Planner.Init sẽ tự clear nếu cùng MapLoader instance)
-        LNS2Planner.Init(mapLoader, enemyObstacleInflateRadius);
+        LNS2Planner.Init(mapLoader);
 
         ClearScenario();
         scenarioRoot = new GameObject("ScenarioRuntime_LNS2").transform;
@@ -115,27 +113,22 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         FactionMember.Ensure(eagle, Faction.Base);
 
         SpriteRenderer sr = eagle.AddComponent<SpriteRenderer>();
-        sr.sprite           = eagleSprite != null ? eagleSprite : CreateWhiteSprite();
-        sr.color            = eagleColor;
+        sr.sprite = eagleSprite != null ? eagleSprite : CreateWhiteSprite();
+        sr.color = eagleColor;
         sr.sortingLayerName = "Eagle";
-        sr.sortingOrder     = 10;
-
-        Rigidbody2D rb = eagle.AddComponent<Rigidbody2D>();
-        rb.bodyType = RigidbodyType2D.Kinematic;
-        rb.gravityScale = 0f;
-        rb.constraints = RigidbodyConstraints2D.FreezeAll;
+        sr.sortingOrder = 10;
 
         BoxCollider2D col = eagle.AddComponent<BoxCollider2D>();
-        col.isTrigger = false;
-        col.size      = eagleColliderSize;
+        col.isTrigger = true;
+        col.size = eagleColliderSize;
 
         Damagable dmg = eagle.AddComponent<Damagable>();
-        dmg.OnDead        = new UnityEvent();
+        dmg.OnDead = new UnityEvent();
         dmg.OnHealthChange = new UnityEvent<float>();
-        dmg.OnHit         = new UnityEvent();
-        dmg.OnHeal        = new UnityEvent();
+        dmg.OnHit = new UnityEvent();
+        dmg.OnHeal = new UnityEvent();
         dmg.MaxHealth = eagleHealth;
-        dmg.Health    = eagleHealth;
+        dmg.Health = eagleHealth;
 
         DestroyUtil du = eagle.AddComponent<DestroyUtil>();
         dmg.OnDead.AddListener(du.DestroyHelper);
@@ -488,16 +481,15 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         if (tankController == null || eagleBase == null) return;
 
         GridEnemyAgentLNS2 agent = enemy.AddComponent<GridEnemyAgentLNS2>();
-        agent.mapLoader          = mapLoader;
-        agent.eagleTarget        = eagleBase.transform;
-        agent.playerTarget       = GameObject.Find("Player")?.transform;
-        agent.tankController     = tankController;
-        agent.replanInterval     = enemyReplanInterval;
-        agent.frankWolfeMs       = frankWolfeMs;
-        agent.obstacleInflateRadius = enemyObstacleInflateRadius;
-        agent.eagleShootingRange  = enemyEagleShootingRange;
+        agent.mapLoader = mapLoader;
+        agent.eagleTarget = eagleBase.transform;
+        agent.playerTarget = GameObject.Find("Player")?.transform;
+        agent.tankController = tankController;
+        agent.replanInterval = enemyReplanInterval;
+        agent.frankWolfeMs = frankWolfeMs;
+        agent.eagleShootingRange = enemyEagleShootingRange;
         agent.playerShootingRange = enemyPlayerShootingRange;
-        agent.lineOfSightMask    = LayerMask.GetMask("Agent", "Player", "Hittable",
+        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Player", "Hittable",
                                        WallLayerName, LegacyMovementObstacleLayerName);
         agent.obstacleContactMask = obstacleContactMask.value != 0
             ? obstacleContactMask
@@ -514,12 +506,12 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         blocker.layer = ResolveLayer(AgentBlockerLayerName, LegacyMovementObstacleLayerName);
         blocker.transform.SetParent(tankController.transform, false);
 
-        CapsuleCollider2D src     = tankController.GetComponent<CapsuleCollider2D>();
+        CapsuleCollider2D src = tankController.GetComponent<CapsuleCollider2D>();
         CapsuleCollider2D blockerCol = blocker.AddComponent<CapsuleCollider2D>();
         if (src != null)
         {
-            blockerCol.size      = src.size;
-            blockerCol.offset    = src.offset;
+            blockerCol.size = src.size;
+            blockerCol.offset = src.offset;
             blockerCol.direction = src.direction;
         }
     }
