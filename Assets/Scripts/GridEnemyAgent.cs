@@ -29,6 +29,10 @@ public class GridEnemyAgent : MonoBehaviour
     public float waypointReachDistance = 0.25f;
     public float waypointReachDistanceStraight = 0.3f;
     public float waypointReachDistanceTurning = 0.12f;
+    [Header("Obstacle corner safety")]
+    public int obstacleProximityCellRadius = 1;
+    public float obstacleWaypointReachDistance = 0.06f;
+    [Range(-1f, 1f)] public float obstacleForwardAlignmentThreshold = 0.985f;
     public float eagleShootingRange = 5f;
     public float playerShootingRange = 7f;
     public LayerMask lineOfSightMask;
@@ -216,6 +220,12 @@ public class GridEnemyAgent : MonoBehaviour
         Vector3 targetPosition = mapLoader.CellToWorld(currentPath[pathIndex]);
         Vector2 directionToTarget = targetPosition - tankController.tankMover.transform.position;
         float reachDistance = GetWaypointReachDistance();
+        bool nearObstacle = IsNearObstacleCorner();
+        if (nearObstacle)
+        {
+            reachDistance = Mathf.Min(reachDistance, obstacleWaypointReachDistance);
+        }
+
         if (directionToTarget.magnitude <= reachDistance)
         {
             pathIndex++;
@@ -228,6 +238,13 @@ public class GridEnemyAgent : MonoBehaviour
         float cross = Vector3.Cross(forward, directionToTarget.normalized).z;
         int rotation = cross >= 0f ? -1 : 1;
         lastSteeringDirection = rotation;
+        if (nearObstacle && dotProduct < obstacleForwardAlignmentThreshold)
+        {
+            ResetPartialDrive();
+            tankController.HandleMoveBody(new Vector2(rotation, 0f));
+            return;
+        }
+
         if (dotProduct >= forwardAlignmentThreshold)
         {
             ResetPartialDrive();
@@ -273,6 +290,36 @@ public class GridEnemyAgent : MonoBehaviour
         Vector2Int outgoingDirection = currentPath[pathIndex + 1] - currentPath[pathIndex];
         bool isTurnAhead = incomingDirection != outgoingDirection;
         return isTurnAhead ? waypointReachDistanceTurning : waypointReachDistanceStraight;
+    }
+
+    private bool IsNearObstacleCorner()
+    {
+        if (mapLoader == null || currentPath.Count == 0 || pathIndex >= currentPath.Count)
+        {
+            return false;
+        }
+
+        Vector2Int agentCell = mapLoader.WorldToCell(GetAgentPosition());
+        return HasBlockedNeighborWithinRadius(agentCell, obstacleProximityCellRadius)
+            || HasBlockedNeighborWithinRadius(currentPath[pathIndex], obstacleProximityCellRadius);
+    }
+
+    private bool HasBlockedNeighborWithinRadius(Vector2Int center, int radius)
+    {
+        int r = Mathf.Max(0, radius);
+        for (int y = center.y - r; y <= center.y + r; y++)
+        {
+            for (int x = center.x - r; x <= center.x + r; x++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                if (!mapLoader.IsInside(cell) || !mapLoader.IsWalkable(cell))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void UpdateProgressTracking()

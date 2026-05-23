@@ -58,6 +58,8 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     [Header("LNS2")]
     [Tooltip("Time budget (ms) cho Frank-Wolfe iterations mỗi lần replan.")]
     [Min(1f)] public float frankWolfeMs = 15f;
+    [Tooltip("Số ô inflate obstacle cho LNS2. 1 = enemy không đi qua ô kề thùng/tường.")]
+    [Min(0)] public int enemyObstacleInflateRadius = 1;
 
     [Header("Stuck recovery")]
     [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
@@ -86,7 +88,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
 
         // Reset LNS2Planner khi spawn lại để tránh stale agent IDs
         // (LNS2Planner.Init sẽ tự clear nếu cùng MapLoader instance)
-        LNS2Planner.Init(mapLoader);
+        LNS2Planner.Init(mapLoader, enemyObstacleInflateRadius);
 
         ClearScenario();
         scenarioRoot = new GameObject("ScenarioRuntime_LNS2").transform;
@@ -444,6 +446,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         agent.tankController     = tankController;
         agent.replanInterval     = enemyReplanInterval;
         agent.frankWolfeMs       = frankWolfeMs;
+        agent.obstacleInflateRadius = enemyObstacleInflateRadius;
         agent.eagleShootingRange  = enemyEagleShootingRange;
         agent.playerShootingRange = enemyPlayerShootingRange;
         agent.lineOfSightMask    = LayerMask.GetMask("Agent", "Player", "Hittable",

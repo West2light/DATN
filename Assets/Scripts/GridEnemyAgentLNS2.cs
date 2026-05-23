@@ -35,6 +35,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     [Header("LNS2")]
     [Min(1f)] public float frankWolfeMs = 15f;
+    [Min(0)] public int obstacleInflateRadius = 1;
 
     [Header("Timing")]
     public float replanInterval = 0.75f;
@@ -43,6 +44,10 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     public float waypointReachDistance    = 0.25f;
     public float waypointReachDistanceStraight = 0.3f;
     public float waypointReachDistanceTurning  = 0.12f;
+    [Header("Obstacle corner safety")]
+    public int obstacleProximityCellRadius = 1;
+    public float obstacleWaypointReachDistance = 0.06f;
+    [Range(-1f, 1f)] public float obstacleForwardAlignmentThreshold = 0.985f;
     [Range(-1f, 1f)] public float forwardAlignmentThreshold      = 0.97f;
     [Range(-1f, 1f)] public float turningDriveAlignmentThreshold = 0.85f;
     [Range(-1f, 1f)] public float partialDriveAlignmentThreshold = 0.5f;
@@ -114,7 +119,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private void EnsureLNS2Ready()
     {
-        if (!LNS2Planner.IsReady && mapLoader != null) LNS2Planner.Init(mapLoader);
+        if (mapLoader != null) LNS2Planner.Init(mapLoader, obstacleInflateRadius);
         if (LNS2Planner.IsReady && agentId < 0) agentId = LNS2Planner.Register();
     }
 
@@ -182,7 +187,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
         Vector2Int goalCell  = mapLoader.WorldToCell(eagleTarget.position);
 
-        if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs))
+        if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs, obstacleInflateRadius))
         {
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
@@ -210,6 +215,12 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         Vector3 targetPosition = mapLoader.CellToWorld(currentPath[pathIndex]);
         Vector2 directionToTarget = targetPosition - tankController.tankMover.transform.position;
         float reachDistance = GetWaypointReachDistance();
+        bool nearObstacle = IsNearObstacleCorner();
+        if (nearObstacle)
+        {
+            reachDistance = Mathf.Min(reachDistance, obstacleWaypointReachDistance);
+        }
+
         if (directionToTarget.magnitude <= reachDistance)
         {
             pathIndex++;
@@ -222,6 +233,13 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         float cross = Vector3.Cross(forward, directionToTarget.normalized).z;
         int rotation = cross >= 0f ? -1 : 1;
         lastSteeringDirection = rotation;
+
+        if (nearObstacle && dotProduct < obstacleForwardAlignmentThreshold)
+        {
+            ResetPartialDrive();
+            tankController.HandleMoveBody(new Vector2(rotation, 0f));
+            return;
+        }
 
         if (dotProduct >= forwardAlignmentThreshold)
         {
@@ -260,6 +278,36 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         Vector2Int incoming = currentPath[pathIndex]     - currentPath[pathIndex - 1];
         Vector2Int outgoing = currentPath[pathIndex + 1] - currentPath[pathIndex];
         return incoming != outgoing ? waypointReachDistanceTurning : waypointReachDistanceStraight;
+    }
+
+    private bool IsNearObstacleCorner()
+    {
+        if (mapLoader == null || currentPath.Count == 0 || pathIndex >= currentPath.Count)
+        {
+            return false;
+        }
+
+        Vector2Int agentCell = mapLoader.WorldToCell(GetAgentPosition());
+        return HasBlockedNeighborWithinRadius(agentCell, obstacleProximityCellRadius)
+            || HasBlockedNeighborWithinRadius(currentPath[pathIndex], obstacleProximityCellRadius);
+    }
+
+    private bool HasBlockedNeighborWithinRadius(Vector2Int center, int radius)
+    {
+        int r = Mathf.Max(0, radius);
+        for (int y = center.y - r; y <= center.y + r; y++)
+        {
+            for (int x = center.x - r; x <= center.x + r; x++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                if (!mapLoader.IsInside(cell) || !mapLoader.IsWalkable(cell))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // ── Progress tracking + Stuck detection (giữ nguyên) ──────────────────
