@@ -140,10 +140,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32934e8f800ad264ea34a4fc648446b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minVloume: 0.1
-  maxVolume: 0.3
-  volumeIncrease: 0.2
-  currentVolume: 0.1
+  minVloume: 0.025
+  maxVolume: 0.08
+  volumeIncrease: 0.08
+  currentVolume: 0.025
 --- !u!1 &731810238400634429
 GameObject:
   m_ObjectHideFlags: 0
@@ -424,8 +424,8 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 8300000, guid: 08caa7d63f7596447a8fd625ac7a6d7a, type: 3}
   m_PlayOnAwake: 0
-  m_Volume: 1
-  m_Pitch: 1
+  m_Volume: 0.28
+  m_Pitch: 0.9
   Loop: 0
   Mute: 0
   Spatialize: 0
