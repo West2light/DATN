@@ -489,7 +489,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         agent.frankWolfeMs = frankWolfeMs;
         agent.eagleShootingRange = enemyEagleShootingRange;
         agent.playerShootingRange = enemyPlayerShootingRange;
-        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Player", "Hittable",
+        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable",
                                        WallLayerName, LegacyMovementObstacleLayerName);
         agent.obstacleContactMask = obstacleContactMask.value != 0
             ? obstacleContactMask

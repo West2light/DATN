@@ -21,6 +21,7 @@ public static class LNS2Planner
     // ── Grid ──────────────────────────────────────────────────────────────
     private static MapLoader _ml;
     private static int _cols, _rows, _size;
+    private static int _obstacleInflateRadius;
 
     // flow[cell*4 + d] = số lượng trajectory đang dùng cạnh đó
     private static int[] _flow;
@@ -42,13 +43,17 @@ public static class LNS2Planner
 
     // ── Init ──────────────────────────────────────────────────────────────
 
-    public static void Init(MapLoader ml)
+    public static void Init(MapLoader ml) => Init(ml, 0);
+
+    public static void Init(MapLoader ml, int obstacleInflateRadius)
     {
-        if (IsReady && _ml == ml) return;
+        int inflateRadius = Mathf.Max(0, obstacleInflateRadius);
+        if (IsReady && _ml == ml && _obstacleInflateRadius == inflateRadius) return;
         _ml = ml;
         _cols = ml.Width;
         _rows = ml.Height;
         _size = _cols * _rows;
+        _obstacleInflateRadius = inflateRadius;
         _flow = new int[_size * 4];
         BuildNbrs();
         _h.Clear();
@@ -100,6 +105,28 @@ public static class LNS2Planner
     public static int ToFlat(Vector2Int c) => c.y * _cols + c.x;
 
     public static Vector2Int FromFlat(int f) => new Vector2Int(f % _cols, f / _cols);
+
+    public static bool IsAgentWalkable(Vector2Int cell)
+    {
+        if (_ml == null || !_ml.IsWalkable(cell))
+        {
+            return false;
+        }
+
+        for (int y = cell.y - _obstacleInflateRadius; y <= cell.y + _obstacleInflateRadius; y++)
+        {
+            for (int x = cell.x - _obstacleInflateRadius; x <= cell.x + _obstacleInflateRadius; x++)
+            {
+                Vector2Int candidate = new Vector2Int(x, y);
+                if (!_ml.IsInside(candidate) || !_ml.IsWalkable(candidate))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Frank-Wolfe:

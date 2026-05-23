@@ -551,7 +551,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         agent.replanInterval = enemyReplanInterval;
         agent.eagleShootingRange = enemyEagleShootingRange;
         agent.playerShootingRange = enemyPlayerShootingRange;
-        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Player", "Hittable", WallLayerName, LegacyMovementObstacleLayerName);
+        agent.lineOfSightMask = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable", WallLayerName, LegacyMovementObstacleLayerName);
         agent.obstacleContactMask = obstacleContactMask.value != 0
             ? obstacleContactMask
             : BuildObstacleContactMask();
