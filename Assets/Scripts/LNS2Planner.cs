@@ -21,7 +21,6 @@ public static class LNS2Planner
     // ── Grid ──────────────────────────────────────────────────────────────
     private static MapLoader _ml;
     private static int _cols, _rows, _size;
-    private static int _obstacleInflateRadius;
 
     // flow[cell*4 + d] = số lượng trajectory đang dùng cạnh đó
     private static int[] _flow;
@@ -35,33 +34,29 @@ public static class LNS2Planner
 
     // ── Agent state ───────────────────────────────────────────────────────
     private static int _nextId;
-    private static readonly Dictionary<int, List<int>> _trajs   = new Dictionary<int, List<int>>();
-    private static readonly Dictionary<int, int>       _goals   = new Dictionary<int, int>();
-    private static readonly Dictionary<int, int>       _currPos = new Dictionary<int, int>();
+    private static readonly Dictionary<int, List<int>> _trajs = new Dictionary<int, List<int>>();
+    private static readonly Dictionary<int, int> _goals = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> _currPos = new Dictionary<int, int>();
 
     public static bool IsReady { get; private set; }
 
     // ── Init ──────────────────────────────────────────────────────────────
 
-    public static void Init(MapLoader ml) => Init(ml, 1);
-
-    public static void Init(MapLoader ml, int obstacleInflateRadius)
+    public static void Init(MapLoader ml)
     {
-        int inflateRadius = Mathf.Max(0, obstacleInflateRadius);
-        if (IsReady && _ml == ml && _obstacleInflateRadius == inflateRadius) return;
-        _ml   = ml;
+        if (IsReady && _ml == ml) return;
+        _ml = ml;
         _cols = ml.Width;
         _rows = ml.Height;
         _size = _cols * _rows;
-        _obstacleInflateRadius = inflateRadius;
         _flow = new int[_size * 4];
         BuildNbrs();
         _h.Clear();
         _trajs.Clear();
         _goals.Clear();
         _currPos.Clear();
-        _nextId  = 0;
-        IsReady  = true;
+        _nextId = 0;
+        IsReady = true;
     }
 
     private static void BuildNbrs()
@@ -70,69 +65,18 @@ public static class LNS2Planner
         for (int flat = 0; flat < _size; flat++)
         {
             int r = flat / _cols, c = flat % _cols;
-            if (!IsAgentWalkable(new Vector2Int(c, r)))
+            if (!_ml.IsWalkable(new Vector2Int(c, r)))
             {
                 _nbrs[flat] = Array.Empty<int>();
                 continue;
             }
             var list = new List<int>(4);
-            if (c + 1 < _cols && IsAgentWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
-            if (r + 1 < _rows && IsAgentWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
-            if (c - 1 >= 0    && IsAgentWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
-            if (r - 1 >= 0    && IsAgentWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
+            if (c + 1 < _cols && _ml.IsWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
+            if (r + 1 < _rows && _ml.IsWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
+            if (c - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
+            if (r - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
             _nbrs[flat] = list.ToArray();
         }
-    }
-
-    public static bool IsAgentWalkable(Vector2Int cell)
-    {
-        if (_ml == null || !_ml.IsWalkable(cell))
-        {
-            return false;
-        }
-
-        for (int y = cell.y - _obstacleInflateRadius; y <= cell.y + _obstacleInflateRadius; y++)
-        {
-            for (int x = cell.x - _obstacleInflateRadius; x <= cell.x + _obstacleInflateRadius; x++)
-            {
-                Vector2Int candidate = new Vector2Int(x, y);
-                if (!_ml.IsInside(candidate) || !_ml.IsWalkable(candidate))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    public static bool TryFindAgentWalkableNear(Vector2Int preferredCell, out Vector2Int result)
-    {
-        if (IsAgentWalkable(preferredCell))
-        {
-            result = preferredCell;
-            return true;
-        }
-
-        int maxRadius = Mathf.Max(_cols, _rows);
-        for (int radius = 1; radius <= maxRadius; radius++)
-        {
-            for (int y = preferredCell.y - radius; y <= preferredCell.y + radius; y++)
-            {
-                for (int x = preferredCell.x - radius; x <= preferredCell.x + radius; x++)
-                {
-                    Vector2Int candidate = new Vector2Int(x, y);
-                    if (IsAgentWalkable(candidate))
-                    {
-                        result = candidate;
-                        return true;
-                    }
-                }
-            }
-        }
-
-        result = default;
-        return false;
     }
 
     // ── Registration ──────────────────────────────────────────────────────
@@ -178,7 +122,7 @@ public static class LNS2Planner
             int other = ids[count % ids.Count];
             count++;
             if (other == id) continue;
-            if (!_goals.TryGetValue(other, out int g))   continue;
+            if (!_goals.TryGetValue(other, out int g)) continue;
             if (!_currPos.TryGetValue(other, out int pos)) continue;
             ReplanOne(other, pos, g);
         }
@@ -229,9 +173,9 @@ public static class LNS2Planner
     private static int GetDir(int from, int to)
     {
         int diff = to - from;
-        if (diff ==      1) return 0;
-        if (diff ==  _cols) return 1;
-        if (diff ==     -1) return 2;
+        if (diff == 1) return 0;
+        if (diff == _cols) return 1;
+        if (diff == -1) return 2;
         if (diff == -_cols) return 3;
         return -1;
     }
@@ -257,8 +201,8 @@ public static class LNS2Planner
 
         int[] h = GetOrBuildH(goal);
 
-        var nodes  = new Dictionary<int, ANode>(_size);
-        var heap   = new MinHeap();
+        var nodes = new Dictionary<int, ANode>(_size);
+        var heap = new MinHeap();
         var closed = new HashSet<int>();
 
         nodes[start] = new ANode { G = 0, OpFlow = 0, VertexFlow = 0, Parent = -1 };
@@ -267,7 +211,7 @@ public static class LNS2Planner
         while (heap.Count > 0)
         {
             int heapPri = heap.PeekPri();
-            int curr    = heap.Pop();
+            int curr = heap.Pop();
 
             if (closed.Contains(curr)) continue;
             var cn = nodes[curr];
@@ -282,7 +226,7 @@ public static class LNS2Planner
                 int next = nbrs[ni];
                 if (closed.Contains(next)) continue;
 
-                int d    = GetDir(curr, next);
+                int d = GetDir(curr, next);
                 int newG = cn.G + 1;
 
                 // op_flow: (flow[curr→d]+1) × flow[next→opposite(d)]
@@ -293,7 +237,7 @@ public static class LNS2Planner
                 for (int di = 0; di < 4; di++) vsum += _flow[next * 4 + di];
                 int vEdge = (vsum - 1) / 2;
 
-                var cand    = new ANode { G = newG, OpFlow = cn.OpFlow + opEdge, VertexFlow = cn.VertexFlow + vEdge, Parent = curr };
+                var cand = new ANode { G = newG, OpFlow = cn.OpFlow + opEdge, VertexFlow = cn.VertexFlow + vEdge, Parent = curr };
                 int candPri = cand.Pri(h[next]);
 
                 bool better = !nodes.TryGetValue(next, out var ex) || candPri < ex.Pri(h[next]);
@@ -349,8 +293,8 @@ public static class LNS2Planner
 
     private sealed class MinHeap
     {
-        private readonly List<int> _pri  = new List<int>();
-        private readonly List<int> _id   = new List<int>();
+        private readonly List<int> _pri = new List<int>();
+        private readonly List<int> _id = new List<int>();
         public int Count => _pri.Count;
 
         public int PeekPri() => _pri[0];
@@ -367,7 +311,7 @@ public static class LNS2Planner
             int top = _id[0];
             int last = _pri.Count - 1;
             _pri[0] = _pri[last]; _id[0] = _id[last];
-            _pri.RemoveAt(last);  _id.RemoveAt(last);
+            _pri.RemoveAt(last); _id.RemoveAt(last);
             if (_pri.Count > 0) SiftDown(0);
             return top;
         }
@@ -388,7 +332,7 @@ public static class LNS2Planner
             int n = _pri.Count;
             while (true)
             {
-                int l = 2*i+1, r = 2*i+2, s = i;
+                int l = 2 * i + 1, r = 2 * i + 2, s = i;
                 if (l < n && _pri[l] < _pri[s]) s = l;
                 if (r < n && _pri[r] < _pri[s]) s = r;
                 if (s == i) break;
@@ -400,7 +344,7 @@ public static class LNS2Planner
         private void Swap(int a, int b)
         {
             int tp = _pri[a]; _pri[a] = _pri[b]; _pri[b] = tp;
-            int ti = _id[a];  _id[a]  = _id[b];  _id[b]  = ti;
+            int ti = _id[a]; _id[a] = _id[b]; _id[b] = ti;
         }
     }
 }

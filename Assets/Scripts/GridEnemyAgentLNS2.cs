@@ -35,70 +35,65 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     [Header("LNS2")]
     [Min(1f)] public float frankWolfeMs = 15f;
-    [Min(0)] public int obstacleInflateRadius = 1;
 
     [Header("Timing")]
     public float replanInterval = 0.75f;
 
     [Header("Steering")]
-    public float waypointReachDistance    = 0.25f;
+    public float waypointReachDistance = 0.25f;
     public float waypointReachDistanceStraight = 0.3f;
-    public float waypointReachDistanceTurning  = 0.12f;
-    [Header("Obstacle corner safety")]
-    public int obstacleProximityCellRadius = 1;
-    public float obstacleWaypointReachDistance = 0.06f;
-    [Range(-1f, 1f)] public float obstacleForwardAlignmentThreshold = 0.985f;
-    [Range(-1f, 1f)] public float forwardAlignmentThreshold      = 0.97f;
+    public float waypointReachDistanceTurning = 0.12f;
+    [Range(-1f, 1f)] public float forwardAlignmentThreshold = 0.97f;
     [Range(-1f, 1f)] public float turningDriveAlignmentThreshold = 0.85f;
     [Range(-1f, 1f)] public float partialDriveAlignmentThreshold = 0.5f;
-    [Range(0f,  1f)] public float mostlyAlignedTurnScale         = 0.3f;
-    [Min(0.01f)]     public float partialDrivePeriod             = 0.1f;
-    [Range(0f,  1f)] public float partialDriveDutyCycle          = 0.65f;
+    [Range(0f, 1f)] public float mostlyAlignedTurnScale = 0.3f;
+    [Min(0.01f)] public float partialDrivePeriod = 0.1f;
+    [Range(0f, 1f)] public float partialDriveDutyCycle = 0.65f;
 
     [Header("Shooting")]
-    public float eagleShootingRange  = 5f;
+    public float eagleShootingRange = 5f;
     public float playerShootingRange = 7f;
     public LayerMask lineOfSightMask;
 
     [Header("Stuck detection")]
-    public float progressEpsilon    = 0.05f;
-    public float stuckTimeout       = 1.5f;
+    public float progressEpsilon = 0.05f;
+    public float stuckTimeout = 1.5f;
     public LayerMask obstacleContactMask;
-    public float scuffTimeout       = 0.4f;
+    public float scuffTimeout = 0.4f;
     public float scuffVelocityThreshold = 0.1f;
     public float reverseRecoveryDuration = 0.8f;
-    public float spatialStuckWindow      = 3f;
+    public float spatialStuckWindow = 3f;
     public float spatialStuckMinTravelDistance = 1.5f;
-    public float spatialStuckMaxDisplacement   = 0.75f;
+    public float spatialStuckMaxDisplacement = 0.75f;
     public float spatialStuckGoalProgressEpsilon = 0.5f;
-    public int   spatialRecentCellHistorySize  = 8;
+    public int spatialRecentCellHistorySize = 8;
 
     public bool drawPath = true;
 
     // ── Runtime state ──────────────────────────────────────────────────────
     private int agentId = -1;
 
-    private readonly List<Vector2Int> currentPath    = new List<Vector2Int>();
+    private readonly List<Vector2Int> currentPath = new List<Vector2Int>();
     private readonly Queue<SpatialSample> spatialSamples = new Queue<SpatialSample>();
     private readonly List<Vector2Int> recentVisitedCells = new List<Vector2Int>();
 
-    private int   pathIndex;
+    private int pathIndex;
     private float nextReplanTime;
     private RecoveryLevel recoveryLevel;
     private Vector3 lastProgressPosition;
-    private float   lastProgressTime;
-    private bool    hasProgressSample;
-    private float   reverseRecoveryEndTime;
-    private int     lastTrackedPathIndex = -1;
-    private bool    hasRecordedCell;
+    private float lastProgressTime;
+    private bool hasProgressSample;
+    private float reverseRecoveryEndTime;
+    private int lastTrackedPathIndex = -1;
+    private bool hasRecordedCell;
     private Vector2Int lastRecordedCell;
-    private float   lastSpatialRecoveryTime = float.NegativeInfinity;
-    private float   scuffStartTime = -1f;
-    private float   lastScuffRecoveryTime = float.NegativeInfinity;
-    private bool    wasTouchingLastFrame;
-    private float   partialDriveAccumulator;
-    private int     lastSteeringDirection = 1;
-    private int     reverseRecoveryTurnDirection = 1;
+    private float lastSpatialRecoveryTime = float.NegativeInfinity;
+    private float scuffStartTime = -1f;
+    private float lastScuffRecoveryTime = float.NegativeInfinity;
+    private bool wasTouchingLastFrame;
+    private float partialDriveAccumulator;
+    private int lastSteeringDirection = 1;
+    private int reverseRecoveryTurnDirection = 1;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -119,7 +114,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private void EnsureLNS2Ready()
     {
-        if (mapLoader != null) LNS2Planner.Init(mapLoader, obstacleInflateRadius);
+        if (!LNS2Planner.IsReady && mapLoader != null) LNS2Planner.Init(mapLoader);
         if (LNS2Planner.IsReady && agentId < 0) agentId = LNS2Planner.Register();
     }
 
@@ -164,7 +159,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     private Transform GetShootingTarget()
     {
         if (CanShootTarget(playerTarget, playerShootingRange)) return playerTarget;
-        if (CanShootTarget(eagleTarget,  eagleShootingRange))  return eagleTarget;
+        if (CanShootTarget(eagleTarget, eagleShootingRange)) return eagleTarget;
         return null;
     }
 
@@ -185,9 +180,9 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     {
         nextReplanTime = Time.time + replanInterval;
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
-        Vector2Int goalCell  = mapLoader.WorldToCell(eagleTarget.position);
+        Vector2Int goalCell = mapLoader.WorldToCell(eagleTarget.position);
 
-        if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs, obstacleInflateRadius))
+        if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs))
         {
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
@@ -215,12 +210,6 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         Vector3 targetPosition = mapLoader.CellToWorld(currentPath[pathIndex]);
         Vector2 directionToTarget = targetPosition - tankController.tankMover.transform.position;
         float reachDistance = GetWaypointReachDistance();
-        bool nearObstacle = IsNearObstacleCorner();
-        if (nearObstacle)
-        {
-            reachDistance = Mathf.Min(reachDistance, obstacleWaypointReachDistance);
-        }
-
         if (directionToTarget.magnitude <= reachDistance)
         {
             pathIndex++;
@@ -233,13 +222,6 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         float cross = Vector3.Cross(forward, directionToTarget.normalized).z;
         int rotation = cross >= 0f ? -1 : 1;
         lastSteeringDirection = rotation;
-
-        if (nearObstacle && dotProduct < obstacleForwardAlignmentThreshold)
-        {
-            ResetPartialDrive();
-            tankController.HandleMoveBody(new Vector2(rotation, 0f));
-            return;
-        }
 
         if (dotProduct >= forwardAlignmentThreshold)
         {
@@ -275,39 +257,9 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     private float GetWaypointReachDistance()
     {
         if (pathIndex <= 0 || pathIndex + 1 >= currentPath.Count) return waypointReachDistanceStraight;
-        Vector2Int incoming = currentPath[pathIndex]     - currentPath[pathIndex - 1];
+        Vector2Int incoming = currentPath[pathIndex] - currentPath[pathIndex - 1];
         Vector2Int outgoing = currentPath[pathIndex + 1] - currentPath[pathIndex];
         return incoming != outgoing ? waypointReachDistanceTurning : waypointReachDistanceStraight;
-    }
-
-    private bool IsNearObstacleCorner()
-    {
-        if (mapLoader == null || currentPath.Count == 0 || pathIndex >= currentPath.Count)
-        {
-            return false;
-        }
-
-        Vector2Int agentCell = mapLoader.WorldToCell(GetAgentPosition());
-        return HasBlockedNeighborWithinRadius(agentCell, obstacleProximityCellRadius)
-            || HasBlockedNeighborWithinRadius(currentPath[pathIndex], obstacleProximityCellRadius);
-    }
-
-    private bool HasBlockedNeighborWithinRadius(Vector2Int center, int radius)
-    {
-        int r = Mathf.Max(0, radius);
-        for (int y = center.y - r; y <= center.y + r; y++)
-        {
-            for (int x = center.x - r; x <= center.x + r; x++)
-            {
-                Vector2Int cell = new Vector2Int(x, y);
-                if (!mapLoader.IsInside(cell) || !mapLoader.IsWalkable(cell))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     // ── Progress tracking + Stuck detection (giữ nguyên) ──────────────────
@@ -423,8 +375,8 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
             totalTravel += Vector3.Distance(samples[i - 1].Position, samples[i].Position);
         if (totalTravel < spatialStuckMinTravelDistance) return false;
 
-        float displacement  = Vector3.Distance(samples[0].Position, samples[samples.Length - 1].Position);
-        float goalProgress  = samples[0].GoalDistance - samples[samples.Length - 1].GoalDistance;
+        float displacement = Vector3.Distance(samples[0].Position, samples[samples.Length - 1].Position);
+        float goalProgress = samples[0].GoalDistance - samples[samples.Length - 1].GoalDistance;
         return displacement <= spatialStuckMaxDisplacement && goalProgress <= spatialStuckGoalProgressEpsilon;
     }
 

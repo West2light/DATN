@@ -22,21 +22,20 @@ public static class GridLNS2Pathfinder
         Vector2Int start,
         Vector2Int goal,
         List<Vector2Int> path,
-        float frankWolfeMs = 15f,
-        int obstacleInflateRadius = 1)
+        float frankWolfeMs = 15f)
     {
         path.Clear();
         if (mapLoader == null || agentId < 0) return false;
 
-        LNS2Planner.Init(mapLoader, obstacleInflateRadius);
+        if (!LNS2Planner.IsReady) LNS2Planner.Init(mapLoader);
         if (!LNS2Planner.IsReady) return false;
 
-        // Resolve endpoints vào ô đủ clearance cho kích thước tank.
-        if (!LNS2Planner.TryFindAgentWalkableNear(start, out start)) return false;
-        if (!LNS2Planner.TryFindAgentWalkableNear(goal,  out goal))  return false;
+        // Resolve endpoints nếu chưa walkable
+        if (!mapLoader.IsWalkable(start) && !mapLoader.TryFindWalkableNear(start, out start)) return false;
+        if (!mapLoader.IsWalkable(goal) && !mapLoader.TryFindWalkableNear(goal, out goal)) return false;
 
         int startFlat = LNS2Planner.ToFlat(start);
-        int goalFlat  = LNS2Planner.ToFlat(goal);
+        int goalFlat = LNS2Planner.ToFlat(goal);
 
         LNS2Planner.SetCurrentPos(agentId, startFlat);
         LNS2Planner.FrankWolfe(agentId, startFlat, goalFlat, frankWolfeMs);

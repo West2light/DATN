@@ -49,7 +49,7 @@ public class MapScenarioBootstrap : MonoBehaviour
     [Tooltip("Radius (world units) of the circle used by Physics2D.OverlapCircle to "
         + "decide whether a tank can stand on a given cell. Default 0.45 = tank "
         + "half-extent 0.348 + safety margin 0.1.")]
-    [SerializeField, Min(0f)] private float tankPhysicalRadius = 0.55f;
+    [SerializeField, Min(0f)] private float tankPhysicalRadius = 0.45f;
     [Tooltip("Layers treated as hard obstacles for the physical inflate test. "
         + "If 0, falls back to LayerMask.GetMask(\"Walls\") at run time; legacy "
         + "ObstaclesMovement is only used if Walls is unavailable.")]
@@ -67,7 +67,7 @@ public class MapScenarioBootstrap : MonoBehaviour
     [Range(0, 4)] public int agentSoftRadius = 2;
     [Range(0, 50)] public int agentSoftCostNear = 8;
     [Range(0, 50)] public int agentSoftCostMid = 2;
-    [SerializeField, Min(0f)] private float tankClearanceRadius = 0.5f;
+    [SerializeField, Min(0f)] private float tankClearanceRadius = 0.4f;
     // V4 default: smoothing OFF. Path raw 4-neighbor for deterministic follow.
     // Toggle ON only for ablation study (thesis).
     [SerializeField] private bool agentEnableSmoothing = false;
@@ -175,13 +175,8 @@ public class MapScenarioBootstrap : MonoBehaviour
         spriteRenderer.sortingLayerName = "Eagle";
         spriteRenderer.sortingOrder = 10;
 
-        Rigidbody2D rigidbody2D = eagle.AddComponent<Rigidbody2D>();
-        rigidbody2D.bodyType = RigidbodyType2D.Kinematic;
-        rigidbody2D.gravityScale = 0f;
-        rigidbody2D.constraints = RigidbodyConstraints2D.FreezeAll;
-
         BoxCollider2D collider = eagle.AddComponent<BoxCollider2D>();
-        collider.isTrigger = false;
+        collider.isTrigger = true;
         collider.size = eagleColliderSize;
 
         Damagable damagable = eagle.AddComponent<Damagable>();
