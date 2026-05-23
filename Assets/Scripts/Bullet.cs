@@ -15,6 +15,7 @@ public class Bullet : MonoBehaviour
     private Rigidbody2D rb2d;
     private Vector2 previousPosition;
     private Transform owner;   // xe tăng bắn ra viên đạn — đạn luôn bỏ qua mọi collider của nó
+    private FactionMember ownerFaction;
 
     public UnityEvent OnHit = new UnityEvent();
 
@@ -34,6 +35,7 @@ public class Bullet : MonoBehaviour
     {
         this.bulletData = bulletData;
         this.owner = owner;
+        ownerFaction = owner != null ? owner.GetComponentInParent<FactionMember>() : null;
         startPosition = transform.position;
         previousPosition = transform.position;
         rb2d.linearVelocity = transform.up * this.bulletData.speed;
@@ -71,7 +73,13 @@ public class Bullet : MonoBehaviour
             return true;
         }
 
-        return owner != null && col.transform.IsChildOf(owner);
+        if (owner != null && col.transform.IsChildOf(owner))
+        {
+            return true;
+        }
+
+        FactionMember targetFaction = FactionMember.FindForCollider(col);
+        return FactionMember.AreFriendly(ownerFaction, targetFaction);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)

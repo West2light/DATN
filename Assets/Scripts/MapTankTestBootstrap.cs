@@ -104,6 +104,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     private void ConfigureTank(GameObject tank)
     {
         tank.transform.localScale = Vector3.one * playerScale;
+        FactionMember.Ensure(tank, Faction.Player);
 
         TankMover tankMover = tank.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)

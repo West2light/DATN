@@ -8,13 +8,16 @@ public class AiShootBehaviour : AIBehaviour
 
     public override void PerformAction(TankController tank, AIDetector detector)
     {
+        tank.HandleTurretMovement(detector.Target.position);
+
         if (TargetInFOV(tank, detector))
         {
             tank.HandleMoveBody(Vector2.zero);
-            tank.HandleShoot();
+            if (tank.aimTurret != null && tank.aimTurret.IsAlignedTo(detector.Target.position))
+            {
+                tank.HandleShoot();
+            }
         }
-            
-        tank.HandleTurretMovement(detector.Target.position);
     }
 
     private bool TargetInFOV(TankController tank, AIDetector detector)

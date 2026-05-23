@@ -168,6 +168,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         eagle.layer = LayerMask.NameToLayer("Hittable");
         eagle.transform.SetParent(scenarioRoot, false);
         eagle.transform.position = mapLoader.CellToWorld(spawnCell);
+        FactionMember.Ensure(eagle, Faction.Base);
 
         SpriteRenderer spriteRenderer = eagle.AddComponent<SpriteRenderer>();
         spriteRenderer.sprite = eagleSprite != null ? eagleSprite : CreateWhiteSprite();
@@ -369,6 +370,7 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private void ConfigureEnemy(GameObject enemy)
     {
+        FactionMember enemyFaction = FactionMember.Ensure(enemy, Faction.Enemy);
         TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)
         {
@@ -376,6 +378,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         }
 
         AddPlayerBlocker(enemy);
+        IgnoreFriendlyCollisions(enemy, enemyFaction);
         AddGridEnemyAgent(enemy);
         TrackEnemyDeath(enemy);
 
@@ -392,6 +395,46 @@ public class MapScenarioBootstrap : MonoBehaviour
         if (detector != null && eagleBase != null)
         {
             detector.Target = eagleBase.transform;
+        }
+    }
+
+    private void IgnoreFriendlyCollisions(GameObject enemy, FactionMember factionMember)
+    {
+        Collider2D[] enemyColliders = enemy.GetComponentsInChildren<Collider2D>(true);
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            GameObject otherEnemy = enemies[i];
+            if (otherEnemy == null)
+            {
+                continue;
+            }
+
+            FactionMember otherFaction = otherEnemy.GetComponent<FactionMember>();
+            if (!FactionMember.AreFriendly(factionMember, otherFaction))
+            {
+                continue;
+            }
+
+            Collider2D[] otherColliders = otherEnemy.GetComponentsInChildren<Collider2D>(true);
+            for (int enemyIndex = 0; enemyIndex < enemyColliders.Length; enemyIndex++)
+            {
+                Collider2D enemyCollider = enemyColliders[enemyIndex];
+                if (enemyCollider == null)
+                {
+                    continue;
+                }
+
+                for (int otherIndex = 0; otherIndex < otherColliders.Length; otherIndex++)
+                {
+                    Collider2D otherCollider = otherColliders[otherIndex];
+                    if (otherCollider == null)
+                    {
+                        continue;
+                    }
+
+                    Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                }
+            }
         }
     }
 

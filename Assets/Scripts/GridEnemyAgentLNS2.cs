@@ -99,6 +99,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     private float   partialDriveAccumulator;
     private int     lastSteeringDirection = 1;
     private int     reverseRecoveryTurnDirection = 1;
+    private HashSet<Vector2Int> pendingBlockedCells;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -132,13 +133,17 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         EnsureLNS2Ready();
         if (agentId < 0) return;
 
-        Transform shootingTarget = GetShootingTarget();
+        bool blockedShotByFriendly = TryQueueFriendlyShotBlocker();
+        Transform shootingTarget = blockedShotByFriendly ? null : GetShootingTarget();
         if (shootingTarget != null)
         {
             ResetProgressTracking();
             tankController.HandleMoveBody(Vector2.zero);
             tankController.HandleTurretMovement(shootingTarget.position);
-            tankController.HandleShoot();
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(shootingTarget.position))
+            {
+                tankController.HandleShoot();
+            }
             return;
         }
 
@@ -168,6 +173,31 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         return null;
     }
 
+    private bool TryQueueFriendlyShotBlocker()
+    {
+        if (TryQueueFriendlyShotBlocker(playerTarget, playerShootingRange))
+        {
+            return true;
+        }
+
+        return TryQueueFriendlyShotBlocker(eagleTarget, eagleShootingRange);
+    }
+
+    private bool TryQueueFriendlyShotBlocker(Transform target, float range)
+    {
+        if (!TryGetFriendlyShotBlocker(target, range, out Vector2Int blockedCell))
+        {
+            return false;
+        }
+
+        pendingBlockedCells ??= new HashSet<Vector2Int>();
+        pendingBlockedCells.Add(blockedCell);
+        currentPath.Clear();
+        pathIndex = 0;
+        nextReplanTime = 0f;
+        return true;
+    }
+
     private bool CanShootTarget(Transform target, float range)
     {
         if (target == null) return false;
@@ -179,13 +209,59 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         return hit.collider.transform == target || hit.collider.transform.IsChildOf(target);
     }
 
+    private bool TryGetFriendlyShotBlocker(Transform target, float range, out Vector2Int blockedCell)
+    {
+        blockedCell = default;
+        if (target == null || tankController == null || tankController.aimTurret == null)
+        {
+            return false;
+        }
+
+        Vector2 origin = tankController.aimTurret.transform.position;
+        Vector2 targetPos = target.position;
+        Vector2 direction = targetPos - origin;
+        if (direction.sqrMagnitude <= Mathf.Epsilon || direction.magnitude > range)
+        {
+            return false;
+        }
+
+        FactionMember selfFaction = GetComponent<FactionMember>();
+        RaycastHit2D[] hits = Physics2D.RaycastAll(origin, direction.normalized, range, lineOfSightMask);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D collider = hits[i].collider;
+            if (collider == null || collider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (collider.transform == target || collider.transform.IsChildOf(target))
+            {
+                return false;
+            }
+
+            FactionMember hitFaction = FactionMember.FindForCollider(collider);
+            if (FactionMember.AreFriendly(selfFaction, hitFaction))
+            {
+                blockedCell = mapLoader.WorldToCell(hitFaction.GetWorldPosition());
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
     // ── Pathfinding (LNS2) ─────────────────────────────────────────────────
 
     private void ReplanPath()
     {
         nextReplanTime = Time.time + replanInterval;
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
-        Vector2Int goalCell  = mapLoader.WorldToCell(eagleTarget.position);
+        HashSet<Vector2Int> blockedCells = MergeBlockedCells(pendingBlockedCells, BuildDynamicBlockedCells(startCell));
+        pendingBlockedCells = null;
+        Vector2Int goalCell  = ResolveGoalCell(mapLoader.WorldToCell(eagleTarget.position), blockedCells, startCell);
 
         if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs, obstacleInflateRadius))
         {
@@ -213,6 +289,15 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         }
 
         Vector3 targetPosition = mapLoader.CellToWorld(currentPath[pathIndex]);
+        if (IsCellOccupiedByFriendly(currentPath[pathIndex]))
+        {
+            currentPath.Clear();
+            pathIndex = 0;
+            nextReplanTime = 0f;
+            tankController.HandleMoveBody(Vector2.zero);
+            return;
+        }
+
         Vector2 directionToTarget = targetPosition - tankController.tankMover.transform.position;
         float reachDistance = GetWaypointReachDistance();
         bool nearObstacle = IsNearObstacleCorner();
@@ -520,6 +605,116 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     {
         scuffStartTime = -1f;
         wasTouchingLastFrame = false;
+    }
+
+    private HashSet<Vector2Int> BuildDynamicBlockedCells(Vector2Int startCell)
+    {
+        FactionMember selfFaction = GetComponent<FactionMember>();
+        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
+        HashSet<Vector2Int> blockedCells = null;
+        for (int i = 0; i < members.Length; i++)
+        {
+            FactionMember member = members[i];
+            if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (!FactionMember.AreFriendly(selfFaction, member))
+            {
+                continue;
+            }
+
+            Vector2Int occupiedCell = mapLoader.WorldToCell(member.GetWorldPosition());
+            if (occupiedCell == startCell)
+            {
+                continue;
+            }
+
+            blockedCells ??= new HashSet<Vector2Int>();
+            blockedCells.Add(occupiedCell);
+        }
+
+        return blockedCells;
+    }
+
+    private Vector2Int ResolveGoalCell(Vector2Int preferredGoal, HashSet<Vector2Int> blockedCells, Vector2Int startCell)
+    {
+        if (!IsCellBlocked(preferredGoal, blockedCells) && LNS2Planner.IsAgentWalkable(preferredGoal))
+        {
+            return preferredGoal;
+        }
+
+        int maxRadius = Mathf.Max(mapLoader.Width, mapLoader.Height);
+        for (int radius = 1; radius <= maxRadius; radius++)
+        {
+            for (int y = preferredGoal.y - radius; y <= preferredGoal.y + radius; y++)
+            {
+                for (int x = preferredGoal.x - radius; x <= preferredGoal.x + radius; x++)
+                {
+                    Vector2Int candidate = new Vector2Int(x, y);
+                    if (candidate == startCell || IsCellBlocked(candidate, blockedCells))
+                    {
+                        continue;
+                    }
+
+                    if (LNS2Planner.IsAgentWalkable(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        return preferredGoal;
+    }
+
+    private bool IsCellOccupiedByFriendly(Vector2Int cell)
+    {
+        FactionMember selfFaction = GetComponent<FactionMember>();
+        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
+        for (int i = 0; i < members.Length; i++)
+        {
+            FactionMember member = members[i];
+            if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (!FactionMember.AreFriendly(selfFaction, member))
+            {
+                continue;
+            }
+
+            if (mapLoader.WorldToCell(member.GetWorldPosition()) == cell)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsCellBlocked(Vector2Int cell, HashSet<Vector2Int> blockedCells)
+    {
+        return blockedCells != null && blockedCells.Contains(cell);
+    }
+
+    private static HashSet<Vector2Int> MergeBlockedCells(HashSet<Vector2Int> first, HashSet<Vector2Int> second)
+    {
+        if (first == null || first.Count == 0)
+        {
+            return second;
+        }
+
+        if (second == null || second.Count == 0)
+        {
+            return first;
+        }
+
+        HashSet<Vector2Int> merged = new HashSet<Vector2Int>(first);
+        merged.UnionWith(second);
+        return merged;
     }
 
     private Vector3 GetAgentPosition() =>
