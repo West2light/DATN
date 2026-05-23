@@ -117,8 +117,13 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         sr.sortingLayerName = "Eagle";
         sr.sortingOrder     = 10;
 
+        Rigidbody2D rb = eagle.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        rb.gravityScale = 0f;
+        rb.constraints = RigidbodyConstraints2D.FreezeAll;
+
         BoxCollider2D col = eagle.AddComponent<BoxCollider2D>();
-        col.isTrigger = true;
+        col.isTrigger = false;
         col.size      = eagleColliderSize;
 
         Damagable dmg = eagle.AddComponent<Damagable>();

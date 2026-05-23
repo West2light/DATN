@@ -175,8 +175,13 @@ public class MapScenarioBootstrap : MonoBehaviour
         spriteRenderer.sortingLayerName = "Eagle";
         spriteRenderer.sortingOrder = 10;
 
+        Rigidbody2D rigidbody2D = eagle.AddComponent<Rigidbody2D>();
+        rigidbody2D.bodyType = RigidbodyType2D.Kinematic;
+        rigidbody2D.gravityScale = 0f;
+        rigidbody2D.constraints = RigidbodyConstraints2D.FreezeAll;
+
         BoxCollider2D collider = eagle.AddComponent<BoxCollider2D>();
-        collider.isTrigger = true;
+        collider.isTrigger = false;
         collider.size = eagleColliderSize;
 
         Damagable damagable = eagle.AddComponent<Damagable>();
