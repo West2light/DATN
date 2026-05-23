@@ -401,7 +401,7 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private void OnEnemyDead()
     {
-        enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
+        RecountAliveEnemies();
         UpdateEnemyCountText();
 
         if (loadNextMapWhenAllEnemiesDead && enemiesAlive == 0 && !nextMapLoading)
@@ -414,6 +414,24 @@ public class MapScenarioBootstrap : MonoBehaviour
     private void LoadNextMap()
     {
         SceneManager.LoadScene(nextMapSceneName);
+    }
+
+    private void RecountAliveEnemies()
+    {
+        int alive = 0;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            GameObject enemy = enemies[i];
+            if (enemy == null) continue;
+
+            Damagable damagable = enemy.GetComponentInChildren<Damagable>();
+            if (damagable != null && damagable.Health > 0)
+            {
+                alive++;
+            }
+        }
+
+        enemiesAlive = alive;
     }
 
     private Text EnsureEnemyCountText()

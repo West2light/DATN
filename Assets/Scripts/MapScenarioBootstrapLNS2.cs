@@ -355,8 +355,26 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
 
     private void OnEnemyDead()
     {
-        enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
+        RecountAliveEnemies();
         UpdateEnemyCountText();
+    }
+
+    private void RecountAliveEnemies()
+    {
+        int alive = 0;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            GameObject enemy = enemies[i];
+            if (enemy == null) continue;
+
+            Damagable damagable = enemy.GetComponentInChildren<Damagable>();
+            if (damagable != null && damagable.Health > 0)
+            {
+                alive++;
+            }
+        }
+
+        enemiesAlive = alive;
     }
 
     private Text EnsureEnemyCountText()

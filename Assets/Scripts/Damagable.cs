@@ -9,6 +9,7 @@ public class Damagable : MonoBehaviour
 
     [SerializeField]
     private int health = 0;
+    private bool isDead;
 
     public int Health
     {
@@ -16,6 +17,10 @@ public class Damagable : MonoBehaviour
         set
         {
             health = value;
+            if (health > 0)
+            {
+                isDead = false;
+            }
             OnHealthChange?.Invoke((float)Health / MaxHealth);
         }
     }
@@ -34,9 +39,15 @@ public class Damagable : MonoBehaviour
 
     internal void Hit(int damagePoints)
     {
+        if (isDead)
+        {
+            return;
+        }
+
         Health -= damagePoints;
         if (Health <= 0)
         {
+            isDead = true;
             OnDead?.Invoke();
         }
         else
