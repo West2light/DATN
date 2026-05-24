@@ -328,7 +328,10 @@ public class GridEnemyAgent : MonoBehaviour
         else
         {
             ResetPartialDrive();
-            tankController.HandleMoveBody(new Vector2(rotation, 0f));
+            // Khi không chạm tường: arc nhỏ giúp thoát góc tự nhiên hơn xoay tại chỗ.
+            // Khi đang chạm tường (hành lang hẹp): xoay tại chỗ, để scuff recovery xử lý.
+            float fwd = IsScuffing() ? 0f : 0.1f;
+            tankController.HandleMoveBody(new Vector2(rotation, fwd));
         }
     }
 
