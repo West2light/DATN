@@ -401,10 +401,18 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         damagable.OnDead.AddListener(OnEnemyDead);
     }
 
+    private bool winTriggered;
+
     private void OnEnemyDead()
     {
         RecountAliveEnemies();
         UpdateEnemyCountText();
+
+        if (enemiesAlive == 0 && !winTriggered)
+        {
+            winTriggered = true;
+            MapWinController.Ensure().BeginWin();
+        }
     }
 
     private void RecountAliveEnemies()

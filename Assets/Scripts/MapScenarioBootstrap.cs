@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -471,16 +470,11 @@ public class MapScenarioBootstrap : MonoBehaviour
         RecountAliveEnemies();
         UpdateEnemyCountText();
 
-        if (loadNextMapWhenAllEnemiesDead && enemiesAlive == 0 && !nextMapLoading)
+        if (enemiesAlive == 0 && !nextMapLoading)
         {
             nextMapLoading = true;
-            Invoke(nameof(LoadNextMap), nextMapLoadDelay);
+            MapWinController.Ensure().BeginWin();
         }
-    }
-
-    private void LoadNextMap()
-    {
-        SceneManager.LoadScene(nextMapSceneName);
     }
 
     private void RecountAliveEnemies()

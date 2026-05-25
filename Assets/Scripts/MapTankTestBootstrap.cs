@@ -101,10 +101,25 @@ public class MapTankTestBootstrap : MonoBehaviour
         WirePlayerInput(tank);
     }
 
+    private static readonly string[] VariantBodyFiles =
+    {
+        "tankBody_blue.png",
+        "tankBody_red.png",
+        "tankBody_green.png",
+        "tankBody_dark.png",
+        "tankBody_sand.png",
+        "tankBody_bigRed.png",
+        "tankBody_darkLarge.png",
+        "tankBody_huge.png",
+    };
+    private const string VariantSpritesRoot = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
+    private const string VariantPrefKey = "MenuTankVariant";
+
     private void ConfigureTank(GameObject tank)
     {
         tank.transform.localScale = Vector3.one * playerScale;
         FactionMember.Ensure(tank, Faction.Player);
+        ApplyTankVariant(tank);
 
         TankMover tankMover = tank.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)
@@ -303,6 +318,44 @@ public class MapTankTestBootstrap : MonoBehaviour
         target.y = minY <= maxY ? Mathf.Clamp(target.y, minY, maxY) : 0f;
 
         mainCamera.transform.position = target;
+    }
+
+    private void ApplyTankVariant(GameObject tank)
+    {
+        int index = Mathf.Clamp(PlayerPrefs.GetInt(VariantPrefKey, 0), 0, VariantBodyFiles.Length - 1);
+        string spritePath = VariantSpritesRoot + VariantBodyFiles[index];
+
+        Sprite sprite = null;
+#if UNITY_EDITOR
+        sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
+        if (sprite == null)
+        {
+            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
+            if (tex != null)
+                sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+#endif
+        if (sprite == null) return;
+
+        Transform bodyTransform = tank.transform.Find("TankBase");
+        if (bodyTransform == null)
+        {
+            // Fallback: find any SpriteRenderer whose sprite name contains "tankBody"
+            SpriteRenderer[] renderers = tank.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (SpriteRenderer sr in renderers)
+            {
+                if (sr.sprite != null && sr.sprite.name.ToLower().Contains("tankbody"))
+                {
+                    sr.sprite = sprite;
+                    return;
+                }
+            }
+            return;
+        }
+
+        SpriteRenderer bodyRenderer = bodyTransform.GetComponent<SpriteRenderer>();
+        if (bodyRenderer != null)
+            bodyRenderer.sprite = sprite;
     }
 
     private GameObject ResolveTankPrefab()
