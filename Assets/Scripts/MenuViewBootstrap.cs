@@ -16,6 +16,7 @@ public class MenuViewBootstrap : MonoBehaviour
     // ── Constants ──────────────────────────────────────────────────────────
     private const string MenuSceneName   = "Menu";
     private const string PrefKeyVariant  = "MenuTankVariant";
+    private const string PrefKeyMapFile  = "SelectedMapFile";
     private const string SpritesRoot     = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
 
     // Palette
@@ -53,6 +54,7 @@ public class MenuViewBootstrap : MonoBehaviour
     private struct MapDef
     {
         public string label;
+        public string sizeLabel;
         public Color  previewTint;
         public string mapFile;
         public string sceneAStar;
@@ -62,11 +64,11 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private static readonly MapDef[] Maps =
     {
-        new MapDef { label = "Alpha-32", previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map", sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true  },
-        new MapDef { label = "Beta-32",  previewTint = new Color(0.50f, 0.22f, 0.55f), available = false },
-        new MapDef { label = "Gamma-32", previewTint = new Color(0.70f, 0.42f, 0.10f), available = false },
-        new MapDef { label = "Delta-32", previewTint = new Color(0.18f, 0.42f, 0.65f), available = false },
-        new MapDef { label = "Omega-32", previewTint = new Color(0.65f, 0.14f, 0.18f), available = false },
+        new MapDef { label = "Alpha-32",  sizeLabel = "32 × 32  •  10% walls",  previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map",    sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
+        new MapDef { label = "Mansion",   sizeLabel = "133 × 270",              previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
+        new MapDef { label = "Chantry",   sizeLabel = "162 × 141",              previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
+        new MapDef { label = "Gallows",   sizeLabel = "251 × 180",              previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
+        new MapDef { label = "Omega-32",  sizeLabel = "",                        previewTint = new Color(0.65f, 0.14f, 0.18f), available = false },
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
@@ -480,9 +482,10 @@ public class MenuViewBootstrap : MonoBehaviour
         }
 
         // ── Mode size label ───────────────────────────────────────────────
-        MakeText(card.transform, "SizeLabel", "32 × 32  •  10% obstacles",
-            9, FontStyle.Normal, TextMuted,
-            new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
+        if (!string.IsNullOrEmpty(map.sizeLabel))
+            MakeText(card.transform, "SizeLabel", map.sizeLabel,
+                9, FontStyle.Normal, TextMuted,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
 
         // ── Algorithm mode buttons ────────────────────────────────────────
         string[] modeLabels = { "A*", "LNS2" };
@@ -512,8 +515,14 @@ public class MenuViewBootstrap : MonoBehaviour
 
             if (avail)
             {
-                string sceneName = modeScenes[capturedM];
-                modeBtn.onClick.AddListener(() => SceneManager.LoadScene(sceneName));
+                string sceneName  = modeScenes[capturedM];
+                string mapFileCap = map.mapFile;
+                modeBtn.onClick.AddListener(() =>
+                {
+                    PlayerPrefs.SetString(PrefKeyMapFile, mapFileCap);
+                    PlayerPrefs.Save();
+                    SceneManager.LoadScene(sceneName);
+                });
                 SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
             }
             else
@@ -553,13 +562,21 @@ public class MenuViewBootstrap : MonoBehaviour
         }
         tex.Apply();
 
+        // Compute display size that preserves map aspect ratio inside the square container
+        const float MaxSize = 122f; // parent is 130×130, leave 4px padding each side
+        float aspect = (float)cols / rows;
+        float dispW  = aspect >= 1f ? MaxSize : MaxSize * aspect;
+        float dispH  = aspect >= 1f ? MaxSize / aspect : MaxSize;
+
         GameObject rawObj = new GameObject("MiniMapTex");
         rawObj.layer = LayerMask.NameToLayer("UI");
         var rt = rawObj.AddComponent<RectTransform>();
         rawObj.transform.SetParent(previewParent, false);
-        rt.anchorMin = new Vector2(0.04f, 0.04f);
-        rt.anchorMax = new Vector2(0.96f, 0.96f);
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        rt.anchorMin        = new Vector2(0.5f, 0.5f);
+        rt.anchorMax        = new Vector2(0.5f, 0.5f);
+        rt.pivot            = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta        = new Vector2(dispW, dispH);
 
         RawImage raw = rawObj.AddComponent<RawImage>();
         raw.texture = tex;

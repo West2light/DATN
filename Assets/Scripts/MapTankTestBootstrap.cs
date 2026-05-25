@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -63,10 +64,13 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void SpawnScenario()
     {
+        List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
+
         MapScenarioBootstrapLNS2 lns2Bootstrap = GetComponent<MapScenarioBootstrapLNS2>();
         if (lns2Bootstrap != null)
         {
             lns2Bootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) lns2Bootstrap.enemySpawnCells = spawnCells;
             lns2Bootstrap.SpawnScenario();
             return;
         }
@@ -75,8 +79,25 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (scenarioBootstrap != null)
         {
             scenarioBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) scenarioBootstrap.enemySpawnCells = spawnCells;
             scenarioBootstrap.SpawnScenario();
         }
+    }
+
+    private List<Vector2Int> ComputeEnemySpawnCells()
+    {
+        if (mapLoader == null) return null;
+        int c = mapLoader.BuildWidth;
+        int r = mapLoader.BuildHeight;
+        return new List<Vector2Int>
+        {
+            new Vector2Int(c - 2, 1),
+            new Vector2Int(1, r - 2),
+            new Vector2Int(c - 2, r - 2),
+            new Vector2Int(c / 2, 1),
+            new Vector2Int(1, r / 2),
+            new Vector2Int(c - 2, r / 2),
+        };
     }
 
     private void SpawnPlayer()
@@ -284,13 +305,15 @@ public class MapTankTestBootstrap : MonoBehaviour
         mapWidthWorld = mapLoader.BuildWidth * mapLoader.tileSize;
         mapHeightWorld = mapLoader.BuildHeight * mapLoader.tileSize;
 
-        // Kích thước orthographic lớn nhất mà viewport vẫn nằm gọn trong map
-        // (không lộ vùng nền xanh ngoài map). cameraZoom < 1 để zoom gần hơn.
+        // Fit toàn bộ map trong viewport, nhưng cap để large map không quá zoom-out.
+        // maxGameplayOrtho = 12 → hiển thị ~24 ô theo chiều dọc (gameplay thoải mái).
+        // Map nhỏ (32×32) cho fitSize ~9 < 12 nên không bị ảnh hưởng.
         float maxSizeByHeight = mapHeightWorld / 2f;
         float maxSizeByWidth = mapWidthWorld / (2f * mainCamera.aspect);
         float fitSize = Mathf.Min(maxSizeByHeight, maxSizeByWidth);
+        const float MaxGameplayOrtho = 7f;
 
-        mainCamera.orthographicSize = Mathf.Max(0.01f, fitSize * cameraZoom);
+        mainCamera.orthographicSize = Mathf.Max(0.01f, Mathf.Min(fitSize * cameraZoom, MaxGameplayOrtho));
 
         UpdateCameraPosition();
     }

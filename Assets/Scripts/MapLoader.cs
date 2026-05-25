@@ -81,6 +81,9 @@ public class MapLoader : MonoBehaviour
         ClearExistingTiles();
         LoadDefaultSprites();
 
+        string overrideFile = UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty);
+        if (!string.IsNullOrEmpty(overrideFile)) mapFileName = Path.GetFileName(overrideFile);
+
         string mapPath = Path.Combine(Application.dataPath, "MapData", mapFileName);
         if (!File.Exists(mapPath))
         {
