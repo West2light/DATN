@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -39,6 +38,9 @@ public class MapScenarioBootstrap : MonoBehaviour
     };
     public bool disableLegacyEnemyAI = true;
     public int enemyMaxHealth = 20;
+    [Range(0.4f, 1.2f)]
+    [Tooltip("Scale of enemy tank. Lower values let agents rotate in 1-tile gaps without getting stuck.")]
+    public float enemyScale = 0.72f;
     public float enemyReplanInterval = 0.75f;
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
@@ -371,6 +373,7 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private void ConfigureEnemy(GameObject enemy)
     {
+        enemy.transform.localScale = Vector3.one * enemyScale;
         FactionMember enemyFaction = FactionMember.Ensure(enemy, Faction.Enemy);
         TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)
@@ -471,16 +474,11 @@ public class MapScenarioBootstrap : MonoBehaviour
         RecountAliveEnemies();
         UpdateEnemyCountText();
 
-        if (loadNextMapWhenAllEnemiesDead && enemiesAlive == 0 && !nextMapLoading)
+        if (enemiesAlive == 0 && !nextMapLoading)
         {
             nextMapLoading = true;
-            Invoke(nameof(LoadNextMap), nextMapLoadDelay);
+            MapWinController.Ensure().BeginWin();
         }
-    }
-
-    private void LoadNextMap()
-    {
-        SceneManager.LoadScene(nextMapSceneName);
     }
 
     private void RecountAliveEnemies()

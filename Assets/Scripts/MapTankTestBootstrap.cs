@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -31,6 +32,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     private Transform player;
     private float mapWidthWorld;
     private float mapHeightWorld;
+    private bool allowCameraFollow = true;
 
     private void Start()
     {
@@ -53,6 +55,23 @@ public class MapTankTestBootstrap : MonoBehaviour
         mapLoader.LoadAndBuild();
         SpawnPlayer();
         SetupCamera();
+
+        if (MapPlacementPhase.ShouldTrigger())
+        {
+            allowCameraFollow = false;
+            MapPlacementPhase phase = gameObject.AddComponent<MapPlacementPhase>();
+            phase.BeginPhase(mapLoader, mainCamera, OnPlacementDone, player);
+        }
+        else
+        {
+            SpawnScenario();
+        }
+    }
+
+    private void OnPlacementDone()
+    {
+        allowCameraFollow = true;
+        SetupCamera();
         SpawnScenario();
     }
 
@@ -63,10 +82,13 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void SpawnScenario()
     {
+        List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
+
         MapScenarioBootstrapLNS2 lns2Bootstrap = GetComponent<MapScenarioBootstrapLNS2>();
         if (lns2Bootstrap != null)
         {
             lns2Bootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) lns2Bootstrap.enemySpawnCells = spawnCells;
             lns2Bootstrap.SpawnScenario();
             return;
         }
@@ -75,8 +97,25 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (scenarioBootstrap != null)
         {
             scenarioBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) scenarioBootstrap.enemySpawnCells = spawnCells;
             scenarioBootstrap.SpawnScenario();
         }
+    }
+
+    private List<Vector2Int> ComputeEnemySpawnCells()
+    {
+        if (mapLoader == null) return null;
+        int c = mapLoader.BuildWidth;
+        int r = mapLoader.BuildHeight;
+        return new List<Vector2Int>
+        {
+            new Vector2Int(c - 2, 1),
+            new Vector2Int(1, r - 2),
+            new Vector2Int(c - 2, r - 2),
+            new Vector2Int(c / 2, 1),
+            new Vector2Int(1, r / 2),
+            new Vector2Int(c - 2, r / 2),
+        };
     }
 
     private void SpawnPlayer()
@@ -101,10 +140,25 @@ public class MapTankTestBootstrap : MonoBehaviour
         WirePlayerInput(tank);
     }
 
+    private static readonly string[] VariantBodyFiles =
+    {
+        "tankBody_blue.png",
+        "tankBody_red.png",
+        "tankBody_green.png",
+        "tankBody_dark.png",
+        "tankBody_sand.png",
+        "tankBody_bigRed.png",
+        "tankBody_darkLarge.png",
+        "tankBody_huge.png",
+    };
+    private const string VariantSpritesRoot = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
+    private const string VariantPrefKey = "MenuTankVariant";
+
     private void ConfigureTank(GameObject tank)
     {
         tank.transform.localScale = Vector3.one * playerScale;
         FactionMember.Ensure(tank, Faction.Player);
+        ApplyTankVariant(tank);
 
         TankMover tankMover = tank.GetComponentInChildren<TankMover>();
         if (tankMover != null && tankMover.movementData == null)
@@ -269,20 +323,22 @@ public class MapTankTestBootstrap : MonoBehaviour
         mapWidthWorld = mapLoader.BuildWidth * mapLoader.tileSize;
         mapHeightWorld = mapLoader.BuildHeight * mapLoader.tileSize;
 
-        // Kích thước orthographic lớn nhất mà viewport vẫn nằm gọn trong map
-        // (không lộ vùng nền xanh ngoài map). cameraZoom < 1 để zoom gần hơn.
+        // Fit toàn bộ map trong viewport, nhưng cap để large map không quá zoom-out.
+        // maxGameplayOrtho = 12 → hiển thị ~24 ô theo chiều dọc (gameplay thoải mái).
+        // Map nhỏ (32×32) cho fitSize ~9 < 12 nên không bị ảnh hưởng.
         float maxSizeByHeight = mapHeightWorld / 2f;
         float maxSizeByWidth = mapWidthWorld / (2f * mainCamera.aspect);
         float fitSize = Mathf.Min(maxSizeByHeight, maxSizeByWidth);
+        const float MaxGameplayOrtho = 7f;
 
-        mainCamera.orthographicSize = Mathf.Max(0.01f, fitSize * cameraZoom);
+        mainCamera.orthographicSize = Mathf.Max(0.01f, Mathf.Min(fitSize * cameraZoom, MaxGameplayOrtho));
 
         UpdateCameraPosition();
     }
 
     private void UpdateCameraPosition()
     {
-        if (player == null || mainCamera == null)
+        if (!allowCameraFollow || player == null || mainCamera == null)
         {
             return;
         }
@@ -303,6 +359,44 @@ public class MapTankTestBootstrap : MonoBehaviour
         target.y = minY <= maxY ? Mathf.Clamp(target.y, minY, maxY) : 0f;
 
         mainCamera.transform.position = target;
+    }
+
+    private void ApplyTankVariant(GameObject tank)
+    {
+        int index = Mathf.Clamp(PlayerPrefs.GetInt(VariantPrefKey, 0), 0, VariantBodyFiles.Length - 1);
+        string spritePath = VariantSpritesRoot + VariantBodyFiles[index];
+
+        Sprite sprite = null;
+#if UNITY_EDITOR
+        sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
+        if (sprite == null)
+        {
+            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
+            if (tex != null)
+                sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+#endif
+        if (sprite == null) return;
+
+        Transform bodyTransform = tank.transform.Find("TankBase");
+        if (bodyTransform == null)
+        {
+            // Fallback: find any SpriteRenderer whose sprite name contains "tankBody"
+            SpriteRenderer[] renderers = tank.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (SpriteRenderer sr in renderers)
+            {
+                if (sr.sprite != null && sr.sprite.name.ToLower().Contains("tankbody"))
+                {
+                    sr.sprite = sprite;
+                    return;
+                }
+            }
+            return;
+        }
+
+        SpriteRenderer bodyRenderer = bodyTransform.GetComponent<SpriteRenderer>();
+        if (bodyRenderer != null)
+            bodyRenderer.sprite = sprite;
     }
 
     private GameObject ResolveTankPrefab()

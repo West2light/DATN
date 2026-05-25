@@ -81,6 +81,9 @@ public class MapLoader : MonoBehaviour
         ClearExistingTiles();
         LoadDefaultSprites();
 
+        string overrideFile = UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty);
+        if (!string.IsNullOrEmpty(overrideFile)) mapFileName = Path.GetFileName(overrideFile);
+
         string mapPath = Path.Combine(Application.dataPath, "MapData", mapFileName);
         if (!File.Exists(mapPath))
         {
@@ -125,6 +128,18 @@ public class MapLoader : MonoBehaviour
         int localX = Mathf.RoundToInt((position.x - origin.x) / tileSize);
         int localY = Mathf.RoundToInt((origin.y - position.y) / tileSize);
         return new Vector2Int(localX + buildStartX, localY + buildStartY);
+    }
+
+    public void MarkCellBlocked(Vector2Int cell)
+    {
+        if (grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
+            grid[cell.y][cell.x] = '@';
+    }
+
+    public void UnmarkCellBlocked(Vector2Int cell)
+    {
+        if (grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
+            grid[cell.y][cell.x] = '.';
     }
 
     public bool TryFindWalkableNear(Vector2Int preferredCell, out Vector2Int result)
