@@ -90,8 +90,7 @@ public class GridEnemyAgent : MonoBehaviour
             return;
         }
 
-        bool blockedShotByFriendly = TryQueueFriendlyShotBlocker();
-        Transform shootingTarget = blockedShotByFriendly ? null : GetShootingTarget();
+        Transform shootingTarget = GetShootingTarget();
         if (shootingTarget != null)
         {
             ResetProgressTracking();
@@ -177,13 +176,20 @@ public class GridEnemyAgent : MonoBehaviour
             return false;
         }
 
-        RaycastHit2D hit = Physics2D.Raycast(origin, targetPosition - origin, range, lineOfSightMask);
-        if (hit.collider == null)
+        // RaycastAll so friendly enemy tanks in the way are skipped (bullets pass through them).
+        FactionMember selfFaction = GetComponent<FactionMember>();
+        RaycastHit2D[] hits = Physics2D.RaycastAll(origin, targetPosition - origin, range, lineOfSightMask);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        for (int i = 0; i < hits.Length; i++)
         {
-            return false;
+            Collider2D col = hits[i].collider;
+            if (col == null || col.transform.IsChildOf(transform)) continue;
+            if (col.transform == target || col.transform.IsChildOf(target)) return true;
+            FactionMember hitFaction = FactionMember.FindForCollider(col);
+            if (FactionMember.AreFriendly(selfFaction, hitFaction)) continue;
+            return false; // blocked by wall or non-friendly
         }
-
-        return hit.collider.transform == target || hit.collider.transform.IsChildOf(target);
+        return false;
     }
 
     private bool TryGetFriendlyShotBlocker(Transform target, float range, out Vector2Int blockedCell)
