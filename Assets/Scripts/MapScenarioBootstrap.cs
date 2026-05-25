@@ -38,6 +38,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         new Vector2Int(16, 1)
     };
     public bool disableLegacyEnemyAI = true;
+    public int enemyMaxHealth = 20;
     public float enemyReplanInterval = 0.75f;
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
@@ -379,6 +380,8 @@ public class MapScenarioBootstrap : MonoBehaviour
 
         AddPlayerBlocker(enemy);
         IgnoreFriendlyCollisions(enemy, enemyFaction);
+        ConfigureEnemyHealth(enemy);
+        ConfigureEnemyHealthBar(enemy);
         AddGridEnemyAgent(enemy);
         TrackEnemyDeath(enemy);
 
@@ -396,6 +399,22 @@ public class MapScenarioBootstrap : MonoBehaviour
         {
             detector.Target = eagleBase.transform;
         }
+    }
+
+    private void ConfigureEnemyHealth(GameObject enemy)
+    {
+        Damagable damagable = enemy.GetComponentInChildren<Damagable>();
+        if (damagable == null) return;
+        damagable.MaxHealth = enemyMaxHealth;
+        damagable.Health = enemyMaxHealth;
+    }
+
+    private void ConfigureEnemyHealthBar(GameObject enemy)
+    {
+        Transform healthBar = enemy.transform.Find("Canvas/HealthBar");
+        if (healthBar == null || !healthBar.TryGetComponent(out RectTransform rectTransform)) return;
+        rectTransform.anchoredPosition = new Vector2(-0.42f, 0.34f);
+        rectTransform.sizeDelta = new Vector2(0.84f, 0.18f);
     }
 
     private void IgnoreFriendlyCollisions(GameObject enemy, FactionMember factionMember)
