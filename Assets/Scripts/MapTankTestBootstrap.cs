@@ -32,6 +32,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     private Transform player;
     private float mapWidthWorld;
     private float mapHeightWorld;
+    private bool allowCameraFollow = true;
 
     private void Start()
     {
@@ -53,6 +54,23 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         mapLoader.LoadAndBuild();
         SpawnPlayer();
+        SetupCamera();
+
+        if (MapPlacementPhase.ShouldTrigger())
+        {
+            allowCameraFollow = false;
+            MapPlacementPhase phase = gameObject.AddComponent<MapPlacementPhase>();
+            phase.BeginPhase(mapLoader, mainCamera, OnPlacementDone, player);
+        }
+        else
+        {
+            SpawnScenario();
+        }
+    }
+
+    private void OnPlacementDone()
+    {
+        allowCameraFollow = true;
         SetupCamera();
         SpawnScenario();
     }
@@ -320,7 +338,7 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void UpdateCameraPosition()
     {
-        if (player == null || mainCamera == null)
+        if (!allowCameraFollow || player == null || mainCamera == null)
         {
             return;
         }

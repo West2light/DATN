@@ -130,6 +130,18 @@ public class MapLoader : MonoBehaviour
         return new Vector2Int(localX + buildStartX, localY + buildStartY);
     }
 
+    public void MarkCellBlocked(Vector2Int cell)
+    {
+        if (grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
+            grid[cell.y][cell.x] = '@';
+    }
+
+    public void UnmarkCellBlocked(Vector2Int cell)
+    {
+        if (grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
+            grid[cell.y][cell.x] = '.';
+    }
+
     public bool TryFindWalkableNear(Vector2Int preferredCell, out Vector2Int result)
     {
         if (IsWalkable(preferredCell))
