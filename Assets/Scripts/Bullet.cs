@@ -96,7 +96,7 @@ public class Bullet : MonoBehaviour
         }
 
         OnHit?.Invoke();
-        var damagable = collision.GetComponent<Damagable>();
+        var damagable = collision.GetComponentInParent<Damagable>();
         if (damagable != null)
         {
             damagable.Hit(bulletData.damage);

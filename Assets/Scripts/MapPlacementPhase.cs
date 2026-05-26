@@ -66,6 +66,8 @@ public class MapPlacementPhase : MonoBehaviour
     private Vector3 rightDownScreen;
     private const float DragThresholdPx = 6f;
     private const float ZoomSpeed       = 0.12f;
+    private const int   CrateHp         = 5;   // destroyed by 1 enemy bullet (damage=5)
+    private const int   BarrierHp       = 10;  // destroyed by 2 enemy bullets
 
     // colours
     private static readonly Color GhostCrateOk    = new Color(0.25f, 1f,    0.25f, 0.52f);
@@ -389,9 +391,9 @@ public class MapPlacementPhase : MonoBehaviour
         Vector2Int cell = mapLoader.WorldToCell(new Vector3(wp.x, wp.y, 0f));
         if (!CanPlaceAt(cell)) return;
         if (currentMode == PlaceMode.Crate)
-            SpawnItem(cell, crateSprite, CrateTint, $"WoodCrate_{cell.x}_{cell.y}", placedCrates);
+            SpawnItem(cell, crateSprite, CrateTint, $"WoodCrate_{cell.x}_{cell.y}", placedCrates, CrateHp);
         else
-            SpawnItem(cell, barrierSprite, BarrierTint, $"Barrier_{cell.x}_{cell.y}", placedBarriers);
+            SpawnItem(cell, barrierSprite, BarrierTint, $"Barrier_{cell.x}_{cell.y}", placedBarriers, BarrierHp);
     }
 
     private void TryRemove()
@@ -417,7 +419,7 @@ public class MapPlacementPhase : MonoBehaviour
         return false;
     }
 
-    private void SpawnItem(Vector2Int cell, Sprite sprite, Color tint, string goName, List<PlacedItem> list)
+    private void SpawnItem(Vector2Int cell, Sprite sprite, Color tint, string goName, List<PlacedItem> list, int maxHp)
     {
         int wallLayer = LayerMask.NameToLayer("Walls");
         if (wallLayer < 0) wallLayer = LayerMask.NameToLayer("ObstaclesMovement");
@@ -440,6 +442,21 @@ public class MapPlacementPhase : MonoBehaviour
         BoxCollider2D hbCol = hb.AddComponent<BoxCollider2D>();
         hbCol.isTrigger = true;
         hbCol.size      = Vector2.one;
+
+        FactionMember.Ensure(go, Faction.Player);
+
+        Damagable dmg = go.AddComponent<Damagable>();
+        dmg.MaxHealth = maxHp;
+        dmg.Health    = maxHp;
+        if (dmg.OnDead == null) dmg.OnDead = new UnityEngine.Events.UnityEvent();
+        MapLoader  capturedLoader = mapLoader;
+        Vector2Int capturedCell   = cell;
+        GameObject capturedRoot   = go;
+        dmg.OnDead.AddListener(() =>
+        {
+            capturedLoader.UnmarkCellBlocked(capturedCell);
+            Destroy(capturedRoot);
+        });
 
         list.Add(new PlacedItem { cell = cell, go = go });
         placedCells.Add(cell);
