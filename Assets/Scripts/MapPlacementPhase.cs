@@ -11,6 +11,7 @@ using UnityEditor;
 /// Pre-game crate/barrier placement phase.
 /// Map 2 & 3: up to 2 wooden crates.
 /// Map 4: up to 2 wooden crates + 1 metal barrier.
+/// Map 5: up to 2 wooden crates + 2 metal barriers.
 /// Controls: left-click = place, right-click point = remove, right-drag = pan, scroll = zoom.
 /// </summary>
 public class MapPlacementPhase : MonoBehaviour
@@ -22,6 +23,7 @@ public class MapPlacementPhase : MonoBehaviour
             { "ht_mansion_n.map",        (2, 0) },
             { "ht_chantry.map",          (2, 0) },
             { "lt_gallowstemplar_n.map", (2, 1) },
+            { "maze-128-128-10.map",     (2, 2) },
         };
 
     private enum PlaceMode { Crate, Barrier }

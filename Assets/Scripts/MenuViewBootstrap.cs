@@ -68,7 +68,7 @@ public class MenuViewBootstrap : MonoBehaviour
         new MapDef { label = "Mansion",   sizeLabel = "133 × 270",              previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
         new MapDef { label = "Chantry",   sizeLabel = "162 × 141",              previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
         new MapDef { label = "Gallows",   sizeLabel = "251 × 180",              previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
-        new MapDef { label = "Omega-32",  sizeLabel = "",                        previewTint = new Color(0.65f, 0.14f, 0.18f), available = false },
+        new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls", previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map", sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
