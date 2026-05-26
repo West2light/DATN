@@ -12,6 +12,8 @@ public class MapTankTestBootstrap : MonoBehaviour
     public string tankPrefabPath = "Assets/Prefabs/Tank.prefab";
     public TankMovementData movementData;
     public string movementDataPath = "Assets/Data/TankData/PlayerTankMovementData.asset";
+    public AudioClip playerEngineClip;
+    public string playerEngineClipPath = "Assets/Audio/Kenny Assets/Si-fi sounds/Audio/spaceEngineSmall_001.ogg";
     public Vector2Int playerSpawnCell = new Vector2Int(1, 1);
 
     [Range(0.5f, 3f)]
@@ -166,6 +168,8 @@ public class MapTankTestBootstrap : MonoBehaviour
             tankMover.movementData = ResolveMovementData();
         }
 
+        ConfigurePlayerEngineAudio(tank, tankMover);
+
         Damagable damagable = tank.GetComponentInChildren<Damagable>();
         if (damagable != null)
         {
@@ -196,6 +200,52 @@ public class MapTankTestBootstrap : MonoBehaviour
                 }
             }
         }
+    }
+
+    private void ConfigurePlayerEngineAudio(GameObject tank, TankMover tankMover)
+    {
+        if (tank == null || tankMover == null)
+        {
+            return;
+        }
+
+        EngineAudio engineAudio = tank.GetComponentInChildren<EngineAudio>(true);
+        if (engineAudio == null)
+        {
+            GameObject engineAudioObject = new GameObject("EngineAudio");
+            engineAudioObject.transform.SetParent(tank.transform, false);
+            engineAudioObject.AddComponent<AudioSource>();
+            engineAudio = engineAudioObject.AddComponent<EngineAudio>();
+        }
+
+        AudioSource audioSource = engineAudio.GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = engineAudio.gameObject.AddComponent<AudioSource>();
+        }
+
+        engineAudio.minVloume = 0.08f;
+        engineAudio.maxVolume = 0.22f;
+        engineAudio.volumeIncrease = 0.18f;
+
+        AudioClip clip = ResolvePlayerEngineClip();
+        if (clip != null)
+        {
+            audioSource.clip = clip;
+        }
+
+        audioSource.loop = true;
+        audioSource.playOnAwake = true;
+        audioSource.spatialBlend = 0f;
+        audioSource.volume = engineAudio.minVloume;
+
+        if (audioSource.clip != null && Application.isPlaying && !audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
+
+        tankMover.OnSpeedChange.RemoveListener(engineAudio.ControlEngineVolume);
+        tankMover.OnSpeedChange.AddListener(engineAudio.ControlEngineVolume);
     }
 
     private Slider EnsurePlayerHealthBar()
@@ -422,6 +472,20 @@ public class MapTankTestBootstrap : MonoBehaviour
 
 #if UNITY_EDITOR
         return AssetDatabase.LoadAssetAtPath<TankMovementData>(movementDataPath);
+#else
+        return null;
+#endif
+    }
+
+    private AudioClip ResolvePlayerEngineClip()
+    {
+        if (playerEngineClip != null)
+        {
+            return playerEngineClip;
+        }
+
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<AudioClip>(playerEngineClipPath);
 #else
         return null;
 #endif

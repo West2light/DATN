@@ -14,12 +14,32 @@ public class EngineAudio : MonoBehaviour
     private void Awake()
     {
         audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
         currentVolume = minVloume;
     }
 
     private void Start()
     {
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+        }
+
+        if (audioSource == null)
+        {
+            return;
+        }
+
         audioSource.volume = currentVolume;
+        audioSource.loop = true;
+        if (audioSource.clip != null && !audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
     }
 
     public void ControlEngineVolume(float speed)
@@ -36,6 +56,9 @@ public class EngineAudio : MonoBehaviour
                 currentVolume -= volumeIncrease * Time.deltaTime;
         }
         currentVolume = Mathf.Clamp(currentVolume, minVloume, maxVolume);
-        audioSource.volume = currentVolume;
+        if (audioSource != null)
+        {
+            audioSource.volume = currentVolume;
+        }
     }
 }
