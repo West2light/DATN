@@ -25,6 +25,7 @@ public class MapGameOverController : MonoBehaviour
 
     public void BeginGameOver()
     {
+        if (BacktestMode.IsActive) return;
         if (gameOverStarted)
         {
             return;

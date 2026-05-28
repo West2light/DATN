@@ -24,6 +24,7 @@ public class MapWinController : MonoBehaviour
 
     public void BeginWin()
     {
+        if (BacktestMode.IsActive) return;
         if (winStarted) return;
         winStarted = true;
         ShowOverlay();

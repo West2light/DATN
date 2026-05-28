@@ -75,6 +75,14 @@ public class GridEnemyAgent : MonoBehaviour
     private int lastSteeringDirection = 1;
     private int reverseRecoveryTurnDirection = 1;
 
+    // ── Backtest metrics (reset to 0 automatically on spawn) ───────────────
+    [System.NonSerialized] public int   btReplanCount;
+    [System.NonSerialized] public int   btRecoveryCount;
+    [System.NonSerialized] public int   btShotCount;
+    [System.NonSerialized] public int   btCellsVisited;
+    [System.NonSerialized] public int   btInitialPathLength;
+    [System.NonSerialized] public float btSpawnTime;
+
     private void Awake()
     {
         if (tankController == null)
@@ -99,6 +107,7 @@ public class GridEnemyAgent : MonoBehaviour
             if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(shootingTarget.position))
             {
                 tankController.HandleShoot();
+                btShotCount++;
             }
             return;
         }
@@ -238,6 +247,7 @@ public class GridEnemyAgent : MonoBehaviour
 
     private void ReplanPath()
     {
+        btReplanCount++;
         nextReplanTime = Time.time + replanInterval;
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
         Vector2Int goalCell = mapLoader.WorldToCell(eagleTarget.position);
@@ -247,6 +257,7 @@ public class GridEnemyAgent : MonoBehaviour
         {
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
+            if (btInitialPathLength == 0) btInitialPathLength = currentPath.Count;
         }
         else
         {
@@ -307,6 +318,7 @@ public class GridEnemyAgent : MonoBehaviour
         if (directionToTarget.magnitude <= reachDistance)
         {
             pathIndex++;
+            btCellsVisited++;
             ResetPartialDrive();
             return;
         }
@@ -590,6 +602,7 @@ public class GridEnemyAgent : MonoBehaviour
 
     private void TriggerRecovery()
     {
+        btRecoveryCount++;
         switch (recoveryLevel)
         {
             case RecoveryLevel.None:
