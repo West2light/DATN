@@ -19,8 +19,8 @@ using UnityEditor;
 public class BacktestRunner : MonoBehaviour
 {
     // ── Config ─────────────────────────────────────────────────────────────
-    private const int   Reps       = 3;
-    private const float RunTimeout = 120f;
+    public const int   Reps          = 3;   // default; caller can override via Launch()
+    public const float RunTimeoutSec = 120f;
 
     private static readonly string[] MapFiles =
     {
@@ -89,15 +89,17 @@ public class BacktestRunner : MonoBehaviour
 
     // ── Public entry point ─────────────────────────────────────────────────
     // selectedMapIndices: indices into MapFiles/MapLabels; null = run all maps
-    public static void Launch(List<int> selectedMapIndices = null)
+    public static void Launch(List<int> selectedMapIndices = null, int reps = Reps)
     {
         if (_instance != null) return;
         var go = new GameObject("BacktestRunner");
         var runner = go.AddComponent<BacktestRunner>();
         runner._selectedMapIndices = selectedMapIndices;
+        runner._reps = Mathf.Max(1, reps);
     }
 
     private List<int> _selectedMapIndices;
+    private int       _reps = Reps;
 
     // ── Unity lifecycle ────────────────────────────────────────────────────
     private void Awake()
@@ -128,7 +130,7 @@ public class BacktestRunner : MonoBehaviour
             int m = indices[mi];
             if (m < 0 || m >= MapFiles.Length) continue;
             for (int a = 0; a < scenes.Length; a++)
-            for (int r = 1; r <= Reps; r++)
+            for (int r = 1; r <= _reps; r++)
                 _jobs.Add(new Job
                 {
                     mapFile   = MapFiles[m],
@@ -156,7 +158,7 @@ public class BacktestRunner : MonoBehaviour
 
     private IEnumerator RunJob(Job job)
     {
-        SetProgress($"Loading  {job.mapLabel}  [{job.algorithm}]  rep {job.rep}/{Reps}");
+        SetProgress($"Loading  {job.mapLabel}  [{job.algorithm}]  rep {job.rep}/{_reps}");
 
         PlayerPrefs.SetString("SelectedMapFile", job.mapFile);
         PlayerPrefs.Save();
@@ -181,7 +183,7 @@ public class BacktestRunner : MonoBehaviour
             string endReason = null;
             if (_eagleDestroyed)                 endReason = "EagleDestroyed";
             else if (_allEnemiesDead)             endReason = "AllEnemiesDead";
-            else if (_runElapsed >= RunTimeout)   endReason = "Timeout";
+            else if (_runElapsed >= RunTimeoutSec) endReason = "Timeout";
 
             if (endReason != null)
             {
