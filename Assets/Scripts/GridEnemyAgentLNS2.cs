@@ -96,6 +96,14 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     private int     reverseRecoveryTurnDirection = 1;
     private HashSet<Vector2Int> pendingBlockedCells;
 
+    // ── Backtest metrics ───────────────────────────────────────────────────
+    [System.NonSerialized] public int   btReplanCount;
+    [System.NonSerialized] public int   btRecoveryCount;
+    [System.NonSerialized] public int   btShotCount;
+    [System.NonSerialized] public int   btCellsVisited;
+    [System.NonSerialized] public int   btInitialPathLength;
+    [System.NonSerialized] public float btSpawnTime;
+
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
     private void Awake()
@@ -137,6 +145,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
             if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(shootingTarget.position))
             {
                 tankController.HandleShoot();
+                btShotCount++;
             }
             return;
         }
@@ -263,6 +272,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private void ReplanPath()
     {
+        btReplanCount++;
         nextReplanTime = Time.time + replanInterval;
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
         HashSet<Vector2Int> blockedCells = MergeBlockedCells(pendingBlockedCells, BuildDynamicBlockedCells(startCell));
@@ -273,6 +283,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         {
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
+            if (btInitialPathLength == 0) btInitialPathLength = currentPath.Count;
         }
         else
         {
@@ -309,6 +320,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         if (directionToTarget.magnitude <= reachDistance)
         {
             pathIndex++;
+            btCellsVisited++;
             ResetPartialDrive();
             return;
         }
@@ -498,6 +510,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private void TriggerRecovery()
     {
+        btRecoveryCount++;
         switch (recoveryLevel)
         {
             case RecoveryLevel.None:

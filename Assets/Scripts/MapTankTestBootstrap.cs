@@ -55,10 +55,13 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
 
         mapLoader.LoadAndBuild();
-        SpawnPlayer();
+
+        if (!BacktestMode.IsActive)
+            SpawnPlayer();
+
         SetupCamera();
 
-        if (MapPlacementPhase.ShouldTrigger())
+        if (!BacktestMode.IsActive && MapPlacementPhase.ShouldTrigger())
         {
             allowCameraFollow = false;
             MapPlacementPhase phase = gameObject.AddComponent<MapPlacementPhase>();

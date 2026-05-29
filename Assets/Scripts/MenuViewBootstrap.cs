@@ -189,6 +189,13 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnShop.transform, TextMuted);
         btnShop.interactable = false;
 
+        // BACKTEST
+        Button btnBacktest = MakeButton(card.transform, "BtnBacktest",
+            "BACKTEST", new Vector2(0f, -218f), new Vector2(290f, 44f),
+            new Color(0.18f, 0.34f, 0.54f, 1f));
+        SetTextColor(btnBacktest.transform, new Color(0.75f, 0.88f, 1f, 1f));
+        btnBacktest.onClick.AddListener(() => BacktestConfigUI.Show());
+
         // Version footer
         MakeText(_screenMain.transform, "Version",
             "v0.4  •  Thesis Demo",
