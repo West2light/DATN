@@ -9,9 +9,7 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Overlay lobby UI for LAN multiplayer.
-/// Call LanLobbyController.Show(mapFile, algorithm) from the menu.
-/// Auto-creates LanBridgePrefab in Editor if missing.
+/// LAN lobby overlay.  Call  LanLobbyController.Show(mapFile, algorithm)  from the menu.
 /// </summary>
 public class LanLobbyController : MonoBehaviour
 {
@@ -23,500 +21,453 @@ public class LanLobbyController : MonoBehaviour
     private const int    MaxPlayers = 8;
 
     // ── Palette ───────────────────────────────────────────────────────────────
-    private static readonly Color BgOverlay   = new Color(0f,    0f,    0f,    0.88f);
-    private static readonly Color PanelBg     = new Color(0.07f, 0.09f, 0.12f, 1f);
-    private static readonly Color AccentBlue  = new Color(0.22f, 0.52f, 0.92f, 1f);
-    private static readonly Color AccentGreen = new Color(0.12f, 0.55f, 0.28f, 1f);
-    private static readonly Color AccentGold  = new Color(1f,    0.82f, 0.22f, 1f);
-    private static readonly Color BtnSlate    = new Color(0.16f, 0.18f, 0.22f, 1f);
-    private static readonly Color BtnDanger   = new Color(0.45f, 0.10f, 0.10f, 1f);
-    private static readonly Color TextWhite   = Color.white;
-    private static readonly Color TextMuted   = new Color(0.52f, 0.58f, 0.65f, 1f);
-    private static readonly Color TextBlue    = new Color(0.65f, 0.82f, 1.00f, 1f);
+    private static readonly Color Bg          = new Color(0f,    0f,    0f,    0.90f);
+    private static readonly Color Panel       = new Color(0.08f, 0.10f, 0.13f, 1f);
+    private static readonly Color PanelLight  = new Color(0.11f, 0.14f, 0.18f, 1f);
+    private static readonly Color Gold        = new Color(1.00f, 0.82f, 0.22f, 1f);
+    private static readonly Color Blue        = new Color(0.18f, 0.48f, 0.90f, 1f);
+    private static readonly Color Green       = new Color(0.10f, 0.52f, 0.26f, 1f);
+    private static readonly Color Slate       = new Color(0.18f, 0.20f, 0.25f, 1f);
+    private static readonly Color Danger      = new Color(0.38f, 0.08f, 0.08f, 1f);
+    private static readonly Color White       = Color.white;
+    private static readonly Color Muted       = new Color(0.50f, 0.55f, 0.62f, 1f);
+    private static readonly Color BlueTint    = new Color(0.65f, 0.82f, 1.00f, 1f);
+    private static readonly Color Sep         = new Color(1f, 1f, 1f, 0.07f);
 
-    // ── Layout ────────────────────────────────────────────────────────────────
-    // Panel: 560 × 480
-    // Header zone: 0–84 px from top (gold bar + title + map info + sep)
-    // Content zone: 84–282 px from top (status + player list)
-    // Footer zone: bottom 198 px (3 button rows + cancel)
-    private const float PanelW   = 560f;
-    private const float PanelH   = 480f;
-    private const float PadX     = 24f;
+    // ── Panel dimensions ──────────────────────────────────────────────────────
+    // Header   : 0    → 72   (gold bar + title + map info + separator)
+    // Content  : 72   → 292  (status + ip box + player list)
+    // Separator: 292
+    // Footer   : bottom 188px (3 button rows + cancel)
+    // Total height: 480
+    private const float PW    = 520f;   // panel width
+    private const float PH    = 480f;   // panel height
+    private const float PadX  = 22f;
+    private float       FullW => PW - PadX * 2f;
 
     // ── State ─────────────────────────────────────────────────────────────────
-    private enum LobbyScreen { ModeSelect, HostWait, JoinManual }
+    private enum Screen { Choose, Hosting, Joining }
 
-    private string       _mapFile;
-    private string       _algorithm;
+    private string     _mapFile, _algorithm;
     private LanDiscovery _discovery;
-    private GameObject   _root;
-    private GameObject   _panel;
+    private GameObject _root, _panel;
 
-    // Dynamic text elements
-    private Text    _statusText;
-    private Text    _playerListText;
-    private Image   _statusIcon;
+    // Content refs
+    private Text       _statusTxt;
+    private GameObject _ipBox;
+    private Text       _ipVal;
+    private Text       _playersTxt;
 
-    // Buttons whose visibility depends on screen state
-    private Button   _btnHost;
-    private Button   _btnJoinManual;
-    private Text     _hostIpText;
-    private GameObject _ipBoxGo;
-    private Button   _btnStart;
-    private Button   _btnConnect;
-    private GameObject _ipRow;
+    // Footer refs (hosted as overlapping pairs at same Y)
+    private Button     _btnHost;       // Choose screen
+    private Button     _btnStart;      // Hosting screen (same Y as _btnHost)
+    private Button     _btnJoin;       // Choose screen
+    private GameObject _joinRow;       // Joining screen (same Y as _btnJoin): input+connect
     private InputField _ipInput;
 
-    private readonly List<string> _playerNames = new List<string>();
+    private readonly List<string> _clients = new List<string>();
 
-    // ── Public entry point ────────────────────────────────────────────────────
+    // ── Entry point ───────────────────────────────────────────────────────────
 
     public static void Show(string mapFile, string algorithm)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
-
         var go = new GameObject("LanLobbyController");
         DontDestroyOnLoad(go);
-        _instance = go.AddComponent<LanLobbyController>();
-        _instance._mapFile    = mapFile;
-        _instance._algorithm  = algorithm;
-        _instance.BuildOverlay();
-        _instance.ShowScreen(LobbyScreen.ModeSelect);
+        _instance                = go.AddComponent<LanLobbyController>();
+        _instance._mapFile       = mapFile;
+        _instance._algorithm     = algorithm;
+        _instance.Build();
+        _instance.SwitchTo(Screen.Choose);
     }
 
-    // ── Build overlay ─────────────────────────────────────────────────────────
+    // ── Build the whole overlay ───────────────────────────────────────────────
 
-    private void BuildOverlay()
+    private void Build()
     {
-        int layer = LayerMask.NameToLayer("UI");
+        int L = LayerMask.NameToLayer("UI");
 
         // Root canvas
-        _root = new GameObject("LanLobbyOverlay");
+        _root = new GameObject("LanOverlay");
         DontDestroyOnLoad(_root);
-        _root.layer = layer;
+        _root.layer = L;
         var cv = _root.AddComponent<Canvas>();
-        cv.renderMode  = RenderMode.ScreenSpaceOverlay;
+        cv.renderMode = RenderMode.ScreenSpaceOverlay;
         cv.sortingOrder = 300;
         var sc = _root.AddComponent<CanvasScaler>();
-        sc.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         sc.referenceResolution = new Vector2(1280f, 720f);
         _root.AddComponent<GraphicRaycaster>();
 
-        // Full-screen dim
-        var dim = NewChild(_root, "Dim", layer);
-        Stretch(dim); dim.AddComponent<Image>().color = BgOverlay;
+        // Backdrop
+        var dim = Mk(_root, "Dim", L);
+        Stretch(dim); dim.AddComponent<Image>().color = Bg;
 
         // Panel
-        _panel = NewChild(_root, "Panel", layer);
-        Center(_panel.GetComponent<RectTransform>(), new Vector2(PanelW, PanelH));
-        _panel.AddComponent<Image>().color = PanelBg;
+        _panel = Mk(_root, "Panel", L);
+        var pRt = _panel.GetComponent<RectTransform>();
+        pRt.anchorMin = pRt.anchorMax = new Vector2(0.5f, 0.5f);
+        pRt.pivot = new Vector2(0.5f, 0.5f);
+        pRt.anchoredPosition = Vector2.zero;
+        pRt.sizeDelta = new Vector2(PW, PH);
+        _panel.AddComponent<Image>().color = Panel;
 
-        BuildHeader(layer);
-        BuildContent(layer);
-        BuildFooter(layer);
+        BuildHeader(L);
+        BuildContent(L);
+        BuildFooter(L);
     }
 
-    // ── Header (gold bar + title + map info + separator) ─────────────────────
+    // ── Header ────────────────────────────────────────────────────────────────
 
-    private void BuildHeader(int layer)
+    private void BuildHeader(int L)
     {
-        // Gold accent bar (5 px, top edge)
-        var bar = NewChild(_panel, "GoldBar", layer);
+        // Gold accent bar (top edge)
+        var bar = Mk(_panel, "Bar", L);
         var bRt = bar.GetComponent<RectTransform>();
         bRt.anchorMin = new Vector2(0f, 1f); bRt.anchorMax = new Vector2(1f, 1f);
         bRt.pivot = Vector2.one; bRt.anchoredPosition = Vector2.zero;
         bRt.sizeDelta = new Vector2(0f, 5f);
-        bar.AddComponent<Image>().color = AccentGold;
+        bar.AddComponent<Image>().color = Gold;
 
         // Title
-        TopLbl(_panel, "Title", "MULTIPLAYER  LAN", 22, FontStyle.Bold, AccentGold,
-            new Vector2(0f, -18f), new Vector2(-PadX * 2f, 30f));
+        TLbl(_panel, "Title", "MULTIPLAYER  LAN",
+            22, FontStyle.Bold, Gold, new Vector2(0f, -16f), new Vector2(FullW, 28f));
 
-        // Map info subtitle
-        string mapShort = System.IO.Path.GetFileNameWithoutExtension(_mapFile);
-        TopLbl(_panel, "MapInfo",
-            $"{mapShort}  ·  {_algorithm}  ·  tối đa {MaxPlayers} người",
-            12, FontStyle.Normal, TextMuted,
-            new Vector2(0f, -52f), new Vector2(-PadX * 2f, 18f));
+        // Map · algorithm line
+        string map = System.IO.Path.GetFileNameWithoutExtension(_mapFile);
+        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  tối đa {MaxPlayers} người",
+            12, FontStyle.Normal, Muted, new Vector2(0f, -48f), new Vector2(FullW, 18f));
 
-        // Separator at y=-76 from top
-        HSep(_panel, layer, -76f);
+        HSep(-72f, L);
     }
 
-    // ── Content (status text + player list) ──────────────────────────────────
+    // ── Content ───────────────────────────────────────────────────────────────
 
-    private void BuildContent(int layer)
+    private void BuildContent(int L)
     {
-        // Status text (multi-line, anchor top)
-        var statusGo = NewChild(_panel, "Status", layer);
-        var sRt = statusGo.GetComponent<RectTransform>();
+        // Status text
+        var sGo = Mk(_panel, "Status", L);
+        var sRt = sGo.GetComponent<RectTransform>();
         sRt.anchorMin = new Vector2(0f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
         sRt.pivot = new Vector2(0.5f, 1f);
-        sRt.anchoredPosition = new Vector2(0f, -92f);
-        sRt.sizeDelta = new Vector2(-PadX * 2f, 72f);
-        _statusText = statusGo.AddComponent<Text>();
-        _statusText.font = Fnt(); _statusText.fontSize = 14;
-        _statusText.color = TextWhite; _statusText.alignment = TextAnchor.UpperCenter;
+        sRt.anchoredPosition = new Vector2(0f, -88f);
+        sRt.sizeDelta = new Vector2(-PadX * 2f, 56f);
+        _statusTxt = sGo.AddComponent<Text>();
+        _statusTxt.font = F(); _statusTxt.fontSize = 14;
+        _statusTxt.color = White; _statusTxt.alignment = TextAnchor.MiddleCenter;
 
-        // Player list (shown only in HostWait)
-        var plGo = NewChild(_panel, "PlayerList", layer);
-        var pRt = plGo.GetComponent<RectTransform>();
-        pRt.anchorMin = new Vector2(0f, 1f); pRt.anchorMax = new Vector2(1f, 1f);
-        pRt.pivot = new Vector2(0.5f, 1f);
-        pRt.anchoredPosition = new Vector2(0f, -172f);
-        pRt.sizeDelta = new Vector2(-PadX * 2f, 104f);
-        _playerListText = plGo.AddComponent<Text>();
-        _playerListText.font = Fnt(); _playerListText.fontSize = 13;
-        _playerListText.color = TextBlue; _playerListText.alignment = TextAnchor.UpperLeft;
-
-        // IP display box (shown when hosting, hidden otherwise)
-        int lyr = LayerMask.NameToLayer("UI");
-        var ipBox = NewChild(_panel, "IpBox", lyr);
-        var ibRt  = ipBox.GetComponent<RectTransform>();
+        // IP box (host-only)
+        _ipBox = Mk(_panel, "IpBox", L);
+        var ibRt = _ipBox.GetComponent<RectTransform>();
         ibRt.anchorMin = new Vector2(0f, 1f); ibRt.anchorMax = new Vector2(1f, 1f);
         ibRt.pivot = new Vector2(0.5f, 1f);
-        ibRt.anchoredPosition = new Vector2(0f, -204f);
-        ibRt.sizeDelta = new Vector2(-PadX * 2f, 52f);
-        ipBox.AddComponent<Image>().color = new Color(0.10f, 0.16f, 0.24f, 1f);
-        ipBox.SetActive(false);
+        ibRt.anchoredPosition = new Vector2(0f, -154f);
+        ibRt.sizeDelta = new Vector2(-PadX * 2f, 60f);
+        _ipBox.AddComponent<Image>().color = new Color(0.06f, 0.14f, 0.26f, 1f);
+        _ipBox.SetActive(false);
 
-        // Label "IP của bạn:"
-        var ibLbl = NewChild(ipBox, "Lbl", lyr);
-        var ibLblRt = ibLbl.GetComponent<RectTransform>();
-        ibLblRt.anchorMin = new Vector2(0f, 1f); ibLblRt.anchorMax = new Vector2(1f, 1f);
-        ibLblRt.pivot = new Vector2(0.5f, 1f);
-        ibLblRt.anchoredPosition = new Vector2(0f, -4f); ibLblRt.sizeDelta = new Vector2(-16f, 18f);
-        var ibLblTxt = ibLbl.AddComponent<Text>();
-        ibLblTxt.text = "Địa chỉ IP của bạn  (share cho người chơi khác):";
-        ibLblTxt.font = Fnt(); ibLblTxt.fontSize = 11; ibLblTxt.color = TextMuted;
-        ibLblTxt.alignment = TextAnchor.MiddleCenter;
+        // IP box border accent (left edge)
+        var accent = Mk(_ipBox, "Accent", L);
+        var aRt = accent.GetComponent<RectTransform>();
+        aRt.anchorMin = new Vector2(0f, 0f); aRt.anchorMax = new Vector2(0f, 1f);
+        aRt.pivot = new Vector2(0f, 0.5f);
+        aRt.anchoredPosition = Vector2.zero; aRt.sizeDelta = new Vector2(4f, 0f);
+        accent.AddComponent<Image>().color = Gold;
 
-        // IP value (large, gold)
-        var ibVal = NewChild(ipBox, "IpVal", lyr);
-        var ibValRt = ibVal.GetComponent<RectTransform>();
-        ibValRt.anchorMin = new Vector2(0f, 0f); ibValRt.anchorMax = new Vector2(1f, 0f);
-        ibValRt.pivot = new Vector2(0.5f, 0f);
-        ibValRt.anchoredPosition = new Vector2(0f, 4f); ibValRt.sizeDelta = new Vector2(-16f, 26f);
-        _hostIpText = ibVal.AddComponent<Text>();
-        _hostIpText.font = Fnt(); _hostIpText.fontSize = 20; _hostIpText.fontStyle = FontStyle.Bold;
-        _hostIpText.color = AccentGold; _hostIpText.alignment = TextAnchor.MiddleCenter;
+        TLbl(_ipBox, "IpLbl",
+            "IP của bạn  —  share cho người chơi khác:",
+            11, FontStyle.Normal, Muted, new Vector2(0f, -6f), new Vector2(FullW - 16f, 18f));
 
-        // Store reference to toggle visibility
-        _ipBoxGo = ipBox;
+        var ivGo = Mk(_ipBox, "IpVal", L);
+        var ivRt = ivGo.GetComponent<RectTransform>();
+        ivRt.anchorMin = new Vector2(0f, 0f); ivRt.anchorMax = new Vector2(1f, 0f);
+        ivRt.pivot = new Vector2(0.5f, 0f);
+        ivRt.anchoredPosition = new Vector2(0f, 8f); ivRt.sizeDelta = new Vector2(-16f, 26f);
+        _ipVal = ivGo.AddComponent<Text>();
+        _ipVal.font = F(); _ipVal.fontSize = 20; _ipVal.fontStyle = FontStyle.Bold;
+        _ipVal.color = Gold; _ipVal.alignment = TextAnchor.MiddleCenter;
 
-        // Separator above footer at y=-282
-        HSep(_panel, LayerMask.NameToLayer("UI"), -282f);
+        // Player list (host-only)
+        var plGo = Mk(_panel, "Players", L);
+        var plRt = plGo.GetComponent<RectTransform>();
+        plRt.anchorMin = new Vector2(0f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
+        plRt.pivot = new Vector2(0.5f, 1f);
+        plRt.anchoredPosition = new Vector2(0f, -224f);
+        plRt.sizeDelta = new Vector2(-PadX * 2f, 60f);
+        _playersTxt = plGo.AddComponent<Text>();
+        _playersTxt.font = F(); _playersTxt.fontSize = 13;
+        _playersTxt.color = BlueTint; _playersTxt.alignment = TextAnchor.UpperLeft;
+        plGo.SetActive(false);
+
+        HSep(-292f, L);
     }
 
-    // ── Footer (button rows, anchored from BOTTOM of panel) ──────────────────
+    // ── Footer ────────────────────────────────────────────────────────────────
     //
-    //  y=14  ┌──────────────────────────────────── CANCEL ────────────────────┐ h=38
-    //  y=60  ┌────────────────────── HOST GAME ───────────────────────────────┐ h=48
-    //  y=116 ┌── JOIN  NHẬP IP ──┐   ┌──────── ENTER IP ──────── KẾT NỐI ──┐  h=38
-    //  y=162 ┌────────────────────── START GAME ──────────────────────────────┐ h=44
+    //  Layout from bottom (all anchored to panel bottom-center):
+    //
+    //  y= 14  h=36   [CANCEL]                   ← always visible
+    //  y= 58  h=52   [HOST GAME]  or  [START GAME]   ← toggled
+    //  y=118  h=44   [JOIN (nhập IP)]  or  [IP row]  ← toggled
 
-    private void BuildFooter(int layer)
+    private void BuildFooter(int L)
     {
-        const float BtnH1 = 48f, BtnH2 = 38f, BtnH3 = 44f;
-        const float BtnW  = 244f;  // each half-width button (join row only)
-        const float Gap   = 8f;
-        float fullW = PanelW - PadX * 2f;
+        const float BH = 36f;   // cancel height
+        const float PH1 = 52f;  // host / start height
+        const float PH2 = 44f;  // join height
+        const float Gap = 8f;
 
-        // ── Row 0: Cancel (always visible, full width) ────────────────────────
-        FootBtn("BtnCancel", "CANCEL", BtnDanger, TextMuted,
-            new Vector2(0f, 14f), new Vector2(fullW, BtnH2), Close);
+        float y0 = 14f;                    // cancel bottom
+        float y1 = y0 + BH + Gap;         // 58
+        float y2 = y1 + PH1 + Gap;        // 118
 
-        // ── Row 1: HOST GAME (full width) ─────────────────────────────────────
-        float row1Y = 14f + BtnH2 + Gap; // 60
-        _btnHost = FootBtn("BtnHost", "HOST GAME", AccentBlue, TextWhite,
-            new Vector2(0f, row1Y), new Vector2(fullW, BtnH1), StartHost);
+        // CANCEL — always visible, subtle
+        BtnFull("BtnCancel", "CANCEL", Danger, new Color(1f, 0.55f, 0.55f),
+            y0, BH, Close);
 
-        // ── Row 2: JOIN (nhập IP)  |  IP input + CONNECT  ────────────────────
-        float row2Y = row1Y + BtnH1 + Gap; // 116
-        _btnJoinManual = FootBtn("BtnJoinManual", "JOIN  (nhập IP)", BtnSlate, TextWhite,
-            new Vector2(-(BtnW / 2f + Gap / 2f), row2Y), new Vector2(BtnW, BtnH2),
-            ShowJoinManualRow);
+        // HOST GAME — Choose screen
+        _btnHost = BtnFull("BtnHost", "●  HOST GAME", Blue, White,
+            y1, PH1, DoHost);
 
-        // IP input + Connect button (hidden until JoinManual)
-        _ipRow = NewChild(_panel, "IpRow", layer);
-        var ipRowRt = _ipRow.GetComponent<RectTransform>();
-        ipRowRt.anchorMin = ipRowRt.anchorMax = new Vector2(0.5f, 0f);
-        ipRowRt.pivot = new Vector2(0.5f, 0f);
-        ipRowRt.anchoredPosition = new Vector2(BtnW / 2f + Gap / 2f, row2Y);
-        ipRowRt.sizeDelta = new Vector2(BtnW, BtnH2);
-        _ipRow.SetActive(false);
+        // START GAME — Hosting screen (same Y, toggled with _btnHost)
+        _btnStart = BtnFull("BtnStart", "▶  START GAME", Green, White,
+            y1, PH1, DoStartGame);
 
-        // Input field (left part of ipRow)
-        var inputGo = NewChild(_ipRow, "IpField", layer);
-        var iRt = inputGo.GetComponent<RectTransform>();
-        iRt.anchorMin = new Vector2(0f, 0f); iRt.anchorMax = new Vector2(0.6f, 1f);
-        iRt.offsetMin = Vector2.zero; iRt.offsetMax = Vector2.zero;
-        inputGo.AddComponent<Image>().color = new Color(0.10f, 0.12f, 0.16f, 1f);
-        _ipInput = inputGo.AddComponent<InputField>();
-        var iLbl = NewChild(inputGo, "IpLbl", layer);
-        var iLblRt = iLbl.GetComponent<RectTransform>();
-        iLblRt.anchorMin = Vector2.zero; iLblRt.anchorMax = Vector2.one;
-        iLblRt.offsetMin = new Vector2(8f, 0f); iLblRt.offsetMax = Vector2.zero;
-        var iText = iLbl.AddComponent<Text>();
-        iText.font = Fnt(); iText.fontSize = 13; iText.color = TextWhite;
-        iText.alignment = TextAnchor.MiddleLeft;
-        _ipInput.textComponent = iText;
+        // JOIN — Choose screen
+        _btnJoin = BtnFull("BtnJoin", "→  JOIN  (nhập IP host)", Slate, White,
+            y2, PH2, ShowJoinRow);
+
+        // JOIN ROW — Joining screen (same Y, replaces _btnJoin)
+        _joinRow = BuildJoinRow(L, y2, PH2);
+    }
+
+    private GameObject BuildJoinRow(int L, float yFromBottom, float rowH)
+    {
+        var row = Mk(_panel, "JoinRow", L);
+        var rt  = row.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yFromBottom);
+        rt.sizeDelta = new Vector2(FullW, rowH);
+        row.SetActive(false);
+
+        // "Back" button (left ~15%)
+        var backGo = Mk(row, "Back", L);
+        var bkRt   = backGo.GetComponent<RectTransform>();
+        bkRt.anchorMin = new Vector2(0f, 0f); bkRt.anchorMax = new Vector2(0.13f, 1f);
+        bkRt.offsetMin = bkRt.offsetMax = Vector2.zero;
+        backGo.AddComponent<Image>().color = Slate;
+        var bkBtn = backGo.AddComponent<Button>(); bkBtn.targetGraphic = backGo.GetComponent<Image>();
+        bkBtn.onClick.AddListener(SwitchToChoose);
+        LblFill(backGo, "◀", 16, FontStyle.Bold, Muted, L);
+
+        // IP InputField (middle ~55%)
+        var ifGo = Mk(row, "IpInput", L);
+        var ifRt = ifGo.GetComponent<RectTransform>();
+        ifRt.anchorMin = new Vector2(0.14f, 0f); ifRt.anchorMax = new Vector2(0.70f, 1f);
+        ifRt.offsetMin = new Vector2(2f, 0f); ifRt.offsetMax = Vector2.zero;
+        ifGo.AddComponent<Image>().color = new Color(0.10f, 0.12f, 0.16f, 1f);
+        _ipInput = ifGo.AddComponent<InputField>();
+        var ifTxt = Mk(ifGo, "T", L);
+        var ifTxtRt = ifTxt.GetComponent<RectTransform>();
+        ifTxtRt.anchorMin = Vector2.zero; ifTxtRt.anchorMax = Vector2.one;
+        ifTxtRt.offsetMin = new Vector2(10f, 0f); ifTxtRt.offsetMax = Vector2.zero;
+        var ifTxtC = ifTxt.AddComponent<Text>();
+        ifTxtC.font = F(); ifTxtC.fontSize = 14; ifTxtC.color = White;
+        ifTxtC.alignment = TextAnchor.MiddleLeft;
+        _ipInput.textComponent = ifTxtC;
         _ipInput.text = "";
 
-        // Connect button (right part of ipRow)
-        var connectGo = NewChild(_ipRow, "BtnConnect", layer);
-        var cRt = connectGo.GetComponent<RectTransform>();
-        cRt.anchorMin = new Vector2(0.62f, 0f); cRt.anchorMax = new Vector2(1f, 1f);
-        cRt.offsetMin = Vector2.zero; cRt.offsetMax = Vector2.zero;
-        connectGo.AddComponent<Image>().color = AccentBlue;
-        _btnConnect = connectGo.AddComponent<Button>();
-        _btnConnect.targetGraphic = connectGo.GetComponent<Image>();
-        _btnConnect.onClick.AddListener(() => ConnectToHost(_ipInput.text.Trim()));
-        var cLbl = NewChild(connectGo, "Lbl", layer);
-        var cLblRt = cLbl.GetComponent<RectTransform>();
-        cLblRt.anchorMin = Vector2.zero; cLblRt.anchorMax = Vector2.one;
-        cLblRt.offsetMin = cLblRt.offsetMax = Vector2.zero;
-        var cText = cLbl.AddComponent<Text>();
-        cText.text = "KẾT NỐI"; cText.font = Fnt(); cText.fontSize = 12;
-        cText.fontStyle = FontStyle.Bold; cText.color = TextWhite;
-        cText.alignment = TextAnchor.MiddleCenter;
+        // Placeholder
+        var phGo = Mk(ifGo, "Ph", L);
+        var phRt = phGo.GetComponent<RectTransform>();
+        phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
+        phRt.offsetMin = new Vector2(10f, 0f); phRt.offsetMax = Vector2.zero;
+        var phTxt = phGo.AddComponent<Text>();
+        phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
+        phTxt.alignment = TextAnchor.MiddleLeft;
+        phTxt.text = "Nhập IP host…";
+        phTxt.fontStyle = FontStyle.Italic;
+        _ipInput.placeholder = phTxt;
 
-        // ── Row 3: START GAME (full width, host only) ─────────────────────────
-        float row3Y = row2Y + BtnH2 + Gap; // 162
-        _btnStart = FootBtn("BtnStart", "▶  START GAME", AccentGreen, TextWhite,
-            new Vector2(0f, row3Y), new Vector2(PanelW - PadX * 2f, BtnH3), StartGame);
-        _btnStart.gameObject.SetActive(false);
+        // KẾT NỐI button (right ~30%)
+        var cnGo = Mk(row, "Connect", L);
+        var cnRt = cnGo.GetComponent<RectTransform>();
+        cnRt.anchorMin = new Vector2(0.71f, 0f); cnRt.anchorMax = new Vector2(1f, 1f);
+        cnRt.offsetMin = new Vector2(2f, 0f); cnRt.offsetMax = Vector2.zero;
+        cnGo.AddComponent<Image>().color = Blue;
+        var cnBtn = cnGo.AddComponent<Button>(); cnBtn.targetGraphic = cnGo.GetComponent<Image>();
+        cnBtn.onClick.AddListener(() => DoConnect(_ipInput.text.Trim()));
+        LblFill(cnGo, "KẾT NỐI", 13, FontStyle.Bold, White, L);
+
+        return row;
     }
 
-    // ── Screen state machine ──────────────────────────────────────────────────
+    // ── Screen transitions ────────────────────────────────────────────────────
 
-    private void ShowScreen(LobbyScreen screen)
+    private void SwitchTo(Screen s)
     {
-        switch (screen)
+        switch (s)
         {
-            case LobbyScreen.ModeSelect:
-                SetStatus("Chọn vai trò của bạn:", TextMuted);
-                SetVisible(_btnHost,       true);
-                SetVisible(_btnJoinManual, true);
-                SetVisible(_btnStart,      false);
-                SetVisible(_playerListText?.gameObject, false);
-                _ipRow?.SetActive(false);
-                _ipBoxGo?.SetActive(false);
+            case Screen.Choose:
+                SwitchToChoose();
                 break;
-
-            case LobbyScreen.HostWait:
-                string localIp = GetLocalIP();
-                if (_hostIpText != null) _hostIpText.text = $"{localIp}:{GamePort}";
-                SetStatus($"Đang chờ người chơi…", AccentGold);
-                SetVisible(_btnHost,       false);
-                SetVisible(_btnJoinManual, false);
-                SetVisible(_btnStart,      true);
-                SetVisible(_playerListText?.gameObject, true);
-                _ipRow?.SetActive(false);
-                _ipBoxGo?.SetActive(true);
-                RefreshPlayerList();
+            case Screen.Hosting:
+                SetStatus($"Đang chờ người chơi kết nối…", Gold);
+                SetVis(_btnHost,   false);  SetVis(_btnStart, true);
+                SetVis(_btnJoin,   true);   _joinRow.SetActive(false);
+                _ipBox?.SetActive(true);
+                _playersTxt?.gameObject.SetActive(true);
+                RefreshPlayers();
                 break;
-
-            case LobbyScreen.JoinManual:
-                SetStatus("Nhập địa chỉ IP của máy host:", TextMuted);
-                SetVisible(_btnHost,       false);
-                SetVisible(_btnJoinManual, false);
-                SetVisible(_btnStart,      false);
-                SetVisible(_playerListText?.gameObject, false);
-                _ipRow?.SetActive(true);
-                _ipBoxGo?.SetActive(false);
+            case Screen.Joining:
+                SetStatus("Nhập IP của máy host rồi bấm KẾT NỐI:", Muted);
+                SetVis(_btnHost,  false);  SetVis(_btnStart, false);
+                SetVis(_btnJoin,  false);  _joinRow.SetActive(true);
+                _ipBox?.SetActive(false);
+                _playersTxt?.gameObject.SetActive(false);
                 break;
         }
     }
 
+    private void SwitchToChoose()
+    {
+        SetStatus("Chọn vai trò của bạn:", Muted);
+        SetVis(_btnHost,  true);  SetVis(_btnStart, false);
+        SetVis(_btnJoin,  true);  _joinRow.SetActive(false);
+        _ipBox?.SetActive(false);
+        _playersTxt?.gameObject.SetActive(false);
+    }
+
+    private void ShowJoinRow()
+    {
+        if (!EnsureNetworkManager()) return;
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+    }
+
     // ── Host flow ─────────────────────────────────────────────────────────────
 
-    private void StartHost()
+    private void DoHost()
     {
         if (!EnsureNetworkManager()) return;
 
         LanSessionManager.ActivateHost(_mapFile, _algorithm);
-        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        NetworkManager.Singleton.OnClientConnectedCallback  += OnJoin;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnLeave;
         NetworkManager.Singleton.StartHost();
+
+        string ip = GetLocalIP();
+        if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
 
         _discovery = gameObject.AddComponent<LanDiscovery>();
         _discovery.StartBroadcasting(GamePort);
 
         LanSessionManager.PlayerCount = 1;
-        ShowScreen(LobbyScreen.HostWait);
+        SwitchTo(Screen.Hosting);
     }
 
-    private void OnClientConnected(ulong clientId)
+    private void OnJoin(ulong id)
     {
-        if (clientId == NetworkManager.Singleton.LocalClientId) return;
+        if (id == NetworkManager.Singleton.LocalClientId) return;
         LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
-        _playerNames.Add($"Player {_playerNames.Count + 2}");
-        RefreshPlayerList();
-        SetStatus($"{LanSessionManager.PlayerCount}/{MaxPlayers} người đã tham gia", AccentGreen);
+        _clients.Add($"Client {_clients.Count + 2}");
+        RefreshPlayers();
+        SetStatus($"{LanSessionManager.PlayerCount}/{MaxPlayers}  người đã vào", Green);
     }
 
-    private void OnClientDisconnected(ulong clientId)
+    private void OnLeave(ulong id)
     {
         LanSessionManager.PlayerCount = Mathf.Max(1, NetworkManager.Singleton.ConnectedClients.Count);
-        RefreshPlayerList();
+        RefreshPlayers();
     }
 
     // ── Join flow ─────────────────────────────────────────────────────────────
 
-    private void ShowJoinManualRow()
-    {
-        if (!EnsureNetworkManager()) return;
-        LanSessionManager.ActivateClient(_mapFile, _algorithm);
-        ShowScreen(LobbyScreen.JoinManual);
-    }
-
-    private void ConnectToHost(string ip)
+    private void DoConnect(string ip)
     {
         if (string.IsNullOrWhiteSpace(ip))
         {
-            SetStatus("IP không hợp lệ!", new Color(1f, 0.3f, 0.3f));
+            SetStatus("IP không được để trống!", new Color(1f, 0.35f, 0.35f));
             return;
         }
 
-        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        if (transport == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
-        transport.SetConnectionData(ip, GamePort);
+        var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
+        t.SetConnectionData(ip, GamePort);
 
-        NetworkManager.Singleton.OnClientConnectedCallback  += _ => OnJoinedServer();
-        NetworkManager.Singleton.OnClientDisconnectCallback += _ =>
-            SetStatus("Mất kết nối với host.", new Color(1f, 0.4f, 0.4f));
-
+        NetworkManager.Singleton.OnClientConnectedCallback  += _ => SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
+        NetworkManager.Singleton.OnClientDisconnectCallback += _ => SetStatus("Mất kết nối.", new Color(1f, 0.4f, 0.4f));
         NetworkManager.Singleton.StartClient();
-        SetStatus($"Đang kết nối tới {ip}:{GamePort}…", TextMuted);
+        SetStatus($"Đang kết nối tới {ip}…", Muted);
     }
 
-    private void OnJoinedServer()
-    {
-        SetStatus("Đã kết nối!\nChờ host bắt đầu game…", AccentGreen);
-    }
+    // ── Start game ────────────────────────────────────────────────────────────
 
-    // ── Start game (host only) ────────────────────────────────────────────────
-
-    private void StartGame()
+    private void DoStartGame()
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
-
-        _discovery?.StopBroadcasting();
+        _discovery?.Stop();
         LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
-
-        NetworkManager.Singleton.SceneManager.LoadScene(
-            LanSessionManager.GameScene, LoadSceneMode.Single);
-
+        NetworkManager.Singleton.SceneManager.LoadScene(LanSessionManager.GameScene, LoadSceneMode.Single);
         Close();
     }
 
-    // ── NetworkManager setup ──────────────────────────────────────────────────
+    // ── NetworkManager ────────────────────────────────────────────────────────
 
     private bool EnsureNetworkManager()
     {
         if (NetworkManager.Singleton != null) return true;
 
-        // Transport must be added BEFORE NetworkManager so NGO's OnEnable finds it
-        var nmGo = new GameObject("NetworkManager");
+        var go = new GameObject("NetworkManager");
+        var tr = go.AddComponent<UnityTransport>();
+        tr.SetConnectionData("127.0.0.1", GamePort);
 
-        var transport = nmGo.AddComponent<UnityTransport>();
-        transport.SetConnectionData("127.0.0.1", GamePort);
-
-        var nm = nmGo.AddComponent<NetworkManager>();
-        // NGO 2.x: NetworkConfig is a plain public field initialised to null when
-        // AddComponent is called at runtime (not from a serialised prefab/Inspector).
-        // NGO's own OnValidate acknowledges this: "May occur when the component is added".
+        var nm = go.AddComponent<NetworkManager>();
         if (nm.NetworkConfig == null)
             nm.NetworkConfig = new NetworkConfig();
 
-        nm.NetworkConfig.NetworkTransport      = transport;
+        nm.NetworkConfig.NetworkTransport      = tr;
         nm.NetworkConfig.EnableSceneManagement = true;
 
         var bridge = GetOrCreateBridgePrefab();
         if (bridge != null)
             nm.NetworkConfig.PlayerPrefab = bridge;
 
-        // NGO's OnEnable calls DontDestroyOnLoad internally; don't call it again here
         return true;
     }
 
-    /// <summary>Returns the LanBridgePrefab from Resources, auto-creating it in the Editor if absent.</summary>
     private static GameObject GetOrCreateBridgePrefab()
     {
-        var prefab = Resources.Load<GameObject>("LanBridgePrefab");
-        if (prefab != null) return prefab;
-
+        var p = Resources.Load<GameObject>("LanBridgePrefab");
+        if (p != null) return p;
 #if UNITY_EDITOR
         if (!AssetDatabase.IsValidFolder("Assets/Resources"))
             AssetDatabase.CreateFolder("Assets", "Resources");
-
         const string path = "Assets/Resources/LanBridgePrefab.prefab";
-        var temp = new GameObject("LanBridgePrefab");
-        temp.AddComponent<NetworkObject>();
-        temp.AddComponent<LanNetworkBridge>();
-
+        var tmp = new GameObject("LanBridgePrefab");
+        tmp.AddComponent<NetworkObject>();
+        tmp.AddComponent<LanNetworkBridge>();
         bool ok;
-        PrefabUtility.SaveAsPrefabAsset(temp, path, out ok);
-        DestroyImmediate(temp);
-
-        if (ok)
-        {
-            AssetDatabase.Refresh();
-            return AssetDatabase.LoadAssetAtPath<GameObject>(path);
-        }
-        Debug.LogError("[LanLobbyController] Failed to auto-create LanBridgePrefab.");
-#else
-        Debug.LogError("[LanLobbyController] LanBridgePrefab missing from Resources/.");
+        PrefabUtility.SaveAsPrefabAsset(tmp, path, out ok);
+        DestroyImmediate(tmp);
+        if (ok) { AssetDatabase.Refresh(); return AssetDatabase.LoadAssetAtPath<GameObject>(path); }
 #endif
         return null;
-    }
-
-    // ── UI state helpers ──────────────────────────────────────────────────────
-
-    private void RefreshPlayerList()
-    {
-        if (_playerListText == null) return;
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Người chơi ({LanSessionManager.PlayerCount}/{MaxPlayers}):");
-        sb.AppendLine("  ● Bạn (host)");
-        foreach (string n in _playerNames)
-            sb.AppendLine($"  ● {n}");
-        _playerListText.text = sb.ToString();
-    }
-
-    private void SetStatus(string msg, Color col)
-    {
-        if (_statusText == null) return;
-        _statusText.text  = msg;
-        _statusText.color = col;
-    }
-
-    private static void SetVisible(Button btn, bool v)
-    {
-        if (btn != null) btn.gameObject.SetActive(v);
-    }
-
-    private static void SetVisible(GameObject go, bool v)
-    {
-        if (go != null) go.SetActive(v);
     }
 
     private static string GetLocalIP()
     {
         try
         {
-            // Prefer the address that can reach the internet (LAN gateway)
-            using var socket = new System.Net.Sockets.Socket(
+            using var s = new System.Net.Sockets.Socket(
                 System.Net.Sockets.AddressFamily.InterNetwork,
                 System.Net.Sockets.SocketType.Dgram, 0);
-            socket.Connect("8.8.8.8", 65530);
-            var ep = socket.LocalEndPoint as System.Net.IPEndPoint;
-            return ep?.Address.ToString() ?? "127.0.0.1";
+            s.Connect("8.8.8.8", 65530);
+            return ((System.Net.IPEndPoint)s.LocalEndPoint)?.Address.ToString() ?? "127.0.0.1";
         }
         catch
         {
-            // Fallback: enumerate host addresses
             foreach (var ip in System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName()))
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
                     && !System.Net.IPAddress.IsLoopback(ip))
@@ -525,24 +476,44 @@ public class LanLobbyController : MonoBehaviour
         }
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void RefreshPlayers()
+    {
+        if (_playersTxt == null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Người chơi  ({LanSessionManager.PlayerCount}/{MaxPlayers})");
+        sb.AppendLine("  ●  Host  (bạn)");
+        foreach (var n in _clients) sb.AppendLine($"  ●  {n}");
+        _playersTxt.text = sb.ToString();
+    }
+
+    private void SetStatus(string msg, Color col)
+    {
+        if (_statusTxt == null) return;
+        _statusTxt.text = msg; _statusTxt.color = col;
+    }
+
+    private static void SetVis(Button b, bool v) { if (b) b.gameObject.SetActive(v); }
+
     private void Close()
     {
         _discovery?.Stop();
-        if (_root != null) Destroy(_root);
+        if (_root  != null) Destroy(_root);
         Destroy(gameObject);
         _instance = null;
     }
 
-    // ── UI builder helpers ────────────────────────────────────────────────────
+    // ── UI builder micro-helpers ──────────────────────────────────────────────
 
-    private static Font Fnt() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font F() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-    private static GameObject NewChild(GameObject parent, string name, int layer)
+    private static GameObject Mk(GameObject p, string name, int L)
     {
         var go = new GameObject(name);
-        go.layer = layer;
+        go.layer = L;
         go.AddComponent<RectTransform>();
-        go.transform.SetParent(parent.transform, false);
+        go.transform.SetParent(p.transform, false);
         return go;
     }
 
@@ -553,68 +524,65 @@ public class LanLobbyController : MonoBehaviour
         rt.offsetMin = rt.offsetMax = Vector2.zero;
     }
 
-    private static void Center(RectTransform rt, Vector2 size)
+    // Top-anchored label (anchor = (0.5, 1), pivot = (0.5, 1))
+    private void TLbl(GameObject p, string name, string txt,
+        int sz, FontStyle st, Color col, Vector2 pos, Vector2 sd)
     {
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot     = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = Vector2.zero;
-        rt.sizeDelta = size;
-    }
-
-    private static void HSep(GameObject panel, int layer, float yFromTop)
-    {
-        int l = panel.layer;
-        var sep = NewChild(panel, "Sep", l);
-        var rt  = sep.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(0f, yFromTop); rt.sizeDelta = new Vector2(0f, 1f);
-        sep.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
-    }
-
-    // Top-anchored label helper
-    private void TopLbl(GameObject parent, string name, string text,
-        int size, FontStyle style, Color color, Vector2 pos, Vector2 sizeDelta)
-    {
-        int layer = parent.layer;
-        var go = NewChild(parent, name, layer);
+        int L = p.layer;
+        var go = Mk(p, name, L);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = pos; rt.sizeDelta = sizeDelta;
+        rt.anchoredPosition = pos; rt.sizeDelta = sd;
         var t = go.AddComponent<Text>();
-        t.text = text; t.font = Fnt(); t.fontSize = size; t.fontStyle = style;
-        t.color = color; t.alignment = TextAnchor.MiddleCenter;
+        t.text = txt; t.font = F(); t.fontSize = sz; t.fontStyle = st;
+        t.color = col; t.alignment = TextAnchor.MiddleCenter;
     }
 
-    // Bottom-anchored button helper — pos.y = distance from panel BOTTOM (must be >= 0)
-    private Button FootBtn(string name, string label, Color bg, Color textColor,
-        Vector2 pos, Vector2 size, UnityEngine.Events.UnityAction onClick)
+    // 1-pixel horizontal separator, top-anchored
+    private void HSep(float yFromTop, int L)
     {
-        int layer = _panel.layer;
-        var go = NewChild(_panel, name, layer);
+        var go = Mk(_panel, "Sep", L);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, yFromTop); rt.sizeDelta = new Vector2(0f, 1f);
+        go.AddComponent<Image>().color = Sep;
+    }
+
+    // Full-width button, bottom-anchored
+    private Button BtnFull(string name, string label, Color bg, Color txtCol,
+        float yFromBottom, float h, UnityEngine.Events.UnityAction onClick)
+    {
+        int L = _panel.layer;
+        var go = Mk(_panel, name, L);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-        rt.pivot     = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = pos; rt.sizeDelta = size;
-
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yFromBottom);
+        rt.sizeDelta = new Vector2(FullW, h);
         var img = go.AddComponent<Image>(); img.color = bg;
         var btn = go.AddComponent<Button>(); btn.targetGraphic = img;
-        var cb  = btn.colors;
-        cb.normalColor      = Color.white;
-        cb.highlightedColor = new Color(1.12f, 1.12f, 1.12f);
-        cb.pressedColor     = new Color(0.80f, 0.80f, 0.80f);
-        cb.disabledColor    = new Color(0.35f, 0.35f, 0.35f, 0.6f);
+        var cb = btn.colors;
+        cb.normalColor = Color.white; cb.highlightedColor = new Color(1.12f, 1.12f, 1.12f);
+        cb.pressedColor = new Color(0.78f, 0.78f, 0.78f);
+        cb.disabledColor = new Color(0.35f, 0.35f, 0.35f, 0.5f);
         btn.colors = cb;
         btn.onClick.AddListener(onClick);
-
-        var lbl = NewChild(go, "Lbl", layer);
-        var lRt = lbl.GetComponent<RectTransform>();
-        lRt.anchorMin = Vector2.zero; lRt.anchorMax = Vector2.one;
-        lRt.offsetMin = lRt.offsetMax = Vector2.zero;
-        var t = lbl.AddComponent<Text>();
-        t.text = label; t.font = Fnt(); t.fontSize = 14; t.fontStyle = FontStyle.Bold;
-        t.color = textColor; t.alignment = TextAnchor.MiddleCenter;
+        LblFill(go, label, 15, FontStyle.Bold, txtCol, L);
         return btn;
+    }
+
+    // Fill a GO with a centered text label
+    private static void LblFill(GameObject p, string txt, int sz,
+        FontStyle st, Color col, int L)
+    {
+        var go = Mk(p, "Lbl", L);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        var t = go.AddComponent<Text>();
+        t.text = txt; t.font = F(); t.fontSize = sz; t.fontStyle = st;
+        t.color = col; t.alignment = TextAnchor.MiddleCenter;
     }
 }
