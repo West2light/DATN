@@ -27,6 +27,15 @@ public class MapWinController : MonoBehaviour
         if (BacktestMode.IsActive) return;
         if (winStarted) return;
         winStarted = true;
+
+        if (LanSessionManager.IsActive && LanSessionManager.IsServer)
+        {
+            LanGameCoordinator.Instance?.BroadcastWin();
+            ShowOverlay();
+            return;
+        }
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer) return;
+
         ShowOverlay();
     }
 

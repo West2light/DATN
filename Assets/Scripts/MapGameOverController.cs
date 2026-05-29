@@ -26,12 +26,18 @@ public class MapGameOverController : MonoBehaviour
     public void BeginGameOver()
     {
         if (BacktestMode.IsActive) return;
-        if (gameOverStarted)
+        if (gameOverStarted) return;
+        gameOverStarted = true;
+
+        if (LanSessionManager.IsActive && LanSessionManager.IsServer)
         {
+            LanGameCoordinator.Instance?.BroadcastGameOver();
+            ShowOverlay();
+            StartCoroutine(ReturnToMenuAfterDelay());
             return;
         }
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer) return;
 
-        gameOverStarted = true;
         ShowOverlay();
         StartCoroutine(ReturnToMenuAfterDelay());
     }

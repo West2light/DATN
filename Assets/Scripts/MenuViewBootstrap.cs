@@ -72,10 +72,10 @@ public class MenuViewBootstrap : MonoBehaviour
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
-    private enum Screen { Main, Outfit, MapSelect }
+    private enum Screen { Main, Outfit, MapSelect, LanMapSelect }
 
     private Canvas     _canvas;
-    private GameObject _screenMain, _screenOutfit, _screenMap;
+    private GameObject _screenMain, _screenOutfit, _screenMap, _screenLan;
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
@@ -109,6 +109,7 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildScreenMain();
         BuildScreenOutfit();
         BuildScreenMapSelect();
+        BuildScreenLanMapSelect();
         ShowScreen(Screen.Main);
     }
 
@@ -177,11 +178,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
         btnStart.onClick.AddListener(() => ShowScreen(Screen.Outfit));
 
-        // HOST — disabled
+        // MULTIPLAYER LAN
         Button btnHost = MakeButton(card.transform, "BtnHost",
-            "HOST  —  Coming Soon", new Vector2(0f, -58f), new Vector2(290f, 60f), BtnDisabled);
-        SetTextColor(btnHost.transform, TextMuted);
-        btnHost.interactable = false;
+            "MULTIPLAYER  LAN", new Vector2(0f, -58f), new Vector2(290f, 60f),
+            new Color(0.12f, 0.32f, 0.58f, 1f));
+        SetTextColor(btnHost.transform, new Color(0.75f, 0.90f, 1f));
+        btnHost.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
 
         // SHOP — disabled
         Button btnShop = MakeButton(card.transform, "BtnShop",
@@ -622,11 +624,98 @@ public class MenuViewBootstrap : MonoBehaviour
 
     // ── Screen transition ──────────────────────────────────────────────────
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SCREEN: LAN Map Select
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void BuildScreenLanMapSelect()
+    {
+        _screenLan = MakePanel(_canvas.transform, "ScreenLanMapSelect",
+            Vector2.zero, new Vector2(1280f, 720f), BgDark);
+
+        MakeText(_screenLan.transform, "Title", "LAN  —  SELECT MAP & MODE",
+            30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
+
+        MakeText(_screenLan.transform, "Hint", "Chọn map và chế độ AI · số enemy = 6 × số người chơi",
+            13, FontStyle.Italic, TextMuted,
+            new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
+
+        const float CardW = 210f, CardH = 270f, Gap = 10f;
+        float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
+        float startX = -totalW / 2f + CardW / 2f;
+
+        for (int i = 0; i < Maps.Length; i++)
+            BuildLanMapCard(_screenLan.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
+
+        Button btnBack = MakeButton(_screenLan.transform, "BtnBack",
+            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+            new Color(0.28f, 0.38f, 0.48f, 1f));
+        SetTextColor(btnBack.transform, TextLight);
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
+    }
+
+    private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)
+    {
+        MapDef map = Maps[idx];
+        if (!map.available) return;
+
+        GameObject card = MakePanel(parent, "LanMapCard_" + idx,
+            new Vector2(x, y), new Vector2(w, h), CardBg);
+
+        GameObject accent = MakePanel(card.transform, "Accent",
+            new Vector2(0f, h / 2f - 3f), new Vector2(w, 6f), map.previewTint);
+        accent.GetComponent<Image>().color = map.previewTint;
+
+        const float PreviewSize = 130f;
+        float previewCentreY = h / 2f - 10f - PreviewSize / 2f;
+        Color previewBg = Color.Lerp(map.previewTint, Color.black, 0.72f);
+        GameObject preview = MakePanel(card.transform, "MapPreview",
+            new Vector2(0f, previewCentreY), new Vector2(PreviewSize, PreviewSize), previewBg);
+        BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+        MakeText(preview.transform, "Badge", "#" + (idx + 1),
+            11, FontStyle.Bold, new Color(1f, 1f, 1f, 0.55f),
+            new Vector2(1f, 0f), new Vector2(-6f, 6f), new Vector2(30f, 18f));
+
+        float nameCentreY = previewCentreY - PreviewSize / 2f - 8f - 13f;
+        MakeText(card.transform, "MapName", map.label, 15, FontStyle.Bold, TextLight,
+            new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY), new Vector2(w - 12f, 26f));
+        MakeText(card.transform, "SizeLabel", map.sizeLabel,
+            9, FontStyle.Normal, TextMuted,
+            new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
+
+        // A* and LNS2 buttons open the LAN lobby
+        string[] modeLabels = { "A*", "LNS2" };
+        string[] modeAlgos  = { "AStar", "LNS2" };
+        Color[]  modeColors = { new Color(0.20f, 0.52f, 0.88f), new Color(0.18f, 0.65f, 0.38f) };
+
+        const float BtnGap = 8f;
+        float btnW        = (w - 16f - BtnGap) / 2f;
+        const float BtnH  = 44f;
+        float btnCentreY  = -h / 2f + BtnH / 2f + 12f;
+        float firstBtnX   = -(btnW + BtnGap) / 2f;
+
+        for (int m = 0; m < 2; m++)
+        {
+            string mapFileCap = map.mapFile;
+            string algoCap    = modeAlgos[m];
+
+            Button modeBtn = MakeButton(card.transform, "LanMode_" + m, modeLabels[m],
+                new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
+                new Vector2(btnW, BtnH), modeColors[m]);
+            SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
+            modeBtn.onClick.AddListener(() => LanLobbyController.Show(mapFileCap, algoCap));
+        }
+    }
+
+    // ── Screen transition ──────────────────────────────────────────────────
+
     private void ShowScreen(Screen screen)
     {
         if (_screenMain  != null) _screenMain.SetActive(screen == Screen.Main);
         if (_screenOutfit != null) _screenOutfit.SetActive(screen == Screen.Outfit);
         if (_screenMap   != null) _screenMap.SetActive(screen == Screen.MapSelect);
+        if (_screenLan   != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
     }
 
     // ── UI helpers ─────────────────────────────────────────────────────────

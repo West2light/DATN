@@ -39,15 +39,9 @@ public class MapTankTestBootstrap : MonoBehaviour
     private void Start()
     {
         if (mapLoader == null)
-        {
             mapLoader = GetComponent<MapLoader>();
-        }
-
         if (mapLoader == null)
-        {
             mapLoader = FindFirstObjectByType<MapLoader>();
-        }
-
         if (mapLoader == null)
         {
             Debug.LogError("[MapTankTestBootstrap] MapLoader is missing.");
@@ -55,6 +49,40 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
 
         mapLoader.LoadAndBuild();
+
+        // ── LAN multiplayer ──────────────────────────────────────────────────
+        if (LanSessionManager.IsActive)
+        {
+            SetupCamera();
+
+            if (LanSessionManager.IsServer)
+            {
+                // Server: spawn all player tanks + enemies, then link to bridges
+                var lanCoord = gameObject.AddComponent<LanGameCoordinator>();
+                var spawnedTanks = SpawnAllLanPlayers();
+                var spawnCells   = ComputeEnemySpawnCells();
+                MapScenarioBootstrap scenario = GetComponent<MapScenarioBootstrap>()
+                    ?? GetComponentInChildren<MapScenarioBootstrap>();
+                if (scenario != null)
+                {
+                    scenario.mapLoader = mapLoader;
+                    scenario.enemySpawnCells = spawnCells;
+                }
+                SpawnScenario();                       // spawns enemies
+                var enemies = GetSpawnedEnemies();
+                lanCoord.RegisterServerTanks(spawnedTanks, enemies);
+            }
+            else
+            {
+                // Client: build ghost GOs, camera follows own ghost
+                var view = gameObject.AddComponent<LanClientView>();
+                view.InitGhosts(LanSessionManager.PlayerCount, LanSessionManager.EnemyCount);
+                if (view.OwnGhost != null)
+                    player = view.OwnGhost;
+            }
+            return;
+        }
+        // ── End LAN multiplayer ──────────────────────────────────────────────
 
         if (!BacktestMode.IsActive)
             SpawnPlayer();
@@ -112,15 +140,78 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (mapLoader == null) return null;
         int c = mapLoader.BuildWidth;
         int r = mapLoader.BuildHeight;
-        return new List<Vector2Int>
+
+        // Base 6 spawn positions (corners + mid-edges)
+        var baseSet = new List<Vector2Int>
         {
             new Vector2Int(c - 2, 1),
-            new Vector2Int(1, r - 2),
+            new Vector2Int(1,     r - 2),
             new Vector2Int(c - 2, r - 2),
             new Vector2Int(c / 2, 1),
-            new Vector2Int(1, r / 2),
+            new Vector2Int(1,     r / 2),
             new Vector2Int(c - 2, r / 2),
         };
+
+        // In LAN mode, need 6 * playerCount cells
+        int needed = LanSessionManager.IsActive
+            ? LanSessionManager.EnemyCount
+            : baseSet.Count;
+
+        if (needed <= baseSet.Count) return baseSet.GetRange(0, needed);
+
+        // Generate additional random walkable cells for extra enemies
+        var result = new List<Vector2Int>(baseSet);
+        var rng = new System.Random(42);
+        int attempts = 0;
+        while (result.Count < needed && attempts < 10000)
+        {
+            attempts++;
+            var cell = new Vector2Int(rng.Next(1, c - 1), rng.Next(1, r - 1));
+            if (mapLoader.IsWalkable(cell) && !result.Contains(cell))
+                result.Add(cell);
+        }
+        return result;
+    }
+
+    // ── LAN: spawn one player tank per connected client ────────────────────────
+
+    private List<TankController> SpawnAllLanPlayers()
+    {
+        var tanks = new List<TankController>();
+        int n = LanSessionManager.PlayerCount;
+
+        // Spawn positions: spread along the left edge
+        for (int i = 0; i < n; i++)
+        {
+            int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, mapLoader.BuildHeight - 2);
+            var cell = new Vector2Int(playerSpawnCell.x, row);
+            if (!mapLoader.TryFindWalkableNear(cell, out Vector2Int spawnCell)) continue;
+
+            GameObject prefab = ResolveTankPrefab();
+            if (prefab == null) continue;
+
+            GameObject tank = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity);
+            tank.name = i == 0 ? "Player" : $"Player_{i}";
+            player = i == 0 ? tank.transform : player;
+
+            ConfigureTank(tank);
+
+            // Wire PlayerInput only for the host's own tank (slot 0)
+            if (i == 0)
+                WirePlayerInput(tank);
+
+            tanks.Add(tank.GetComponent<TankController>());
+        }
+        return tanks;
+    }
+
+    private List<GameObject> GetSpawnedEnemies()
+    {
+        // MapScenarioBootstrap.Enemies is set after SpawnScenario
+        var bootstrap = GetComponent<MapScenarioBootstrap>()
+            ?? GetComponentInChildren<MapScenarioBootstrap>();
+        if (bootstrap == null) return new List<GameObject>();
+        return new List<GameObject>(bootstrap.Enemies);
     }
 
     private void SpawnPlayer()
