@@ -84,7 +84,9 @@ public class MapLoader : MonoBehaviour
         string overrideFile = UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty);
         if (!string.IsNullOrEmpty(overrideFile)) mapFileName = Path.GetFileName(overrideFile);
 
-        string mapPath = Path.Combine(Application.dataPath, "MapData", mapFileName);
+        string mapPath = Path.Combine(Application.streamingAssetsPath, "MapData", mapFileName);
+        if (!File.Exists(mapPath))
+            mapPath = Path.Combine(Application.dataPath, "MapData", mapFileName);
         if (!File.Exists(mapPath))
         {
             Debug.LogError($"[MapLoader] Map file not found: {mapPath}");
@@ -412,10 +414,24 @@ public class MapLoader : MonoBehaviour
     private void LoadDefaultSprites()
     {
 #if UNITY_EDITOR
-        groundSprite = LoadSpriteAsset(groundSpritePath);
+        groundSprite          = LoadSpriteAsset(groundSpritePath);
         alternateGroundSprite = LoadSpriteAsset(alternateGroundSpritePath);
-        obstacleSprite = LoadSpriteAsset(obstacleSpritePath);
-        treeSprite = LoadSpriteAsset(treeSpritePath);
+        obstacleSprite        = LoadSpriteAsset(obstacleSpritePath);
+        treeSprite            = LoadSpriteAsset(treeSpritePath);
+#else
+        groundSprite          = SpriteFromResources("MapTiles/tileGrass1");
+        alternateGroundSprite = SpriteFromResources("MapTiles/tileGrass2");
+        obstacleSprite        = SpriteFromResources("MapTiles/crateMetal");
+        treeSprite            = SpriteFromResources("MapTiles/treeGreen_large");
 #endif
+    }
+
+    private static Sprite SpriteFromResources(string path)
+    {
+        Sprite spr = Resources.Load<Sprite>(path);
+        if (spr != null) return spr;
+        Texture2D tex = Resources.Load<Texture2D>(path);
+        if (tex == null) return null;
+        return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
     }
 }

@@ -24,6 +24,8 @@ public class GridEnemyAgent : MonoBehaviour
     [SerializeField] public bool enableSmoothing = false;
     public Transform eagleTarget;
     public Transform playerTarget;
+    // All player transforms — set by LAN bootstrap so enemies target every connected player.
+    [HideInInspector] public Transform[] playerTargets;
     public TankController tankController;
     public float replanInterval = 0.75f;
     public float waypointReachDistance = 0.25f;
@@ -133,26 +135,38 @@ public class GridEnemyAgent : MonoBehaviour
 
     private Transform GetShootingTarget()
     {
-        if (CanShootTarget(playerTarget, playerShootingRange))
-        {
-            return playerTarget;
-        }
-
-        if (CanShootTarget(eagleTarget, eagleShootingRange))
-        {
-            return eagleTarget;
-        }
-
+        Transform nearestPlayer = GetNearestPlayerInRange();
+        if (nearestPlayer != null) return nearestPlayer;
+        if (CanShootTarget(eagleTarget, eagleShootingRange)) return eagleTarget;
         return null;
+    }
+
+    private Transform GetNearestPlayerInRange()
+    {
+        Transform best = null;
+        float bestSqDist = float.MaxValue;
+
+        void CheckPlayer(Transform t)
+        {
+            if (t == null || !CanShootTarget(t, playerShootingRange)) return;
+            float d = ((Vector2)transform.position - (Vector2)t.position).sqrMagnitude;
+            if (d < bestSqDist) { best = t; bestSqDist = d; }
+        }
+
+        CheckPlayer(playerTarget);
+        if (playerTargets != null)
+            foreach (var t in playerTargets) CheckPlayer(t);
+        return best;
     }
 
     private bool TryQueueFriendlyShotBlocker()
     {
         if (TryQueueFriendlyShotBlocker(playerTarget, playerShootingRange))
-        {
             return true;
-        }
-
+        if (playerTargets != null)
+            foreach (var t in playerTargets)
+                if (t != null && t != playerTarget && TryQueueFriendlyShotBlocker(t, playerShootingRange))
+                    return true;
         return TryQueueFriendlyShotBlocker(eagleTarget, eagleShootingRange);
     }
 

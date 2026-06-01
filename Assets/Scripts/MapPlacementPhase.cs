@@ -155,7 +155,7 @@ public class MapPlacementPhase : MonoBehaviour
         };
         foreach (string p in paths) { Sprite s = AssetDatabase.LoadAssetAtPath<Sprite>(p); if (s) return s; }
 #endif
-        return null;
+        return SpriteFromResources("MapTiles/crateWood") ?? SpriteFromResources("MapTiles/crateMetal");
     }
 
     private static Sprite LoadBarrierSprite()
@@ -170,7 +170,16 @@ public class MapPlacementPhase : MonoBehaviour
         };
         foreach (string p in paths) { Sprite s = AssetDatabase.LoadAssetAtPath<Sprite>(p); if (s) return s; }
 #endif
-        return null;
+        return SpriteFromResources("MapTiles/barricadeMetal") ?? SpriteFromResources("MapTiles/crateMetal");
+    }
+
+    private static Sprite SpriteFromResources(string path)
+    {
+        Sprite spr = Resources.Load<Sprite>(path);
+        if (spr != null) return spr;
+        Texture2D tex = Resources.Load<Texture2D>(path);
+        if (tex == null) return null;
+        return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
     }
 
     // ── Ghost ──────────────────────────────────────────────────────────────────

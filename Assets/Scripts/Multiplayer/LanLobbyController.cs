@@ -51,6 +51,7 @@ public class LanLobbyController : MonoBehaviour
     private string     _mapFile, _algorithm;
     private LanDiscovery _discovery;
     private GameObject _root, _panel;
+    private int        _hostRetryCount;
 
     // Content refs
     private Text       _statusTxt;
@@ -66,12 +67,23 @@ public class LanLobbyController : MonoBehaviour
     private InputField _ipInput;
 
     private readonly List<string> _clients = new List<string>();
+    private string _pendingIp;
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
     public static void Show(string mapFile, string algorithm)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
+
+        // Destroy any leftover NetworkManager so its transport releases the socket
+        // immediately (Shutdown() alone leaves the port in TIME_WAIT on some OSes).
+        if (NetworkManager.Singleton != null)
+        {
+            if (NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.Shutdown();
+            Destroy(NetworkManager.Singleton.gameObject);
+        }
+
         var go = new GameObject("LanLobbyController");
         DontDestroyOnLoad(go);
         _instance                = go.AddComponent<LanLobbyController>();
@@ -286,7 +298,7 @@ public class LanLobbyController : MonoBehaviour
         var phTxt = phGo.AddComponent<Text>();
         phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
         phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = "Nhập IP host…";
+        phTxt.text = "Nhập IP host  (vd: 192.168.1.5)";
         phTxt.fontStyle = FontStyle.Italic;
         _ipInput.placeholder = phTxt;
 
@@ -332,6 +344,8 @@ public class LanLobbyController : MonoBehaviour
 
     private void SwitchToChoose()
     {
+        // Stop auto-discovery if user goes back from Joining screen
+        if (_discovery != null) { _discovery.StopListening(); }
         SetStatus("Chọn vai trò của bạn:", Muted);
         SetVis(_btnHost,  true);  SetVis(_btnStart, false);
         SetVis(_btnJoin,  true);  _joinRow.SetActive(false);
@@ -344,6 +358,21 @@ public class LanLobbyController : MonoBehaviour
         if (!EnsureNetworkManager()) return;
         LanSessionManager.ActivateClient(_mapFile, _algorithm);
         SwitchTo(Screen.Joining);
+        StartAutoDiscover();
+    }
+
+    private void StartAutoDiscover()
+    {
+        if (_discovery != null) { _discovery.Stop(); Destroy(_discovery); }
+        _discovery = gameObject.AddComponent<LanDiscovery>();
+        SetStatus("Đang tự động tìm host trong mạng LAN…", Muted);
+        _discovery.OnHostFound += ip =>
+        {
+            if (_ipInput != null) _ipInput.text = ip;
+            SetStatus($"Tìm thấy host: {ip}  —  bấm KẾT NỐI", new Color(0.3f, 0.9f, 0.4f));
+            _discovery.StopListening();
+        };
+        _discovery.StartListening();
     }
 
     // ── Host flow ─────────────────────────────────────────────────────────────
@@ -351,20 +380,78 @@ public class LanLobbyController : MonoBehaviour
     private void DoHost()
     {
         if (!EnsureNetworkManager()) return;
+        if (NetworkManager.Singleton.IsListening)
+        {
+            SetStatus("Đang dừng session cũ…", Muted);
+            NetworkManager.Singleton.Shutdown();
+            Invoke(nameof(RetryHost), 2f);
+            return;
+        }
 
         LanSessionManager.ActivateHost(_mapFile, _algorithm);
+        NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
         NetworkManager.Singleton.OnClientConnectedCallback  += OnJoin;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnLeave;
-        NetworkManager.Singleton.StartHost();
+
+        // Subscribe to transport failure so we can recover from "port already in use".
+        NetworkManager.Singleton.OnTransportFailure -= OnHostTransportFailure;
+        NetworkManager.Singleton.OnTransportFailure += OnHostTransportFailure;
+
+        // Host listens on 0.0.0.0 (all interfaces) so LAN clients can reach it
+        var hostTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (hostTransport != null) hostTransport.SetConnectionData("0.0.0.0", GamePort);
+
+        // StartHost() returns false if transport fails — don't proceed on failure.
+        // OnHostTransportFailure will handle retry; _hostRetryCount must NOT be reset here.
+        if (!NetworkManager.Singleton.StartHost()) return;
 
         string ip = GetLocalIP();
+        Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}  (LAN IP: {ip})");
         if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
 
         _discovery = gameObject.AddComponent<LanDiscovery>();
         _discovery.StartBroadcasting(GamePort);
 
+        _hostRetryCount = 0;   // reset only on genuine success
         LanSessionManager.PlayerCount = 1;
         SwitchTo(Screen.Hosting);
+    }
+
+    private void OnHostTransportFailure()
+    {
+        if (NetworkManager.Singleton != null)
+            NetworkManager.Singleton.OnTransportFailure -= OnHostTransportFailure;
+
+        _hostRetryCount++;
+        const int MaxRetries = 3;
+
+        if (_hostRetryCount <= MaxRetries)
+        {
+            SetStatus($"Port {GamePort} bận — thử lại ({_hostRetryCount}/{MaxRetries})…",
+                new Color(1f, 0.65f, 0.1f));
+            Debug.LogWarning($"[LAN] Transport bind failed (attempt {_hostRetryCount}). Retrying in 3 s.");
+
+            // Destroy the entire NM so the OS closes its socket before we recreate.
+            if (NetworkManager.Singleton != null)
+                Destroy(NetworkManager.Singleton.gameObject);
+            Invoke(nameof(RetryHost), 3f);
+        }
+        else
+        {
+            _hostRetryCount = 0;
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.Shutdown();
+                Destroy(NetworkManager.Singleton.gameObject);
+            }
+            SetStatus(
+                $"Không thể mở port {GamePort}.\n" +
+                "Tiến trình khác đang chiếm port này.\n" +
+                "Thoát hết build đang chạy hoặc khởi động lại Unity rồi thử lại.",
+                new Color(1f, 0.3f, 0.3f));
+            Debug.LogError($"[LAN] Port {GamePort} blocked after {MaxRetries} retries. Manual fix required.");
+        }
     }
 
     private void OnJoin(ulong id)
@@ -384,6 +471,68 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Join flow ─────────────────────────────────────────────────────────────
 
+    private void RetryHost()
+    {
+        // Destroy leftover NM so EnsureNetworkManager() creates a fresh one with a clean socket.
+        if (NetworkManager.Singleton != null)
+        {
+            if (NetworkManager.Singleton.IsListening) NetworkManager.Singleton.Shutdown();
+            Destroy(NetworkManager.Singleton.gameObject);
+        }
+        DoHost();
+    }
+    private void RetryConnect() { if (_pendingIp != null) DoConnect(_pendingIp); }
+
+    private void OnClientConnected(ulong _)
+    {
+        CancelInvoke(nameof(OnConnectionTimeout));
+        SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
+        Debug.Log("[LAN] Connected to host.");
+        // When the host loads the game scene, NGO will trigger a scene load on this client.
+        // Register so we can close the lobby overlay once the game scene is live.
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
+        SceneManager.sceneLoaded += OnGameSceneLoaded;
+    }
+
+    private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Ignore the menu scene and any scene that isn't our LAN game scene
+        if (scene.name == "Menu") return;
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
+        Debug.Log($"[LAN] Game scene '{scene.name}' loaded on client — closing lobby overlay.");
+        // Close the overlay without shutting down the NetworkManager
+        CancelInvoke();
+        _discovery?.Stop();
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
+        if (_root != null) Destroy(_root);
+        _root = null;
+        _instance = null;
+        Destroy(gameObject);
+    }
+
+    private void OnClientDisconnected(ulong _)
+    {
+        CancelInvoke(nameof(OnConnectionTimeout));
+        SetStatus("Mất kết nối với host.", new Color(1f, 0.4f, 0.4f));
+        Debug.LogWarning("[LAN] Disconnected from host.");
+    }
+
+    private void OnConnectionTimeout()
+    {
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsConnectedClient)
+        {
+            NetworkManager.Singleton.Shutdown();
+            SetStatus("Hết thời gian — không thể kết nối.\nKiểm tra IP và firewall.", new Color(1f, 0.4f, 0.3f));
+            Debug.LogWarning($"[LAN] Connection timeout to {_pendingIp ?? "?"}:{GamePort}");
+        }
+    }
+
     private void DoConnect(string ip)
     {
         if (string.IsNullOrWhiteSpace(ip))
@@ -392,14 +541,43 @@ public class LanLobbyController : MonoBehaviour
             return;
         }
 
+        // Strip port if user typed "IP:port" format (code adds port automatically)
+        int colonIdx = ip.IndexOf(':');
+        if (colonIdx >= 0)
+            ip = ip.Substring(0, colonIdx).Trim();
+
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            SetStatus("Địa chỉ IP không hợp lệ!", new Color(1f, 0.35f, 0.35f));
+            return;
+        }
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            NetworkManager.Singleton.Shutdown();
+            _pendingIp = ip;
+            Invoke(nameof(RetryConnect), 0.5f);
+            return;
+        }
+
+        if (!EnsureNetworkManager()) return;
         var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
         if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
-        t.SetConnectionData(ip, GamePort);
 
-        NetworkManager.Singleton.OnClientConnectedCallback  += _ => SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
-        NetworkManager.Singleton.OnClientDisconnectCallback += _ => SetStatus("Mất kết nối.", new Color(1f, 0.4f, 0.4f));
+        // Client connects to the host's specific LAN IP (not 0.0.0.0)
+        t.SetConnectionData(ip, GamePort);
+        Debug.Log($"[LAN] Connecting to {ip}:{GamePort}");
+
+        NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
         NetworkManager.Singleton.StartClient();
-        SetStatus($"Đang kết nối tới {ip}…", Muted);
+        SetStatus($"Đang kết nối tới {ip}:{GamePort}…", Muted);
+
+        // Timeout: if not connected after 8s, show error
+        CancelInvoke(nameof(OnConnectionTimeout));
+        Invoke(nameof(OnConnectionTimeout), 8f);
     }
 
     // ── Start game ────────────────────────────────────────────────────────────
@@ -420,8 +598,10 @@ public class LanLobbyController : MonoBehaviour
         if (NetworkManager.Singleton != null) return true;
 
         var go = new GameObject("NetworkManager");
+        DontDestroyOnLoad(go);
         var tr = go.AddComponent<UnityTransport>();
-        tr.SetConnectionData("127.0.0.1", GamePort);
+        // "0.0.0.0" = listen on ALL network interfaces (required for LAN hosting)
+        tr.SetConnectionData("0.0.0.0", GamePort);
 
         var nm = go.AddComponent<NetworkManager>();
         if (nm.NetworkConfig == null)
@@ -498,10 +678,20 @@ public class LanLobbyController : MonoBehaviour
 
     private void Close()
     {
+        CancelInvoke();
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
         _discovery?.Stop();
-        if (_root  != null) Destroy(_root);
-        Destroy(gameObject);
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
+        if (_root != null) Destroy(_root);
+        _root = null;
         _instance = null;
+        Destroy(gameObject);
     }
 
     // ── UI builder micro-helpers ──────────────────────────────────────────────

@@ -71,7 +71,7 @@ public class MapGameOverController : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 100;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         overlayGroup = canvasObject.AddComponent<CanvasGroup>();

@@ -35,10 +35,10 @@ public struct LanTankState : INetworkSerializable
 
 public struct LanEnemyState : INetworkSerializable
 {
-    public int    idx;
+    public int     idx;
     public Vector2 pos;
-    public float  rot;
-    public int    hp;
+    public float   rot;
+    public int     hp;
 
     public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
     {
@@ -49,16 +49,33 @@ public struct LanEnemyState : INetworkSerializable
     }
 }
 
+public struct LanBulletState : INetworkSerializable
+{
+    public Vector2 pos;
+    public float   rot;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
+    {
+        s.SerializeValue(ref pos);
+        s.SerializeValue(ref rot);
+    }
+}
+
 // ── NetworkBehaviour: one per connected player (spawned as PlayerPrefab) ─────
 
 /// <summary>
 /// RPC hub for one player.
-/// Owner sends input via ServerRpc; server pushes tank state back via targeted ClientRpc.
+/// - Owner sends input via ServerRpc every frame.
+/// - World state (positions, HP) is broadcast via CustomMessagingManager in
+///   LanGameCoordinator — NOT via ClientRpc — to decouple the sync channel
+///   from any individual NetworkObject's lifetime.
+/// - Bullet/explosion/win events use ClientRpc because they are one-shot and
+///   must not be dropped.
 /// </summary>
 [RequireComponent(typeof(NetworkObject))]
 public class LanNetworkBridge : NetworkBehaviour
 {
-    // Slot index assigned by LanGameCoordinator (0 = host, 1+= clients)
+    // Slot index assigned by LanGameCoordinator (0 = host, 1+ = clients)
     public NetworkVariable<int> Slot = new NetworkVariable<int>(
         -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
@@ -67,7 +84,6 @@ public class LanNetworkBridge : NetworkBehaviour
 
     // ── Owner-side: sample input every frame ─────────────────────────────────
     private Camera _ownerCamera;
-    private bool   _prevShoot;
 
     public override void OnNetworkSpawn()
     {
@@ -82,14 +98,20 @@ public class LanNetworkBridge : NetworkBehaviour
     {
         if (!IsOwner || IsServer) return;
 
+        // Camera is only valid in the game scene (not lobby); assign lazily.
+        if (_ownerCamera == null)
+            _ownerCamera = Camera.main;
+
         Vector2 move   = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
         bool    shoot  = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
         Vector2 turret = _ownerCamera != null
             ? (Vector2)_ownerCamera.ScreenToWorldPoint(Input.mousePosition)
             : Vector2.zero;
 
-        // Send every frame (server is authoritative, let it throttle)
         SendInputServerRpc(new LanInputPacket { move = move, turretWorldPos = turret, shoot = shoot });
+
+        // Client-side prediction: move OwnGhost immediately so input feels responsive.
+        LanClientView.Instance?.PredictOwnMovement(move);
     }
 
     // ── Server receives owner input ───────────────────────────────────────────
@@ -98,12 +120,12 @@ public class LanNetworkBridge : NetworkBehaviour
     public void SendInputServerRpc(LanInputPacket pkt)
     {
         if (_serverTank == null) return;
-        _serverTank.HandleMoveBody(pkt.move);
+        _serverTank.HandleMoveWorldDirection(pkt.move);
         _serverTank.HandleTurretMovement(pkt.turretWorldPos);
         if (pkt.shoot) _serverTank.HandleShoot();
     }
 
-    // ── Server pushes state to owner ─────────────────────────────────────────
+    // ── Server → Owner: targeted tank-state correction (optional refinement) ─
 
     [ClientRpc]
     public void ReceiveTankStateClientRpc(LanTankState state, ClientRpcParams rpcParams = default)
@@ -112,13 +134,22 @@ public class LanNetworkBridge : NetworkBehaviour
         LanClientView.Instance?.ApplyOwnTankState(state);
     }
 
-    // ── Server → All clients: enemy + other player states ────────────────────
+    // ── Server → All clients: bullet spawn (event-driven, immediate) ─────────
 
     [ClientRpc]
-    public void ReceiveWorldStateClientRpc(LanTankState[] playerStates, LanEnemyState[] enemyStates, int eagleHp)
+    public void SpawnBulletEffectClientRpc(Vector2 pos, Vector2 dir, float speed, float maxDist)
     {
         if (IsServer) return;
-        LanClientView.Instance?.ApplyWorldState(playerStates, enemyStates, eagleHp);
+        LanClientView.Instance?.SpawnMovingBullet(pos, dir, speed, maxDist);
+    }
+
+    // ── Server → All clients: bullet hit explosion effect ────────────────────
+
+    [ClientRpc]
+    public void SpawnExplosionClientRpc(Vector2 pos)
+    {
+        if (IsServer) return;
+        LanClientView.Instance?.SpawnExplosion(pos);
     }
 
     // ── Server → All clients: win / game over ────────────────────────────────
@@ -134,10 +165,10 @@ public class LanNetworkBridge : NetworkBehaviour
 
     public void LinkTank(TankController tank, int slot)
     {
-        _serverTank  = tank;
-        Slot.Value   = slot;
+        _serverTank = tank;
+        Slot.Value  = slot;
     }
 
-    public TankController ServerTank       => _serverTank;
-    public ulong          ClientId         => OwnerClientId;
+    public TankController ServerTank => _serverTank;
+    public ulong          ClientId   => OwnerClientId;
 }

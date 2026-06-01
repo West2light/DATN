@@ -594,14 +594,15 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private static char[][] LoadMapGrid(string assetPath)
     {
-        // assetPath = "Assets/MapData/random-32-32-10.map"
-        // Application.dataPath = "<project>/Assets"
-        // Strip leading "Assets/" and combine with dataPath
-        string relativePart = assetPath.StartsWith("Assets/")
-            ? assetPath.Substring("Assets/".Length)
-            : assetPath;
-        string fullPath = Path.Combine(Application.dataPath, relativePart);
-
+        string fileName = Path.GetFileName(assetPath);
+        string fullPath = Path.Combine(Application.streamingAssetsPath, "MapData", fileName);
+        if (!File.Exists(fullPath))
+        {
+            string relativePart = assetPath.StartsWith("Assets/")
+                ? assetPath.Substring("Assets/".Length)
+                : assetPath;
+            fullPath = Path.Combine(Application.dataPath, relativePart);
+        }
         if (!File.Exists(fullPath)) return null;
         string text = File.ReadAllText(fullPath);
         if (string.IsNullOrEmpty(text)) return null;
@@ -807,7 +808,14 @@ public class MenuViewBootstrap : MonoBehaviour
         var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         if (tex != null)
             return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
-#endif
         return null;
+#else
+        string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
+        Sprite spr = Resources.Load<Sprite>("TankSprites/" + fileName);
+        if (spr != null) return spr;
+        Texture2D rtex = Resources.Load<Texture2D>("TankSprites/" + fileName);
+        if (rtex == null) return null;
+        return Sprite.Create(rtex, new Rect(0, 0, rtex.width, rtex.height), new Vector2(0.5f, 0.5f), 128f);
+#endif
     }
 }

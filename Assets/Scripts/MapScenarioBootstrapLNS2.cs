@@ -217,7 +217,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -453,7 +453,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -574,19 +574,19 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     {
         if (enemyPrefab != null) return enemyPrefab;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<GameObject>("Prefabs/StaticEnemy");
     }
 
     private TankMovementData ResolveEnemyMovementData()
     {
         if (enemyMovementData != null) return enemyMovementData;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<TankMovementData>("Data/EnemyTankMovementData");
     }
 }

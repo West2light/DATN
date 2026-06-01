@@ -70,15 +70,26 @@ public class MapTankTestBootstrap : MonoBehaviour
                 }
                 SpawnScenario();                       // spawns enemies
                 var enemies = GetSpawnedEnemies();
+
+                // Wire all player transforms so every enemy targets every player.
+                var playerTransforms = new Transform[spawnedTanks.Count];
+                for (int i = 0; i < spawnedTanks.Count; i++)
+                    playerTransforms[i] = spawnedTanks[i].transform;
+                foreach (var enemy in enemies)
+                {
+                    var agent = enemy.GetComponent<GridEnemyAgent>();
+                    if (agent != null) agent.playerTargets = playerTransforms;
+                    var agentLns2 = enemy.GetComponent<GridEnemyAgentLNS2>();
+                    if (agentLns2 != null) agentLns2.playerTargets = playerTransforms;
+                }
+
                 lanCoord.RegisterServerTanks(spawnedTanks, enemies);
             }
             else
             {
-                // Client: build ghost GOs, camera follows own ghost
-                var view = gameObject.AddComponent<LanClientView>();
-                view.InitGhosts(LanSessionManager.PlayerCount, LanSessionManager.EnemyCount);
-                if (view.OwnGhost != null)
-                    player = view.OwnGhost;
+                // Client: add view immediately so Instance is ready before first RPC arrives.
+                gameObject.AddComponent<LanClientView>();
+                Debug.Log("[LAN Client] LanClientView created. Waiting for server state...");
             }
             return;
         }
@@ -110,6 +121,12 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void LateUpdate()
     {
+        // LAN client: pick up OwnGhost once lazy-init creates it, then re-setup camera
+        if (player == null && LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            Transform ghost = LanClientView.Instance?.OwnGhost;
+            if (ghost != null) { player = ghost; SetupCamera(); }
+        }
         UpdateCameraPosition();
     }
 
@@ -207,7 +224,10 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private List<GameObject> GetSpawnedEnemies()
     {
-        // MapScenarioBootstrap.Enemies is set after SpawnScenario
+        // MapScenarioBootstrapLNS2 takes priority (matches SpawnScenario() dispatch order)
+        var lns2 = GetComponent<MapScenarioBootstrapLNS2>();
+        if (lns2 != null) return new List<GameObject>(lns2.Enemies);
+
         var bootstrap = GetComponent<MapScenarioBootstrap>()
             ?? GetComponentInChildren<MapScenarioBootstrap>();
         if (bootstrap == null) return new List<GameObject>();
@@ -358,7 +378,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -515,11 +535,22 @@ public class MapTankTestBootstrap : MonoBehaviour
         sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
         if (sprite == null)
         {
-            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
-            if (tex != null)
-                sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            Texture2D edTex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
+            if (edTex != null)
+                sprite = Sprite.Create(edTex, new Rect(0, 0, edTex.width, edTex.height), new Vector2(0.5f, 0.5f), 100f);
         }
 #endif
+        if (sprite == null)
+        {
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(VariantBodyFiles[index]);
+            sprite = Resources.Load<Sprite>("TankSprites/" + fileName);
+            if (sprite == null)
+            {
+                Texture2D tex = Resources.Load<Texture2D>("TankSprites/" + fileName);
+                if (tex != null)
+                    sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 128f);
+            }
+        }
         if (sprite == null) return;
 
         Transform bodyTransform = tank.transform.Find("TankBase");
@@ -545,43 +576,31 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private GameObject ResolveTankPrefab()
     {
-        if (tankPrefab != null)
-        {
-            return tankPrefab;
-        }
-
+        if (tankPrefab != null) return tankPrefab;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<GameObject>(tankPrefabPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<GameObject>(tankPrefabPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<GameObject>("Prefabs/Tank");
     }
 
     private TankMovementData ResolveMovementData()
     {
-        if (movementData != null)
-        {
-            return movementData;
-        }
-
+        if (movementData != null) return movementData;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<TankMovementData>(movementDataPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<TankMovementData>(movementDataPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<TankMovementData>("Data/PlayerTankMovementData");
     }
 
     private AudioClip ResolvePlayerEngineClip()
     {
-        if (playerEngineClip != null)
-        {
-            return playerEngineClip;
-        }
-
+        if (playerEngineClip != null) return playerEngineClip;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<AudioClip>(playerEngineClipPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<AudioClip>(playerEngineClipPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<AudioClip>("Audio/spaceEngineSmall_001");
     }
 }
