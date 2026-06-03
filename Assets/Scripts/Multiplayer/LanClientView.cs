@@ -18,7 +18,8 @@ public class LanClientView : MonoBehaviour
     public static LanClientView Instance { get; private set; }
     public Transform OwnGhost { get; private set; }
 
-    private readonly List<Transform> _playerGhosts = new List<Transform>();
+    private readonly List<Transform>    _playerGhosts = new List<Transform>();
+    private readonly List<GameObject>   _bulletGhosts = new List<GameObject>();  // tracked so explosions can stop them
     private readonly List<Transform> _enemyGhosts  = new List<Transform>();
     private int _ownSlot = -1;
     private Transform _eagleGhost;
@@ -40,6 +41,11 @@ public class LanClientView : MonoBehaviour
     private Text   _enemyCountText;
     private const int OwnMaxHp   = 20;
     private const int EagleMaxHp = 500;
+
+    // Spectator mode — set true the first time own HP reaches 0.
+    public  bool IsSpectating { get; private set; }
+    private bool _ownDied;          // latched so we only react to the first death
+    private int  _ownPrevHp = -1;   // tracks previous HP to detect the death transition
 
     private void Awake()
     {
@@ -154,6 +160,8 @@ public class LanClientView : MonoBehaviour
         reader.ReadValueSafe(out int eagleHp);
         reader.ReadValueSafe(out float eaglePx);
         reader.ReadValueSafe(out float eaglePy);
+        reader.ReadValueSafe(out float eagleW);
+        reader.ReadValueSafe(out float eagleH);
 
         // ── 2. Init ghosts if counts don't match yet ────────────────────────
         if (pc > 0 && (_playerGhosts.Count != pc || _enemyGhosts.Count != ec))
@@ -165,12 +173,24 @@ public class LanClientView : MonoBehaviour
             var p = players[i];
             if (i == _ownSlot)
             {
-                // Own ghost: set server-correction target (blended in Update)
+                // Own ghost: set server-correction target (blended in Update).
                 _ownTargetPos = new Vector3(p.px, p.py, 0f);
                 _ownTargetRot = Quaternion.Euler(0f, 0f, p.bodyRot);
                 _ownTargetSet = true;
                 if (OwnGhost != null) SetTurretRot(OwnGhost, p.turretRot);
-                if (_ownHpSlider != null) _ownHpSlider.value = (float)p.hp / OwnMaxHp;
+
+                // HP bar: normalize raw int HP against known max.
+                if (_ownHpSlider != null)
+                    _ownHpSlider.value = (float)p.hp / OwnMaxHp;
+
+                // Death detection — trigger spectator mode on the first hp=0 transition.
+                if (!_ownDied && _ownPrevHp > 0 && p.hp <= 0)
+                {
+                    _ownDied     = true;
+                    IsSpectating = true;
+                    ShowDeadOverlay();
+                }
+                _ownPrevHp = p.hp;
             }
             else if (i < _playerGhosts.Count && _playerGhosts[i] != null)
             {
@@ -213,8 +233,20 @@ public class LanClientView : MonoBehaviour
 
         // ── 5. Eagle ────────────────────────────────────────────────────────
         var eaglePos = new Vector2(eaglePx, eaglePy);
+        if (eagleW <= 0f) eagleW = 1.3f;
+        if (eagleH <= 0f) eagleH = 1.3f;
         if (_eagleGhost == null && eagleHp > 0 && eaglePos != Vector2.zero)
-            _eagleGhost = SpawnEagleGhost(eaglePos);
+        {
+            _eagleGhost = SpawnEagleGhost(eaglePos, eagleW, eagleH);
+        }
+        else if (_eagleGhost != null)
+        {
+            // Sync position in case eagle moved (normally static, but stays correct).
+            _eagleGhost.position    = new Vector3(eaglePx, eaglePy, 0f);
+            // Apply scale if it differs (handles first-packet size correction).
+            var want = new Vector3(eagleW, eagleH, 1f);
+            if (_eagleGhost.localScale != want) _eagleGhost.localScale = want;
+        }
         if (_eagleHpSlider  != null) _eagleHpSlider.value   = (float)eagleHp / EagleMaxHp;
         if (_enemyCountText != null) _enemyCountText.text    = $"ENEMY: {alive}";
     }
@@ -274,11 +306,16 @@ public class LanClientView : MonoBehaviour
     {
         foreach (var g in _playerGhosts) if (g != null) Destroy(g.gameObject);
         foreach (var g in _enemyGhosts)  if (g != null) Destroy(g.gameObject);
+        foreach (var b in _bulletGhosts) if (b != null) Destroy(b);
         _playerGhosts.Clear();
         _enemyGhosts.Clear();
-        _ownSlot = -1;
-        OwnGhost = null;
+        _bulletGhosts.Clear();
+        _ownSlot      = -1;
+        OwnGhost      = null;
         _ownTargetSet = false;
+        IsSpectating  = false;
+        _ownDied      = false;
+        _ownPrevHp    = -1;
 
         // Determine own slot ──────────────────────────────────────────────────
         if (forcedOwnSlot >= 0)
@@ -447,10 +484,14 @@ public class LanClientView : MonoBehaviour
         }
         go.transform.position = new Vector3(pos.x, pos.y, 0f);
         go.transform.up       = new Vector3(dir.x, dir.y, 0f);
+
+        // Register before starting so StopNearestBulletGhost can find it.
+        _bulletGhosts.Add(go);
         StartCoroutine(MoveBulletRoutine(go, dir.normalized, speed, maxDist));
     }
 
-    private static IEnumerator MoveBulletRoutine(GameObject bullet, Vector2 dir, float speed, float maxDist)
+    // Non-static so it can remove the bullet from _bulletGhosts when it expires naturally.
+    private IEnumerator MoveBulletRoutine(GameObject bullet, Vector2 dir, float speed, float maxDist)
     {
         float traveled = 0f;
         while (bullet != null && traveled < maxDist)
@@ -460,13 +501,21 @@ public class LanClientView : MonoBehaviour
             traveled += step;
             yield return null;
         }
-        if (bullet != null) Destroy(bullet);
+        if (bullet != null)
+        {
+            _bulletGhosts.Remove(bullet);
+            Destroy(bullet);
+        }
     }
 
     // ── Explosion effect (event-based, immediate) ─────────────────────────────
 
     public void SpawnExplosion(Vector2 pos)
     {
+        // Stop the bullet ghost that caused this explosion.
+        // The ghost should be very close to the hit point (same speed, very low LAN latency).
+        StopNearestBulletGhost(pos);
+
         GameObject explosionPrefab = Resources.Load<GameObject>("Prefabs/Explosion");
         if (explosionPrefab != null)
         {
@@ -477,9 +526,35 @@ public class LanClientView : MonoBehaviour
         }
     }
 
+    // Find and destroy the bullet ghost nearest to the explosion position.
+    // Uses a generous search radius (3 units) to account for LAN latency drift.
+    private void StopNearestBulletGhost(Vector2 explosionPos)
+    {
+        const float SearchRadius = 3f;
+        _bulletGhosts.RemoveAll(b => b == null);  // purge any already-destroyed ghosts
+
+        GameObject nearest  = null;
+        float      nearestD = SearchRadius;
+
+        foreach (var b in _bulletGhosts)
+        {
+            float d = Vector2.Distance(b.transform.position, explosionPos);
+            if (d < nearestD) { nearestD = d; nearest = b; }
+        }
+
+        if (nearest != null)
+        {
+            _bulletGhosts.Remove(nearest);
+            Destroy(nearest);
+        }
+    }
+
     // ── Eagle ghost ───────────────────────────────────────────────────────────
 
-    private static Transform SpawnEagleGhost(Vector2 pos)
+    // sizeW/sizeH = server eagle's SpriteRenderer.bounds.size (world-space).
+    // MakeSquareSprite() is 1×1 world unit at scale (1,1,1), so setting
+    // localScale = (sizeW, sizeH) makes the ghost exactly match the real eagle.
+    private static Transform SpawnEagleGhost(Vector2 pos, float sizeW = 1.3f, float sizeH = 1.3f)
     {
         var go = new GameObject("GhostEagle");
         var sr = go.AddComponent<SpriteRenderer>();
@@ -487,7 +562,7 @@ public class LanClientView : MonoBehaviour
         sr.color            = new Color(1f, 0.85f, 0.15f);
         sr.sortingLayerName = "Eagle";
         sr.sortingOrder     = 10;
-        go.transform.localScale = Vector3.one * 1.3f;
+        go.transform.localScale = new Vector3(sizeW, sizeH, 1f);
         go.transform.position   = new Vector3(pos.x, pos.y, 0f);
         return go.transform;
     }
@@ -498,6 +573,62 @@ public class LanClientView : MonoBehaviour
     {
         if (isWin) MapWinController.Ensure().BeginWin();
         else       MapGameOverController.Ensure().BeginGameOver();
+    }
+
+    // ── Death overlay (shown when own tank's HP first reaches 0) ─────────────
+
+    private void ShowDeadOverlay()
+    {
+        int L = LayerMask.NameToLayer("UI");
+
+        var root = new GameObject("YouDiedOverlay"); root.layer = L;
+        var cv   = root.AddComponent<Canvas>();
+        cv.renderMode = RenderMode.ScreenSpaceOverlay; cv.sortingOrder = 80;
+        var sc = root.AddComponent<CanvasScaler>();
+        sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        sc.referenceResolution = new Vector2(1280f, 720f);
+        root.AddComponent<GraphicRaycaster>();
+
+        // Semi-transparent dark strip centred on screen.
+        var bg = new GameObject("Bg"); bg.layer = L;
+        bg.transform.SetParent(root.transform, false);
+        var bgRt = bg.AddComponent<RectTransform>();
+        bgRt.anchorMin = new Vector2(0f, 0.38f); bgRt.anchorMax = new Vector2(1f, 0.62f);
+        bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+        bg.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
+
+        // "BẠN ĐÃ CHẾT" title.
+        AddOverlayText(bg, "DeadTitle", "BẠN ĐÃ CHẾT",
+            34, FontStyle.Bold, new Color(1f, 0.25f, 0.25f),
+            new Vector2(0.5f, 0.7f));
+
+        // Hint text.
+        AddOverlayText(bg, "Hint", "Dùng WASD để kéo camera xem tiếp",
+            16, FontStyle.Italic, new Color(0.85f, 0.85f, 0.85f),
+            new Vector2(0.5f, 0.3f));
+
+        // Auto-destroy after 4 seconds.
+        Destroy(root, 4f);
+    }
+
+    private static void AddOverlayText(GameObject parent, string goName,
+        string content, int size, FontStyle style, Color color, Vector2 anchorCenter)
+    {
+        int L = parent.layer;
+        var go = new GameObject(goName); go.layer = L;
+        go.transform.SetParent(parent.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = anchorCenter;
+        rt.pivot     = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(700f, 50f);
+        var t = go.AddComponent<Text>();
+        t.text      = content;
+        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.fontSize  = size;
+        t.fontStyle = style;
+        t.color     = color;
+        t.alignment = TextAnchor.MiddleCenter;
     }
 
     // ── Turret rotation helper ────────────────────────────────────────────────

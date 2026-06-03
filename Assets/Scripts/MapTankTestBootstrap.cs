@@ -36,6 +36,10 @@ public class MapTankTestBootstrap : MonoBehaviour
     private float mapHeightWorld;
     private bool allowCameraFollow = true;
 
+    // Spectator mode: activated when the local player's tank is destroyed in LAN mode.
+    private bool    _spectating;
+    private Vector2 _spectatorPos;
+
     private void Start()
     {
         if (mapLoader == null)
@@ -121,13 +125,48 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void LateUpdate()
     {
-        // LAN client: pick up OwnGhost once lazy-init creates it, then re-setup camera
-        if (player == null && LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        // LAN client: pick up OwnGhost once lazy-init creates it, then re-setup camera.
+        if (!_spectating && LanSessionManager.IsActive && !LanSessionManager.IsServer)
         {
             Transform ghost = LanClientView.Instance?.OwnGhost;
-            if (ghost != null) { player = ghost; SetupCamera(); }
+            if (ghost != null && player != ghost) { player = ghost; SetupCamera(); }
+
+            // Own tank just died — switch to spectator mode.
+            if (LanClientView.Instance?.IsSpectating == true)
+            {
+                _spectating   = true;
+                _spectatorPos = mainCamera != null
+                    ? (Vector2)mainCamera.transform.position
+                    : Vector2.zero;
+            }
         }
+
+        if (_spectating)
+        {
+            HandleSpectatorCamera();
+            return;
+        }
+
         UpdateCameraPosition();
+    }
+
+    // Free-roam camera for spectators: WASD pans within map bounds.
+    private void HandleSpectatorCamera()
+    {
+        if (mainCamera == null) return;
+        float speed = mainCamera.orthographicSize * 2f;
+        _spectatorPos.x += Input.GetAxisRaw("Horizontal") * speed * Time.deltaTime;
+        _spectatorPos.y += Input.GetAxisRaw("Vertical")   * speed * Time.deltaTime;
+
+        float halfH = mainCamera.orthographicSize;
+        float halfW = halfH * mainCamera.aspect;
+        _spectatorPos.x = Mathf.Clamp(_spectatorPos.x,
+            -mapWidthWorld  / 2f + halfW, mapWidthWorld  / 2f - halfW);
+        _spectatorPos.y = Mathf.Clamp(_spectatorPos.y,
+            -mapHeightWorld / 2f + halfH, mapHeightWorld / 2f - halfH);
+
+        mainCamera.transform.position = new Vector3(
+            _spectatorPos.x, _spectatorPos.y, cameraOffset.z);
     }
 
     private void SpawnScenario()
@@ -174,9 +213,23 @@ public class MapTankTestBootstrap : MonoBehaviour
             ? LanSessionManager.EnemyCount
             : baseSet.Count;
 
+        // Collect player spawn cells so we can keep enemies away from them.
+        var playerCells = new System.Collections.Generic.HashSet<Vector2Int>();
+        if (LanSessionManager.IsActive)
+        {
+            int n = LanSessionManager.PlayerCount;
+            for (int i = 0; i < n; i++)
+            {
+                int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, r - 2);
+                playerCells.Add(new Vector2Int(playerSpawnCell.x, row));
+            }
+            // Remove any base-set enemy cells that coincide with player cells.
+            baseSet.RemoveAll(cell => playerCells.Contains(cell));
+        }
+
         if (needed <= baseSet.Count) return baseSet.GetRange(0, needed);
 
-        // Generate additional random walkable cells for extra enemies
+        // Generate additional random walkable cells for extra enemies.
         var result = new List<Vector2Int>(baseSet);
         var rng = new System.Random(42);
         int attempts = 0;
@@ -184,7 +237,8 @@ public class MapTankTestBootstrap : MonoBehaviour
         {
             attempts++;
             var cell = new Vector2Int(rng.Next(1, c - 1), rng.Next(1, r - 1));
-            if (mapLoader.IsWalkable(cell) && !result.Contains(cell))
+            if (mapLoader.IsWalkable(cell) && !result.Contains(cell)
+                && !playerCells.Contains(cell))
                 result.Add(cell);
         }
         return result;
@@ -197,7 +251,6 @@ public class MapTankTestBootstrap : MonoBehaviour
         var tanks = new List<TankController>();
         int n = LanSessionManager.PlayerCount;
 
-        // Spawn positions: spread along the left edge
         for (int i = 0; i < n; i++)
         {
             int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, mapLoader.BuildHeight - 2);
@@ -209,17 +262,45 @@ public class MapTankTestBootstrap : MonoBehaviour
 
             GameObject tank = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity);
             tank.name = i == 0 ? "Player" : $"Player_{i}";
-            player = i == 0 ? tank.transform : player;
+            if (i == 0) player = tank.transform;
 
+            // Only the host's own tank (slot 0) shows the HP bar on the host screen.
+            // Client tanks are server-side representations only; their HP is shown on
+            // the respective client machine via LanClientView world-state sync.
+            bool savedShowHp = showPlayerHealthBar;
+            if (i > 0) showPlayerHealthBar = false;
             ConfigureTank(tank);
+            showPlayerHealthBar = savedShowHp;
 
-            // Wire PlayerInput only for the host's own tank (slot 0)
-            if (i == 0)
-                WirePlayerInput(tank);
+            // In LAN mode, individual player deaths don't end the game.
+            // Remove the global game-over trigger wired by ConfigureTank and replace it
+            // with per-slot tracking in LanGameCoordinator.
+            Damagable d = tank.GetComponentInChildren<Damagable>();
+            if (d != null)
+            {
+                MapGameOverController goc = MapGameOverController.Ensure();
+                d.OnDead.RemoveListener(goc.BeginGameOver);
+                int slot = i;
+                d.OnDead.AddListener(() => LanGameCoordinator.Instance?.OnPlayerTankDead(slot));
 
+                // Hook the host's own tank death to switch this machine to spectator mode.
+                if (i == 0)
+                    d.OnDead.AddListener(EnterSpectatorMode);
+            }
+
+            if (i == 0) WirePlayerInput(tank);
             tanks.Add(tank.GetComponent<TankController>());
         }
         return tanks;
+    }
+
+    // Called when the host's own player tank is destroyed.
+    private void EnterSpectatorMode()
+    {
+        _spectating    = true;
+        _spectatorPos  = mainCamera != null
+            ? (Vector2)mainCamera.transform.position
+            : Vector2.zero;
     }
 
     private List<GameObject> GetSpawnedEnemies()

@@ -29,7 +29,8 @@ public class LanGameCoordinator : MonoBehaviour
     private TankMover[]  _enemyMovers;       // used to read the physics-body position
 
     private Coroutine _syncCoroutine;
-    private int       _linkedBridgeCount; // how many bridges have been linked so far
+    private int       _linkedBridgeCount;
+    private int       _alivePlayerCount;  // decremented when a player tank dies
     private GameObject _eagleCache;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -76,6 +77,8 @@ public class LanGameCoordinator : MonoBehaviour
             _enemyAimTurrets[i] = enemies[i].GetComponentInChildren<AimTurret>();
             _enemyMovers[i]     = enemies[i].GetComponentInChildren<TankMover>();
         }
+
+        _alivePlayerCount = tanks.Count;
 
         ScanBridges();
         Debug.Log($"[Coordinator] {tanks.Count} tanks, {ec} enemies, {_bridges.Count} bridges");
@@ -190,8 +193,8 @@ public class LanGameCoordinator : MonoBehaviour
         int pc = _serverTanks.Count;
         int ec = _serverEnemies.Count;
 
-        // Buffer:  4 + pc*20 + 4 + ec*24 + 12 + 64 safety
-        int bufSize = 80 + pc * 20 + ec * 24;
+        // Buffer:  4 + pc*20 + 4 + ec*24 + 20 (eagle: hp+px+py+w+h) + 64 safety
+        int bufSize = 88 + pc * 20 + ec * 24;
         using var writer = new FastBufferWriter(bufSize, Allocator.Temp);
 
         // ── Players ────────────────────────────────────────────────────────
@@ -271,20 +274,44 @@ public class LanGameCoordinator : MonoBehaviour
         // ── Eagle ──────────────────────────────────────────────────────────
         if (_eagleCache == null) _eagleCache = GameObject.Find("EagleBase");
         int eagleHp = 0; float eaglePx = 0f, eaglePy = 0f;
+        // Send the eagle's actual world-space sprite bounds so the client ghost
+        // can be sized to exactly match the server-side visual.
+        float eagleW = 1.3f, eagleH = 1.3f;
         if (_eagleCache != null)
         {
             Damagable d = _eagleCache.GetComponent<Damagable>();
             if (d != null) eagleHp = Mathf.RoundToInt(d.Health);
             eaglePx = _eagleCache.transform.position.x;
             eaglePy = _eagleCache.transform.position.y;
+            var sr = _eagleCache.GetComponent<SpriteRenderer>();
+            if (sr != null && sr.sprite != null)
+            {
+                eagleW = sr.bounds.size.x;
+                eagleH = sr.bounds.size.y;
+            }
         }
         writer.WriteValueSafe(eagleHp);
         writer.WriteValueSafe(eaglePx);
         writer.WriteValueSafe(eaglePy);
+        writer.WriteValueSafe(eagleW);
+        writer.WriteValueSafe(eagleH);
 
         // Use Reliable delivery — avoids any packet-loss or sequencing edge-cases
         // on the LAN.  At 30 Hz the overhead is negligible.
         mgr.SendNamedMessageToAll(MsgWorldState, writer, NetworkDelivery.Reliable);
+    }
+
+    // ── Player-death tracking (called by MapTankTestBootstrap per player slot) ──
+    //
+    // Individual player deaths do NOT end the game.  Game over only triggers when
+    // _alivePlayerCount reaches 0 (all tanks destroyed) or eagle is shot down.
+
+    public void OnPlayerTankDead(int slot)
+    {
+        _alivePlayerCount = Mathf.Max(0, _alivePlayerCount - 1);
+        Debug.Log($"[Coordinator] Player slot {slot} died. Alive: {_alivePlayerCount}");
+        if (_alivePlayerCount == 0)
+            BroadcastGameOver();
     }
 
     // ── Win / GameOver (reliable [ClientRpc]) ─────────────────────────────────

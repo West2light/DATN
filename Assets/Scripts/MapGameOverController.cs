@@ -31,13 +31,22 @@ public class MapGameOverController : MonoBehaviour
 
         if (LanSessionManager.IsActive && LanSessionManager.IsServer)
         {
+            // Server: broadcast to all clients, then show own overlay.
             LanGameCoordinator.Instance?.BroadcastGameOver();
             ShowOverlay();
             StartCoroutine(ReturnToMenuAfterDelay());
             return;
         }
-        if (LanSessionManager.IsActive && !LanSessionManager.IsServer) return;
 
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            // Client: received game-over via BroadcastEventClientRpc — show overlay and return to menu.
+            ShowOverlay();
+            StartCoroutine(ReturnToMenuAfterDelay());
+            return;
+        }
+
+        // Single-player / non-LAN mode.
         ShowOverlay();
         StartCoroutine(ReturnToMenuAfterDelay());
     }

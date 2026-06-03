@@ -30,12 +30,20 @@ public class MapWinController : MonoBehaviour
 
         if (LanSessionManager.IsActive && LanSessionManager.IsServer)
         {
+            // Server: broadcast victory to all clients, then show own overlay.
             LanGameCoordinator.Instance?.BroadcastWin();
             ShowOverlay();
             return;
         }
-        if (LanSessionManager.IsActive && !LanSessionManager.IsServer) return;
 
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            // Client: received win via BroadcastEventClientRpc — show overlay with navigation buttons.
+            ShowOverlay();
+            return;
+        }
+
+        // Single-player / non-LAN mode.
         ShowOverlay();
     }
 

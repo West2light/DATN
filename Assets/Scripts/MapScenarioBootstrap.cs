@@ -229,10 +229,19 @@ public class MapScenarioBootstrap : MonoBehaviour
     private bool TryFindRandomWalkableNearPlayer(Transform player, out Vector2Int spawnCell)
     {
         Vector2Int playerCell = mapLoader.WorldToCell(player.position);
-        int minDistance = Mathf.Max(1, eagleMinPlayerDistanceCells);
-        int maxDistance = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
+        int minDistance    = Mathf.Max(1, eagleMinPlayerDistanceCells);
+        int maxDistance    = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
         int minDistanceSqr = minDistance * minDistance;
         int maxDistanceSqr = maxDistance * maxDistance;
+
+        // Collect cells occupied by ALL players so the eagle doesn't spawn on any of them.
+        // In LAN mode there are multiple player tanks ("Player", "Player_1", …) and the
+        // reference player (tank 0) is 3+ cells away from tank 1 — exactly the minimum
+        // distance — which would previously allow the eagle to land on tank 1's cell.
+        var allPlayerCells = new System.Collections.Generic.HashSet<Vector2Int>();
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                allPlayerCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
         List<Vector2Int> candidates = new List<Vector2Int>();
         for (int y = playerCell.y - maxDistance; y <= playerCell.y + maxDistance; y++)
@@ -244,6 +253,7 @@ public class MapScenarioBootstrap : MonoBehaviour
                 int distanceSqr = delta.sqrMagnitude;
                 if (distanceSqr < minDistanceSqr || distanceSqr > maxDistanceSqr) continue;
                 if (!mapLoader.IsWalkable(candidate)) continue;
+                if (allPlayerCells.Contains(candidate)) continue; // don't land on any player
 
                 candidates.Add(candidate);
             }
@@ -422,39 +432,38 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private void IgnoreFriendlyCollisions(GameObject enemy, FactionMember factionMember)
     {
+        // Rule: only ignore a pair when AT LEAST ONE of the two colliders is either
+        //   • a trigger  (Hittable layer — bullet sensors, not physics objects), or
+        //   • named "PlayerBlocker" (exists only to block the player tank, not agents).
+        //
+        // Physical body colliders (non-trigger, non-blocker) are kept ACTIVE between
+        // agents so they naturally push each other apart and don't visually pile up.
+        // The A* BuildDynamicBlockedCells already avoids occupied cells at replan time;
+        // this physical separation fills the gap between replans.
+
         Collider2D[] enemyColliders = enemy.GetComponentsInChildren<Collider2D>(true);
         for (int i = 0; i < enemies.Count; i++)
         {
             GameObject otherEnemy = enemies[i];
-            if (otherEnemy == null)
-            {
-                continue;
-            }
+            if (otherEnemy == null) continue;
 
             FactionMember otherFaction = otherEnemy.GetComponent<FactionMember>();
-            if (!FactionMember.AreFriendly(factionMember, otherFaction))
-            {
-                continue;
-            }
+            if (!FactionMember.AreFriendly(factionMember, otherFaction)) continue;
 
             Collider2D[] otherColliders = otherEnemy.GetComponentsInChildren<Collider2D>(true);
-            for (int enemyIndex = 0; enemyIndex < enemyColliders.Length; enemyIndex++)
+            foreach (var c1 in enemyColliders)
             {
-                Collider2D enemyCollider = enemyColliders[enemyIndex];
-                if (enemyCollider == null)
+                if (c1 == null) continue;
+                foreach (var c2 in otherColliders)
                 {
-                    continue;
-                }
-
-                for (int otherIndex = 0; otherIndex < otherColliders.Length; otherIndex++)
-                {
-                    Collider2D otherCollider = otherColliders[otherIndex];
-                    if (otherCollider == null)
-                    {
-                        continue;
-                    }
-
-                    Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    if (c2 == null) continue;
+                    bool shouldIgnore =
+                        c1.isTrigger                            ||
+                        c2.isTrigger                            ||
+                        c1.gameObject.name == "PlayerBlocker"   ||
+                        c2.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
+                        Physics2D.IgnoreCollision(c1, c2, true);
                 }
             }
         }
