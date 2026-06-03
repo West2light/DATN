@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Static singleton chia sẻ giữa tất cả agent dùng LNS2.
+/// Static singleton chia sẻ giữa tất cả agent dùng PIBT.
 ///
 /// Port từ C++ default_planner (Team_No_Man's_Sky):
 ///  • Flow grid          : flow[cell*4+d] = số trajectory đang dùng cạnh cell→d
@@ -16,7 +16,7 @@ using UnityEngine;
 ///  • Frank-Wolfe        : xóa traj → A* với flow hiện tại → thêm traj mới
 ///  • Heuristic          : reverse BFS từ goal (lazy, cache per goal)
 /// </summary>
-public static class LNS2Planner
+public static class PIBTPlanner
 {
     // ── Grid ──────────────────────────────────────────────────────────────
     private static MapLoader _ml;

@@ -76,6 +76,9 @@ public class GridEnemyAgent : MonoBehaviour
     private float partialDriveAccumulator;
     private int lastSteeringDirection = 1;
     private int reverseRecoveryTurnDirection = 1;
+    private FactionMember selfFaction;
+    private FactionMember[] cachedFactionMembers = System.Array.Empty<FactionMember>();
+    private Vector2Int? _destructibleTarget;
 
     // ── Backtest metrics (reset to 0 automatically on spawn) ───────────────
     [System.NonSerialized] public int   btReplanCount;
@@ -88,9 +91,8 @@ public class GridEnemyAgent : MonoBehaviour
     private void Awake()
     {
         if (tankController == null)
-        {
             tankController = GetComponentInChildren<TankController>();
-        }
+        selfFaction = GetComponent<FactionMember>();
     }
 
     private void Update()
@@ -122,6 +124,23 @@ public class GridEnemyAgent : MonoBehaviour
         else if (recoveryLevel == RecoveryLevel.Reverse && reverseRecoveryEndTime > 0f)
         {
             FinishReverseRecovery();
+        }
+
+        // Shoot-to-clear: enemy bắn phá vật cản destructible đang chặn đường
+        if (_destructibleTarget.HasValue)
+        {
+            if (!mapLoader.IsDestructibleBlocked(_destructibleTarget.Value))
+            {
+                _destructibleTarget = null;
+                currentPath.Clear();
+                pathIndex = 0;
+                nextReplanTime = 0f;
+            }
+            else
+            {
+                HandleShootToClear();
+                return;
+            }
         }
 
         if (Time.time >= nextReplanTime || currentPath.Count == 0)
@@ -200,7 +219,6 @@ public class GridEnemyAgent : MonoBehaviour
         }
 
         // RaycastAll so friendly enemy tanks in the way are skipped (bullets pass through them).
-        FactionMember selfFaction = GetComponent<FactionMember>();
         RaycastHit2D[] hits = Physics2D.RaycastAll(origin, targetPosition - origin, range, lineOfSightMask);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
         for (int i = 0; i < hits.Length; i++)
@@ -231,7 +249,6 @@ public class GridEnemyAgent : MonoBehaviour
             return false;
         }
 
-        FactionMember selfFaction = GetComponent<FactionMember>();
         RaycastHit2D[] hits = Physics2D.RaycastAll(origin, direction.normalized, range, lineOfSightMask);
         for (int i = 0; i < hits.Length; i++)
         {
@@ -259,10 +276,16 @@ public class GridEnemyAgent : MonoBehaviour
         return false;
     }
 
+    private void RefreshFactionCache()
+    {
+        cachedFactionMembers = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
+    }
+
     private void ReplanPath()
     {
         btReplanCount++;
         nextReplanTime = Time.time + replanInterval;
+        RefreshFactionCache();
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
         Vector2Int goalCell = mapLoader.WorldToCell(eagleTarget.position);
         HashSet<Vector2Int> blockedCells = MergeBlockedCells(pendingBlockedCells, BuildDynamicBlockedCells(startCell, goalCell));
@@ -272,12 +295,95 @@ public class GridEnemyAgent : MonoBehaviour
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
             if (btInitialPathLength == 0) btInitialPathLength = currentPath.Count;
+            _destructibleTarget = null;
         }
         else
         {
             currentPath.Clear();
             pathIndex = 0;
             lastTrackedPathIndex = -1;
+            if (!_destructibleTarget.HasValue || !mapLoader.IsDestructibleBlocked(_destructibleTarget.Value))
+            {
+                _destructibleTarget = TryFindDestructibleOnPath(startCell, goalCell, out Vector2Int blocker)
+                    ? blocker : (Vector2Int?)null;
+            }
+        }
+    }
+
+    private bool TryFindDestructibleOnPath(Vector2Int start, Vector2Int goal, out Vector2Int blockerCell)
+    {
+        blockerCell = default;
+        if (!mapLoader.IsInside(start) || !mapLoader.IsInside(goal)) return false;
+
+        var queue = new Queue<Vector2Int>();
+        var visited = new HashSet<Vector2Int>();
+        var parent = new Dictionary<Vector2Int, Vector2Int>();
+        queue.Enqueue(start);
+        visited.Add(start);
+
+        bool reached = false;
+        while (queue.Count > 0)
+        {
+            Vector2Int cur = queue.Dequeue();
+            if (cur == goal) { reached = true; break; }
+            for (int d = 0; d < 4; d++)
+            {
+                Vector2Int next = cur + (d == 0 ? Vector2Int.up : d == 1 ? Vector2Int.down : d == 2 ? Vector2Int.left : Vector2Int.right);
+                if (visited.Contains(next) || !mapLoader.IsInside(next)) continue;
+                if (!mapLoader.IsWalkable(next) && !mapLoader.IsDestructibleBlocked(next)) continue;
+                visited.Add(next);
+                parent[next] = cur;
+                queue.Enqueue(next);
+            }
+        }
+
+        if (!reached) return false;
+
+        var path = new List<Vector2Int> { goal };
+        Vector2Int trace = goal;
+        while (parent.TryGetValue(trace, out Vector2Int prev)) { path.Add(prev); trace = prev; }
+        path.Reverse();
+
+        foreach (Vector2Int cell in path)
+        {
+            if (mapLoader.IsDestructibleBlocked(cell)) { blockerCell = cell; return true; }
+        }
+        return false;
+    }
+
+    private void ReplanToDestructible()
+    {
+        if (!_destructibleTarget.HasValue) return;
+        btReplanCount++;
+        nextReplanTime = Time.time + replanInterval;
+        Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
+        if (!GridAStarPathfinder.TryFindPath(mapLoader, navMask, startCell, _destructibleTarget.Value, currentPath))
+            GridAStarPathfinder.TryFindPath(mapLoader, null, startCell, _destructibleTarget.Value, currentPath);
+        pathIndex = currentPath.Count > 1 ? 1 : 0;
+        lastTrackedPathIndex = pathIndex;
+    }
+
+    private void HandleShootToClear()
+    {
+        Vector3 targetWorldPos = mapLoader.CellToWorld(_destructibleTarget.Value);
+        float dist = Vector2.Distance(GetAgentPosition(), targetWorldPos);
+        if (dist <= eagleShootingRange)
+        {
+            ResetProgressTracking();
+            tankController.HandleMoveBody(Vector2.zero);
+            tankController.HandleTurretMovement(targetWorldPos);
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(targetWorldPos))
+            {
+                tankController.HandleShoot();
+                btShotCount++;
+            }
+        }
+        else
+        {
+            if (Time.time >= nextReplanTime || currentPath.Count == 0)
+                ReplanToDestructible();
+            FollowPath();
+            UpdateProgressTracking();
         }
     }
 
@@ -324,6 +430,19 @@ public class GridEnemyAgent : MonoBehaviour
             pathIndex = 0;
             nextReplanTime = 0f;
             tankController.HandleMoveBody(Vector2.zero);
+            return;
+        }
+
+        // Waypoint là thùng gỗ/rào chắn: dừng lại và bắn phá trước khi tiếp tục
+        if (mapLoader.IsDestructibleBlocked(currentPath[pathIndex]))
+        {
+            tankController.HandleMoveBody(Vector2.zero);
+            tankController.HandleTurretMovement(targetPosition);
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(targetPosition))
+            {
+                tankController.HandleShoot();
+                btShotCount++;
+            }
             return;
         }
 
@@ -716,12 +835,10 @@ public class GridEnemyAgent : MonoBehaviour
 
     private HashSet<Vector2Int> BuildDynamicBlockedCells(Vector2Int startCell, Vector2Int goalCell)
     {
-        FactionMember selfFaction = GetComponent<FactionMember>();
-        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
         HashSet<Vector2Int> blockedCells = null;
-        for (int i = 0; i < members.Length; i++)
+        for (int i = 0; i < cachedFactionMembers.Length; i++)
         {
-            FactionMember member = members[i];
+            FactionMember member = cachedFactionMembers[i];
             if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
             {
                 continue;
@@ -747,11 +864,9 @@ public class GridEnemyAgent : MonoBehaviour
 
     private bool IsCellOccupiedByFriendly(Vector2Int cell)
     {
-        FactionMember selfFaction = GetComponent<FactionMember>();
-        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
-        for (int i = 0; i < members.Length; i++)
+        for (int i = 0; i < cachedFactionMembers.Length; i++)
         {
-            FactionMember member = members[i];
+            FactionMember member = cachedFactionMembers[i];
             if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
             {
                 continue;

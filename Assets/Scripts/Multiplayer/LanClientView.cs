@@ -452,6 +452,21 @@ public class LanClientView : MonoBehaviour
         OwnGhost.rotation = Quaternion.Euler(0f, 0f, newAngle);
     }
 
+    /// <summary>
+    /// Client-side prediction cho turret — xoay ghost ngay lập tức,
+    /// tránh delay 30 Hz round-trip qua server.
+    /// </summary>
+    public void PredictTurretAim(Vector2 mouseWorldPos)
+    {
+        if (OwnGhost == null) return;
+        AimTurret aim = OwnGhost.GetComponentInChildren<AimTurret>(true);
+        if (aim == null) return;
+        Vector2 dir = mouseWorldPos - (Vector2)aim.transform.position;
+        if (dir.sqrMagnitude < 0.001f) return;
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
+        aim.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+    }
+
     // ── World state (legacy public API kept for compatibility) ────────────────
 
     public void ApplyWorldState(LanTankState[] playerStates, LanEnemyState[] enemyStates, int eagleHp, Vector2 eaglePos)

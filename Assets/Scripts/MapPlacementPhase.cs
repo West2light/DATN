@@ -471,7 +471,7 @@ public class MapPlacementPhase : MonoBehaviour
 
         list.Add(new PlacedItem { cell = cell, go = go });
         placedCells.Add(cell);
-        mapLoader.MarkCellBlocked(cell);
+        mapLoader.MarkCellDestructible(cell);
         RefreshStatus();
     }
 

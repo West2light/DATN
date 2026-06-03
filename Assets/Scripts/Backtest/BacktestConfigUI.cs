@@ -123,7 +123,7 @@ public static class BacktestConfigUI
         sRt.anchoredPosition = new Vector2(0f, -48f);
         sRt.sizeDelta = new Vector2(-PadX * 2f, 18f);
         var sTxt = sub.AddComponent<Text>();
-        sTxt.text = $"A* và LNS2  •  Timeout {BacktestRunner.RunTimeoutSec:F0}s";
+        sTxt.text = $"A* và PIBT  •  Timeout {BacktestRunner.RunTimeoutSec:F0}s";
         sTxt.font = Fnt(); sTxt.fontSize = 12; sTxt.fontStyle = FontStyle.Normal;
         sTxt.alignment = TextAnchor.MiddleCenter; sTxt.color = TextMuted;
 

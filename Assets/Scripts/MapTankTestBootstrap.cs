@@ -83,7 +83,7 @@ public class MapTankTestBootstrap : MonoBehaviour
                 {
                     var agent = enemy.GetComponent<GridEnemyAgent>();
                     if (agent != null) agent.playerTargets = playerTransforms;
-                    var agentLns2 = enemy.GetComponent<GridEnemyAgentLNS2>();
+                    var agentLns2 = enemy.GetComponent<GridEnemyAgentPIBT>();
                     if (agentLns2 != null) agentLns2.playerTargets = playerTransforms;
                 }
 
@@ -173,12 +173,12 @@ public class MapTankTestBootstrap : MonoBehaviour
     {
         List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
 
-        MapScenarioBootstrapLNS2 lns2Bootstrap = GetComponent<MapScenarioBootstrapLNS2>();
-        if (lns2Bootstrap != null)
+        MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
+        if (pibtBootstrap != null)
         {
-            lns2Bootstrap.mapLoader = mapLoader;
-            if (spawnCells != null) lns2Bootstrap.enemySpawnCells = spawnCells;
-            lns2Bootstrap.SpawnScenario();
+            pibtBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) pibtBootstrap.enemySpawnCells = spawnCells;
+            pibtBootstrap.SpawnScenario();
             return;
         }
 
@@ -288,7 +288,12 @@ public class MapTankTestBootstrap : MonoBehaviour
                     d.OnDead.AddListener(EnterSpectatorMode);
             }
 
-            if (i == 0) WirePlayerInput(tank);
+            // Trong LAN mode, input của MỌI tank đều đi qua LanNetworkBridge.Update().
+            // Tắt hết PlayerInput (kể cả tank của host) để không có luồng input nào leak
+            // sang tank khác dù là persistent listener hay runtime listener.
+            foreach (var pi in tank.GetComponentsInChildren<PlayerInput>(true))
+                pi.enabled = false;
+
             tanks.Add(tank.GetComponent<TankController>());
         }
         return tanks;
@@ -305,9 +310,9 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private List<GameObject> GetSpawnedEnemies()
     {
-        // MapScenarioBootstrapLNS2 takes priority (matches SpawnScenario() dispatch order)
-        var lns2 = GetComponent<MapScenarioBootstrapLNS2>();
-        if (lns2 != null) return new List<GameObject>(lns2.Enemies);
+        // MapScenarioBootstrapPIBT takes priority (matches SpawnScenario() dispatch order)
+        var pibt = GetComponent<MapScenarioBootstrapPIBT>();
+        if (pibt != null) return new List<GameObject>(pibt.Enemies);
 
         var bootstrap = GetComponent<MapScenarioBootstrap>()
             ?? GetComponentInChildren<MapScenarioBootstrap>();

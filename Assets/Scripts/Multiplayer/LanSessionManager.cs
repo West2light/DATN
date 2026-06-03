@@ -36,7 +36,7 @@ public static class LanSessionManager
     }
 
     public static int    EnemyCount => 6 * Mathf.Max(1, PlayerCount);
-    public static string GameScene  => Algorithm == "LNS2" ? "MapF_TankTest_LNS2" : "MapF_TankTest";
+    public static string GameScene  => Algorithm == "PIBT" ? "MapF_TankTest_PIBT" : "MapF_TankTest";
 
     private static void StoreToPrefs()
     {

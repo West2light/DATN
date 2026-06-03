@@ -2,16 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Bản sao GridEnemyAgent dùng LNS2 pathfinding thay A*.
+/// Bản sao GridEnemyAgent dùng PIBT pathfinding thay A*.
 ///
 /// Thay đổi so với GridEnemyAgent:
-///  - Pathfinding: GridLNS2Pathfinder (flow-aware A* + Frank-Wolfe) thay GridAStarPathfinder
-///  - Không dùng GridNavMask (LNS2 tự build neighbor list từ MapLoader.IsWalkable)
-///  - agentId đăng ký với LNS2Planner để chia sẻ flow grid chung
-///  - RecoveryLevel.ExpandedMask bị loại (LNS2 tự tránh tắc nghẽn qua flow)
+///  - Pathfinding: GridPIBTPathfinder (flow-aware A* + Frank-Wolfe) thay GridAStarPathfinder
+///  - Không dùng GridNavMask (PIBT tự build neighbor list từ MapLoader.IsWalkable)
+///  - agentId đăng ký với PIBTPlanner để chia sẻ flow grid chung
+///  - RecoveryLevel.ExpandedMask bị loại (PIBT tự tránh tắc nghẽn qua flow)
 ///  - Spatial recovery không dùng blockedCells (force replan thay thế)
 /// </summary>
-public class GridEnemyAgentLNS2 : MonoBehaviour
+public class GridEnemyAgentPIBT : MonoBehaviour
 {
     private struct SpatialSample
     {
@@ -34,7 +34,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     [HideInInspector] public Transform[] playerTargets;
     public TankController tankController;
 
-    [Header("LNS2")]
+    [Header("PIBT")]
     [Min(1f)] public float frankWolfeMs = 15f;
 
     [Header("Timing")]
@@ -96,6 +96,9 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     private int     lastSteeringDirection = 1;
     private int     reverseRecoveryTurnDirection = 1;
     private HashSet<Vector2Int> pendingBlockedCells;
+    private FactionMember selfFaction;
+    private FactionMember[] cachedFactionMembers = System.Array.Empty<FactionMember>();
+    private Vector2Int? _destructibleTarget;
 
     // ── Backtest metrics ───────────────────────────────────────────────────
     [System.NonSerialized] public int   btReplanCount;
@@ -111,21 +114,22 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     {
         if (tankController == null)
             tankController = GetComponentInChildren<TankController>();
+        selfFaction = GetComponent<FactionMember>();
     }
 
     private void OnDestroy()
     {
         if (agentId >= 0)
         {
-            LNS2Planner.Unregister(agentId);
+            PIBTPlanner.Unregister(agentId);
             agentId = -1;
         }
     }
 
-    private void EnsureLNS2Ready()
+    private void EnsurePIBTReady()
     {
-        if (!LNS2Planner.IsReady && mapLoader != null) LNS2Planner.Init(mapLoader);
-        if (LNS2Planner.IsReady && agentId < 0) agentId = LNS2Planner.Register();
+        if (!PIBTPlanner.IsReady && mapLoader != null) PIBTPlanner.Init(mapLoader);
+        if (PIBTPlanner.IsReady && agentId < 0) agentId = PIBTPlanner.Register();
     }
 
     // ── Update ─────────────────────────────────────────────────────────────
@@ -134,7 +138,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
     {
         if (mapLoader == null || tankController == null || eagleTarget == null) return;
 
-        EnsureLNS2Ready();
+        EnsurePIBTReady();
         if (agentId < 0) return;
 
         Transform shootingTarget = GetShootingTarget();
@@ -159,6 +163,22 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         else if (recoveryLevel == RecoveryLevel.Reverse && reverseRecoveryEndTime > 0f)
         {
             FinishReverseRecovery();
+        }
+
+        if (_destructibleTarget.HasValue)
+        {
+            if (!mapLoader.IsDestructibleBlocked(_destructibleTarget.Value))
+            {
+                _destructibleTarget = null;
+                currentPath.Clear();
+                pathIndex = 0;
+                nextReplanTime = 0f;
+            }
+            else
+            {
+                HandleShootToClear();
+                return;
+            }
         }
 
         if (Time.time >= nextReplanTime || currentPath.Count == 0)
@@ -230,7 +250,6 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         if (Vector2.Distance(origin, targetPos) > range) return false;
 
         // RaycastAll so friendly enemy tanks in the way are skipped (bullets pass through them).
-        FactionMember selfFaction = GetComponent<FactionMember>();
         RaycastHit2D[] hits = Physics2D.RaycastAll(origin, targetPos - origin, range, lineOfSightMask);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
         for (int i = 0; i < hits.Length; i++)
@@ -261,7 +280,6 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
             return false;
         }
 
-        FactionMember selfFaction = GetComponent<FactionMember>();
         RaycastHit2D[] hits = Physics2D.RaycastAll(origin, direction.normalized, range, lineOfSightMask);
         for (int i = 0; i < hits.Length; i++)
         {
@@ -289,28 +307,117 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         return false;
     }
 
-    // ── Pathfinding (LNS2) ─────────────────────────────────────────────────
+    // ── Pathfinding (PIBT) ─────────────────────────────────────────────────
+
+    private void RefreshFactionCache()
+    {
+        cachedFactionMembers = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
+    }
 
     private void ReplanPath()
     {
         btReplanCount++;
         nextReplanTime = Time.time + replanInterval;
+        RefreshFactionCache();
         Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
         HashSet<Vector2Int> blockedCells = MergeBlockedCells(pendingBlockedCells, BuildDynamicBlockedCells(startCell));
         pendingBlockedCells = null;
         Vector2Int goalCell  = ResolveGoalCell(mapLoader.WorldToCell(eagleTarget.position), blockedCells, startCell);
 
-        if (GridLNS2Pathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs))
+        if (GridPIBTPathfinder.TryFindPath(mapLoader, agentId, startCell, goalCell, currentPath, frankWolfeMs))
         {
             pathIndex = currentPath.Count > 1 ? 1 : 0;
             lastTrackedPathIndex = pathIndex;
             if (btInitialPathLength == 0) btInitialPathLength = currentPath.Count;
+            _destructibleTarget = null;
         }
         else
         {
             currentPath.Clear();
             pathIndex = 0;
             lastTrackedPathIndex = -1;
+            if (!_destructibleTarget.HasValue || !mapLoader.IsDestructibleBlocked(_destructibleTarget.Value))
+            {
+                _destructibleTarget = TryFindDestructibleOnPath(startCell, goalCell, out Vector2Int blocker)
+                    ? blocker : (Vector2Int?)null;
+            }
+        }
+    }
+
+    private bool TryFindDestructibleOnPath(Vector2Int start, Vector2Int goal, out Vector2Int blockerCell)
+    {
+        blockerCell = default;
+        if (!mapLoader.IsInside(start) || !mapLoader.IsInside(goal)) return false;
+
+        var queue = new Queue<Vector2Int>();
+        var visited = new HashSet<Vector2Int>();
+        var parent = new Dictionary<Vector2Int, Vector2Int>();
+        queue.Enqueue(start);
+        visited.Add(start);
+
+        bool reached = false;
+        while (queue.Count > 0)
+        {
+            Vector2Int cur = queue.Dequeue();
+            if (cur == goal) { reached = true; break; }
+            for (int d = 0; d < 4; d++)
+            {
+                Vector2Int next = cur + (d == 0 ? Vector2Int.up : d == 1 ? Vector2Int.down : d == 2 ? Vector2Int.left : Vector2Int.right);
+                if (visited.Contains(next) || !mapLoader.IsInside(next)) continue;
+                if (!mapLoader.IsWalkable(next) && !mapLoader.IsDestructibleBlocked(next)) continue;
+                visited.Add(next);
+                parent[next] = cur;
+                queue.Enqueue(next);
+            }
+        }
+
+        if (!reached) return false;
+
+        var path = new List<Vector2Int> { goal };
+        Vector2Int trace = goal;
+        while (parent.TryGetValue(trace, out Vector2Int prev)) { path.Add(prev); trace = prev; }
+        path.Reverse();
+
+        foreach (Vector2Int cell in path)
+        {
+            if (mapLoader.IsDestructibleBlocked(cell)) { blockerCell = cell; return true; }
+        }
+        return false;
+    }
+
+    private void ReplanToDestructible()
+    {
+        if (!_destructibleTarget.HasValue) return;
+        btReplanCount++;
+        nextReplanTime = Time.time + replanInterval;
+        Vector2Int startCell = mapLoader.WorldToCell(GetAgentPosition());
+        if (!GridAStarPathfinder.TryFindPath(mapLoader, null, startCell, _destructibleTarget.Value, currentPath))
+            currentPath.Clear();
+        pathIndex = currentPath.Count > 1 ? 1 : 0;
+        lastTrackedPathIndex = pathIndex;
+    }
+
+    private void HandleShootToClear()
+    {
+        Vector3 targetWorldPos = mapLoader.CellToWorld(_destructibleTarget.Value);
+        float dist = Vector2.Distance(GetAgentPosition(), targetWorldPos);
+        if (dist <= eagleShootingRange)
+        {
+            ResetProgressTracking();
+            tankController.HandleMoveBody(Vector2.zero);
+            tankController.HandleTurretMovement(targetWorldPos);
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(targetWorldPos))
+            {
+                tankController.HandleShoot();
+                btShotCount++;
+            }
+        }
+        else
+        {
+            if (Time.time >= nextReplanTime || currentPath.Count == 0)
+                ReplanToDestructible();
+            FollowPath();
+            UpdateProgressTracking();
         }
     }
 
@@ -333,6 +440,19 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
             pathIndex = 0;
             nextReplanTime = 0f;
             tankController.HandleMoveBody(Vector2.zero);
+            return;
+        }
+
+        // Waypoint là thùng gỗ/rào chắn: dừng lại và bắn phá trước khi tiếp tục
+        if (mapLoader.IsDestructibleBlocked(currentPath[pathIndex]))
+        {
+            tankController.HandleMoveBody(Vector2.zero);
+            tankController.HandleTurretMovement(targetPosition);
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(targetPosition))
+            {
+                tankController.HandleShoot();
+                btShotCount++;
+            }
             return;
         }
 
@@ -454,7 +574,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
         if (Time.time - scuffStartTime < scuffTimeout) return false;
 
-        Debug.Log($"[GridEnemyAgentLNS2] {name} scuff recovery triggered.");
+        Debug.Log($"[GridEnemyAgentPIBT] {name} scuff recovery triggered.");
         lastScuffRecoveryTime = Time.time;
         ResetScuffTracking();
         TriggerRecovery();
@@ -512,7 +632,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
         return displacement <= spatialStuckMaxDisplacement && goalProgress <= spatialStuckGoalProgressEpsilon;
     }
 
-    // Spatial recovery: LNS2 không dùng blockedCells → force replan thôi
+    // Spatial recovery: PIBT không dùng blockedCells → force replan thôi
     private void TriggerSpatialRecovery()
     {
         lastSpatialRecoveryTime = Time.time;
@@ -552,13 +672,13 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
                 break;
 
             case RecoveryLevel.Reverse:
-                // Sau reverse → replan lại, reset về None (LNS2 sẽ tự tìm đường mới)
+                // Sau reverse → replan lại, reset về None (PIBT sẽ tự tìm đường mới)
                 recoveryLevel = RecoveryLevel.None;
                 currentPath.Clear();
                 pathIndex = 0;
                 nextReplanTime = 0f;
                 ReplanPath();
-                Debug.LogWarning($"[GridEnemyAgentLNS2] {name} recovery: replan after reverse.");
+                Debug.LogWarning($"[GridEnemyAgentPIBT] {name} recovery: replan after reverse.");
                 break;
         }
 
@@ -609,12 +729,10 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private HashSet<Vector2Int> BuildDynamicBlockedCells(Vector2Int startCell)
     {
-        FactionMember selfFaction = GetComponent<FactionMember>();
-        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
         HashSet<Vector2Int> blockedCells = null;
-        for (int i = 0; i < members.Length; i++)
+        for (int i = 0; i < cachedFactionMembers.Length; i++)
         {
-            FactionMember member = members[i];
+            FactionMember member = cachedFactionMembers[i];
             if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
             {
                 continue;
@@ -640,7 +758,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private Vector2Int ResolveGoalCell(Vector2Int preferredGoal, HashSet<Vector2Int> blockedCells, Vector2Int startCell)
     {
-        if (!IsCellBlocked(preferredGoal, blockedCells) && LNS2Planner.IsAgentWalkable(preferredGoal))
+        if (!IsCellBlocked(preferredGoal, blockedCells) && PIBTPlanner.IsAgentWalkable(preferredGoal))
         {
             return preferredGoal;
         }
@@ -658,7 +776,7 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
                         continue;
                     }
 
-                    if (LNS2Planner.IsAgentWalkable(candidate))
+                    if (PIBTPlanner.IsAgentWalkable(candidate))
                     {
                         return candidate;
                     }
@@ -671,11 +789,9 @@ public class GridEnemyAgentLNS2 : MonoBehaviour
 
     private bool IsCellOccupiedByFriendly(Vector2Int cell)
     {
-        FactionMember selfFaction = GetComponent<FactionMember>();
-        FactionMember[] members = FindObjectsByType<FactionMember>(FindObjectsSortMode.None);
-        for (int i = 0; i < members.Length; i++)
+        for (int i = 0; i < cachedFactionMembers.Length; i++)
         {
-            FactionMember member = members[i];
+            FactionMember member = cachedFactionMembers[i];
             if (member == null || member == selfFaction || !member.gameObject.activeInHierarchy)
             {
                 continue;

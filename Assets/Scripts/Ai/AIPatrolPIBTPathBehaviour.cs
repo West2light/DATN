@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// AIBehaviour điều khiển tank theo thuật toán LNS2.
-/// Dùng LNS2Planner (Assets/Scripts/LNS2Planner.cs) cho pathfinding.
+/// AIBehaviour điều khiển tank theo thuật toán PIBT.
+/// Dùng PIBTPlanner (Assets/Scripts/PIBTPlanner.cs) cho pathfinding.
 /// Gắn vào patrolBehaviour của DefaultEnemyAI.
 /// </summary>
-public class AIPatrolLNS2PathBehaviour : AIBehaviour
+public class AIPatrolPIBTPathBehaviour : AIBehaviour
 {
     [Header("References")]
     public MapLoader mapLoader;
@@ -38,7 +38,7 @@ public class AIPatrolLNS2PathBehaviour : AIBehaviour
 
     private void OnDisable()
     {
-        if (agentId >= 0) { LNS2Planner.Unregister(agentId); agentId = -1; }
+        if (agentId >= 0) { PIBTPlanner.Unregister(agentId); agentId = -1; }
     }
 
     public override void PerformAction(TankController tank, AIDetector detector)
@@ -59,8 +59,8 @@ public class AIPatrolLNS2PathBehaviour : AIBehaviour
 
     private void TryInit()
     {
-        if (!LNS2Planner.IsReady && mapLoader != null) LNS2Planner.Init(mapLoader);
-        if (LNS2Planner.IsReady && agentId < 0) agentId = LNS2Planner.Register();
+        if (!PIBTPlanner.IsReady && mapLoader != null) PIBTPlanner.Init(mapLoader);
+        if (PIBTPlanner.IsReady && agentId < 0) agentId = PIBTPlanner.Register();
     }
 
     private void Replan(TankController tank)
@@ -70,12 +70,12 @@ public class AIPatrolLNS2PathBehaviour : AIBehaviour
         if (!mapLoader.IsWalkable(sc)) mapLoader.TryFindWalkableNear(sc, out sc);
         if (!mapLoader.IsWalkable(gc)) mapLoader.TryFindWalkableNear(gc, out gc);
 
-        LNS2Planner.SetCurrentPos(agentId, LNS2Planner.ToFlat(sc));
-        LNS2Planner.FrankWolfe(agentId, LNS2Planner.ToFlat(sc), LNS2Planner.ToFlat(gc), frankWolfeMs);
+        PIBTPlanner.SetCurrentPos(agentId, PIBTPlanner.ToFlat(sc));
+        PIBTPlanner.FrankWolfe(agentId, PIBTPlanner.ToFlat(sc), PIBTPlanner.ToFlat(gc), frankWolfeMs);
 
         path.Clear();
-        var traj = LNS2Planner.GetTraj(agentId);
-        if (traj != null) foreach (int f in traj) path.Add(LNS2Planner.FromFlat(f));
+        var traj = PIBTPlanner.GetTraj(agentId);
+        if (traj != null) foreach (int f in traj) path.Add(PIBTPlanner.FromFlat(f));
         pathIdx = path.Count > 1 ? 1 : 0;
     }
 

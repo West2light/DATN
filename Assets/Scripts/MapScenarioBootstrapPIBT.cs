@@ -7,17 +7,17 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Bản sao MapScenarioBootstrap dùng GridEnemyAgentLNS2 thay GridEnemyAgent.
+/// Bản sao MapScenarioBootstrap dùng GridEnemyAgentPIBT thay GridEnemyAgent.
 ///
 /// Thay đổi so với MapScenarioBootstrap:
-///  - AddGridEnemyAgentLNS2: dùng GridEnemyAgentLNS2 + frankWolfeMs
-///  - Không dùng GridNavMask (LNS2 tự build neighbor list)
-///  - Bỏ inflate/soft-cost fields (thesis: compare A* vs LNS2 thuần)
+///  - AddGridEnemyAgentPIBT: dùng GridEnemyAgentPIBT + frankWolfeMs
+///  - Không dùng GridNavMask (PIBT tự build neighbor list)
+///  - Bỏ inflate/soft-cost fields (thesis: compare A* vs PIBT thuần)
 ///
-/// Dùng cho scene MapF_TankTest_LNS2.
+/// Dùng cho scene MapF_TankTest_PIBT.
 /// Gắn component này cùng chỗ với MapLoader trên cùng một GameObject.
 /// </summary>
-public class MapScenarioBootstrapLNS2 : MonoBehaviour
+public class MapScenarioBootstrapPIBT : MonoBehaviour
 {
     private const string WallLayerName = "Walls";
     private const string AgentBlockerLayerName = "AgentBlocker";
@@ -55,10 +55,10 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
     [Min(1)]
-    [Tooltip("Máu enemy trong scene LNS2, khớp với Lvl1.")]
+    [Tooltip("Máu enemy trong scene PIBT, khớp với Lvl1.")]
     public int enemyMaxHealth = 20;
 
-    [Header("LNS2")]
+    [Header("PIBT")]
     [Tooltip("Time budget (ms) cho Frank-Wolfe iterations mỗi lần replan.")]
     [Min(1f)] public float frankWolfeMs = 15f;
 
@@ -83,16 +83,16 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         ResolveReferences();
         if (mapLoader == null || mapLoader.BuildWidth <= 0 || mapLoader.BuildHeight <= 0)
         {
-            Debug.LogError("[MapScenarioBootstrapLNS2] Map must be loaded before spawning scenario.");
+            Debug.LogError("[MapScenarioBootstrapPIBT] Map must be loaded before spawning scenario.");
             return;
         }
 
-        // Reset LNS2Planner khi spawn lại để tránh stale agent IDs
-        // (LNS2Planner.Init sẽ tự clear nếu cùng MapLoader instance)
-        LNS2Planner.Init(mapLoader);
+        // Reset PIBTPlanner khi spawn lại để tránh stale agent IDs
+        // (PIBTPlanner.Init sẽ tự clear nếu cùng MapLoader instance)
+        PIBTPlanner.Init(mapLoader);
 
         ClearScenario();
-        scenarioRoot = new GameObject("ScenarioRuntime_LNS2").transform;
+        scenarioRoot = new GameObject("ScenarioRuntime_PIBT").transform;
         scenarioRoot.SetParent(transform, false);
 
         eagleBase = SpawnEagleBase();
@@ -105,7 +105,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     {
         if (!TryResolveEagleSpawnCell(out Vector2Int spawnCell))
         {
-            Debug.LogError("[MapScenarioBootstrapLNS2] Could not find walkable Eagle spawn cell.");
+            Debug.LogError("[MapScenarioBootstrapPIBT] Could not find walkable Eagle spawn cell.");
             return null;
         }
 
@@ -291,7 +291,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         GameObject prefab = ResolveEnemyPrefab();
         if (prefab == null)
         {
-            Debug.LogError("[MapScenarioBootstrapLNS2] Enemy prefab is missing.");
+            Debug.LogError("[MapScenarioBootstrapPIBT] Enemy prefab is missing.");
             return;
         }
 
@@ -303,7 +303,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
             if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell)) continue;
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
-            enemy.name = $"EnemyLNS2_{i + 1}";
+            enemy.name = $"EnemyPIBT_{i + 1}";
             ConfigureEnemy(enemy);
             enemies.Add(enemy);
             enemiesAlive++;
@@ -325,7 +325,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         TrackEnemyDeath(enemy);
         AddPlayerBlocker(enemy);
         IgnoreFriendlyCollisions(enemy, enemyFaction);
-        AddGridEnemyAgentLNS2(enemy);
+        AddGridEnemyAgentPIBT(enemy);
 
         if (disableLegacyEnemyAI)
         {
@@ -492,12 +492,12 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
         }
     }
 
-    private void AddGridEnemyAgentLNS2(GameObject enemy)
+    private void AddGridEnemyAgentPIBT(GameObject enemy)
     {
         TankController tankController = enemy.GetComponentInChildren<TankController>();
         if (tankController == null || eagleBase == null) return;
 
-        GridEnemyAgentLNS2 agent = enemy.AddComponent<GridEnemyAgentLNS2>();
+        GridEnemyAgentPIBT agent = enemy.AddComponent<GridEnemyAgentPIBT>();
         agent.mapLoader = mapLoader;
         agent.eagleTarget = eagleBase.transform;
         agent.playerTarget = GameObject.Find("Player")?.transform;
@@ -556,7 +556,7 @@ public class MapScenarioBootstrapLNS2 : MonoBehaviour
     private void ClearScenario()
     {
         enemies.Clear();
-        Transform existing = transform.Find("ScenarioRuntime_LNS2");
+        Transform existing = transform.Find("ScenarioRuntime_PIBT");
         if (existing == null) return;
         if (Application.isPlaying) Destroy(existing.gameObject);
         else DestroyImmediate(existing.gameObject);

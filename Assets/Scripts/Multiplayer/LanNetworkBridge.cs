@@ -90,15 +90,16 @@ public class LanNetworkBridge : NetworkBehaviour
         if (IsServer)
             LanGameCoordinator.Instance?.OnBridgeSpawned(this);
 
-        if (IsOwner && !IsServer)
+        // Cả host lẫn client đều cần camera để convert mouse → world position.
+        if (IsOwner)
             _ownerCamera = Camera.main;
     }
 
     private void Update()
     {
-        if (!IsOwner || IsServer) return;
+        // Chỉ owner của bridge mới xử lý input — tránh mọi bridge khác can thiệp.
+        if (!IsOwner) return;
 
-        // Camera is only valid in the game scene (not lobby); assign lazily.
         if (_ownerCamera == null)
             _ownerCamera = Camera.main;
 
@@ -108,10 +109,25 @@ public class LanNetworkBridge : NetworkBehaviour
             ? (Vector2)_ownerCamera.ScreenToWorldPoint(Input.mousePosition)
             : Vector2.zero;
 
+        if (IsServer)
+        {
+            // Host: áp input thẳng vào tank mà không cần round-trip mạng.
+            // _serverTank đã được gán đúng tank của host qua LinkTank().
+            if (_serverTank != null)
+            {
+                _serverTank.HandleMoveWorldDirection(move);
+                _serverTank.HandleTurretMovement(turret);
+                if (shoot) _serverTank.HandleShoot();
+            }
+            return;
+        }
+
+        // Client từ xa: gửi input qua RPC.
         SendInputServerRpc(new LanInputPacket { move = move, turretWorldPos = turret, shoot = shoot });
 
-        // Client-side prediction: move OwnGhost immediately so input feels responsive.
+        // Client-side prediction — phản hồi tức thì trước khi server confirm.
         LanClientView.Instance?.PredictOwnMovement(move);
+        LanClientView.Instance?.PredictTurretAim(turret);
     }
 
     // ── Server receives owner input ───────────────────────────────────────────

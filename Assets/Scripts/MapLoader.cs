@@ -46,6 +46,7 @@ public class MapLoader : MonoBehaviour
     private int buildWidth;
     private int buildHeight;
     private Sprite fallbackSprite;
+    private readonly HashSet<Vector2Int> _destructibleCells = new HashSet<Vector2Int>();
     private const string MovementObstacleLayerName = "Walls";
     private const string LegacyMovementObstacleLayerName = "ObstaclesMovement";
     private const string BulletObstacleLayerName = "Hittable";
@@ -97,6 +98,7 @@ public class MapLoader : MonoBehaviour
         ComputeBuildWindow();
         BuildTiles();
         CreateMapBounds();
+        StaticBatchingUtility.Combine(tilesParent.gameObject);
 
         FitCamera();
     }
@@ -138,8 +140,17 @@ public class MapLoader : MonoBehaviour
             grid[cell.y][cell.x] = '@';
     }
 
+    public void MarkCellDestructible(Vector2Int cell)
+    {
+        _destructibleCells.Add(cell);
+        MarkCellBlocked(cell);
+    }
+
+    public bool IsDestructibleBlocked(Vector2Int cell) => _destructibleCells.Contains(cell);
+
     public void UnmarkCellBlocked(Vector2Int cell)
     {
+        _destructibleCells.Remove(cell);
         if (grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
             grid[cell.y][cell.x] = '.';
     }
@@ -246,6 +257,7 @@ public class MapLoader : MonoBehaviour
 
     private void BuildTiles()
     {
+        CreateGroundBackground();
         for (int localY = 0; localY < buildHeight; localY++)
         {
             int mapY = buildStartY + localY;
@@ -253,14 +265,36 @@ public class MapLoader : MonoBehaviour
             {
                 int mapX = buildStartX + localX;
                 char cell = grid[mapY][mapX];
-                CreateTile(cell, new Vector2Int(mapX, mapY));
+                if (!IsCellWalkable(cell))
+                    CreateTile(cell, new Vector2Int(mapX, mapY));
             }
         }
     }
 
+    private void CreateGroundBackground()
+    {
+        Sprite sprite = groundSprite != null ? groundSprite : GetFallbackSprite();
+        if (sprite == null) return;
+
+        float mapW = buildWidth * tileSize;
+        float mapH = buildHeight * tileSize;
+        float sprW = Mathf.Max(sprite.bounds.size.x, 0.001f);
+        float sprH = Mathf.Max(sprite.bounds.size.y, 0.001f);
+
+        GameObject bg = new GameObject("Ground");
+        bg.transform.SetParent(tilesParent, false);
+        bg.transform.position = Vector3.zero;
+        bg.transform.localScale = new Vector3(mapW / sprW, mapH / sprH, 1f);
+
+        SpriteRenderer sr = bg.AddComponent<SpriteRenderer>();
+        sr.sprite = sprite;
+        sr.drawMode = SpriteDrawMode.Simple;
+        sr.sortingOrder = -1;
+    }
+
     private void CreateTile(char cell, Vector2Int mapCell)
     {
-        GameObject tile = new GameObject($"{cell}_({mapCell.x},{mapCell.y})");
+        GameObject tile = new GameObject("T");
         tile.transform.SetParent(tilesParent, false);
         tile.transform.position = CellToWorld(mapCell);
         tile.transform.localScale = Vector3.one * tileSize;
@@ -348,6 +382,7 @@ public class MapLoader : MonoBehaviour
 
     private void ClearExistingTiles()
     {
+        _destructibleCells.Clear();
         if (tilesParent == null) return;
 
         List<Transform> children = new List<Transform>();
