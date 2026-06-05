@@ -58,24 +58,24 @@ public class MenuViewBootstrap : MonoBehaviour
         public Color  previewTint;
         public string mapFile;
         public string sceneAStar;
-        public string sceneLNS2;
+        public string scenePIBT;
         public bool   available;
     }
 
     private static readonly MapDef[] Maps =
     {
-        new MapDef { label = "Alpha-32",  sizeLabel = "32 × 32  •  10% walls",  previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map",    sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
-        new MapDef { label = "Mansion",   sizeLabel = "133 × 270",              previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
-        new MapDef { label = "Chantry",   sizeLabel = "162 × 141",              previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
-        new MapDef { label = "Gallows",   sizeLabel = "251 × 180",              previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
-        new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls", previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map", sceneAStar = "MapF_TankTest", sceneLNS2 = "MapF_TankTest_LNS2", available = true },
+        new MapDef { label = "Alpha-32",  sizeLabel = "32 × 32  •  10% walls",  previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map",    sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Mansion",   sizeLabel = "133 × 270",              previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Chantry",   sizeLabel = "162 × 141",              previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Gallows",   sizeLabel = "251 × 180",              previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls", previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map", sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
-    private enum Screen { Main, Outfit, MapSelect }
+    private enum Screen { Main, Outfit, MapSelect, LanMapSelect }
 
     private Canvas     _canvas;
-    private GameObject _screenMain, _screenOutfit, _screenMap;
+    private GameObject _screenMain, _screenOutfit, _screenMap, _screenLan;
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
@@ -109,6 +109,7 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildScreenMain();
         BuildScreenOutfit();
         BuildScreenMapSelect();
+        BuildScreenLanMapSelect();
         ShowScreen(Screen.Main);
     }
 
@@ -177,11 +178,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
         btnStart.onClick.AddListener(() => ShowScreen(Screen.Outfit));
 
-        // HOST — disabled
+        // MULTIPLAYER LAN
         Button btnHost = MakeButton(card.transform, "BtnHost",
-            "HOST  —  Coming Soon", new Vector2(0f, -58f), new Vector2(290f, 60f), BtnDisabled);
-        SetTextColor(btnHost.transform, TextMuted);
-        btnHost.interactable = false;
+            "MULTIPLAYER  LAN", new Vector2(0f, -58f), new Vector2(290f, 60f),
+            new Color(0.12f, 0.32f, 0.58f, 1f));
+        SetTextColor(btnHost.transform, new Color(0.75f, 0.90f, 1f));
+        btnHost.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
 
         // SHOP — disabled
         Button btnShop = MakeButton(card.transform, "BtnShop",
@@ -495,8 +497,8 @@ public class MenuViewBootstrap : MonoBehaviour
                 new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
 
         // ── Algorithm mode buttons ────────────────────────────────────────
-        string[] modeLabels = { "A*", "LNS2" };
-        string[] modeScenes = { map.sceneAStar, map.sceneLNS2 };
+        string[] modeLabels = { "A*", "PIBT" };
+        string[] modeScenes = { map.sceneAStar, map.scenePIBT };
         Color[] modeColors =
         {
             new Color(0.20f, 0.52f, 0.88f, 1f),
@@ -592,14 +594,15 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private static char[][] LoadMapGrid(string assetPath)
     {
-        // assetPath = "Assets/MapData/random-32-32-10.map"
-        // Application.dataPath = "<project>/Assets"
-        // Strip leading "Assets/" and combine with dataPath
-        string relativePart = assetPath.StartsWith("Assets/")
-            ? assetPath.Substring("Assets/".Length)
-            : assetPath;
-        string fullPath = Path.Combine(Application.dataPath, relativePart);
-
+        string fileName = Path.GetFileName(assetPath);
+        string fullPath = Path.Combine(Application.streamingAssetsPath, "MapData", fileName);
+        if (!File.Exists(fullPath))
+        {
+            string relativePart = assetPath.StartsWith("Assets/")
+                ? assetPath.Substring("Assets/".Length)
+                : assetPath;
+            fullPath = Path.Combine(Application.dataPath, relativePart);
+        }
         if (!File.Exists(fullPath)) return null;
         string text = File.ReadAllText(fullPath);
         if (string.IsNullOrEmpty(text)) return null;
@@ -622,11 +625,98 @@ public class MenuViewBootstrap : MonoBehaviour
 
     // ── Screen transition ──────────────────────────────────────────────────
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SCREEN: LAN Map Select
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void BuildScreenLanMapSelect()
+    {
+        _screenLan = MakePanel(_canvas.transform, "ScreenLanMapSelect",
+            Vector2.zero, new Vector2(1280f, 720f), BgDark);
+
+        MakeText(_screenLan.transform, "Title", "LAN  —  SELECT MAP & MODE",
+            30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
+
+        MakeText(_screenLan.transform, "Hint", "Chọn map và chế độ AI · số enemy = 6 × số người chơi",
+            13, FontStyle.Italic, TextMuted,
+            new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
+
+        const float CardW = 210f, CardH = 270f, Gap = 10f;
+        float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
+        float startX = -totalW / 2f + CardW / 2f;
+
+        for (int i = 0; i < Maps.Length; i++)
+            BuildLanMapCard(_screenLan.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
+
+        Button btnBack = MakeButton(_screenLan.transform, "BtnBack",
+            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+            new Color(0.28f, 0.38f, 0.48f, 1f));
+        SetTextColor(btnBack.transform, TextLight);
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
+    }
+
+    private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)
+    {
+        MapDef map = Maps[idx];
+        if (!map.available) return;
+
+        GameObject card = MakePanel(parent, "LanMapCard_" + idx,
+            new Vector2(x, y), new Vector2(w, h), CardBg);
+
+        GameObject accent = MakePanel(card.transform, "Accent",
+            new Vector2(0f, h / 2f - 3f), new Vector2(w, 6f), map.previewTint);
+        accent.GetComponent<Image>().color = map.previewTint;
+
+        const float PreviewSize = 130f;
+        float previewCentreY = h / 2f - 10f - PreviewSize / 2f;
+        Color previewBg = Color.Lerp(map.previewTint, Color.black, 0.72f);
+        GameObject preview = MakePanel(card.transform, "MapPreview",
+            new Vector2(0f, previewCentreY), new Vector2(PreviewSize, PreviewSize), previewBg);
+        BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+        MakeText(preview.transform, "Badge", "#" + (idx + 1),
+            11, FontStyle.Bold, new Color(1f, 1f, 1f, 0.55f),
+            new Vector2(1f, 0f), new Vector2(-6f, 6f), new Vector2(30f, 18f));
+
+        float nameCentreY = previewCentreY - PreviewSize / 2f - 8f - 13f;
+        MakeText(card.transform, "MapName", map.label, 15, FontStyle.Bold, TextLight,
+            new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY), new Vector2(w - 12f, 26f));
+        MakeText(card.transform, "SizeLabel", map.sizeLabel,
+            9, FontStyle.Normal, TextMuted,
+            new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
+
+        // A* and PIBT buttons open the LAN lobby
+        string[] modeLabels = { "A*", "PIBT" };
+        string[] modeAlgos  = { "AStar", "PIBT" };
+        Color[]  modeColors = { new Color(0.20f, 0.52f, 0.88f), new Color(0.18f, 0.65f, 0.38f) };
+
+        const float BtnGap = 8f;
+        float btnW        = (w - 16f - BtnGap) / 2f;
+        const float BtnH  = 44f;
+        float btnCentreY  = -h / 2f + BtnH / 2f + 12f;
+        float firstBtnX   = -(btnW + BtnGap) / 2f;
+
+        for (int m = 0; m < 2; m++)
+        {
+            string mapFileCap = map.mapFile;
+            string algoCap    = modeAlgos[m];
+
+            Button modeBtn = MakeButton(card.transform, "LanMode_" + m, modeLabels[m],
+                new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
+                new Vector2(btnW, BtnH), modeColors[m]);
+            SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
+            modeBtn.onClick.AddListener(() => LanLobbyController.Show(mapFileCap, algoCap));
+        }
+    }
+
+    // ── Screen transition ──────────────────────────────────────────────────
+
     private void ShowScreen(Screen screen)
     {
         if (_screenMain  != null) _screenMain.SetActive(screen == Screen.Main);
         if (_screenOutfit != null) _screenOutfit.SetActive(screen == Screen.Outfit);
         if (_screenMap   != null) _screenMap.SetActive(screen == Screen.MapSelect);
+        if (_screenLan   != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
     }
 
     // ── UI helpers ─────────────────────────────────────────────────────────
@@ -718,7 +808,14 @@ public class MenuViewBootstrap : MonoBehaviour
         var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         if (tex != null)
             return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
-#endif
         return null;
+#else
+        string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
+        Sprite spr = Resources.Load<Sprite>("TankSprites/" + fileName);
+        if (spr != null) return spr;
+        Texture2D rtex = Resources.Load<Texture2D>("TankSprites/" + fileName);
+        if (rtex == null) return null;
+        return Sprite.Create(rtex, new Rect(0, 0, rtex.width, rtex.height), new Vector2(0.5f, 0.5f), 128f);
+#endif
     }
 }

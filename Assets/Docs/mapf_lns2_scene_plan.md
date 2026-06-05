@@ -1,18 +1,18 @@
-# Màn LNS2 — `MapF_TankTest_LNS2`
+# Màn PIBT — `MapF_TankTest_PIBT`
 
 ## Tổng quan
 
-Scene `Assets/Scenes/MapF_TankTest_LNS2.unity` là bản nâng cấp của `MapF_TankTest` dùng thuật toán **LNS2 (Large Neighborhood Search 2)** thay thế A\* thuần.
+Scene `Assets/Scenes/MapF_TankTest_PIBT.unity` là bản nâng cấp của `MapF_TankTest` dùng thuật toán **PIBT (Large Neighborhood Search 2)** thay thế A\* thuần.
 
-LNS2 được port từ mã nguồn C++ của team **No Man's Sky** tham dự **League of Robot Runners 2024** (kho lưu trữ: `Team_No_Man's_Sky/`). Thuật toán này giải bài toán **MAPF (Multi-Agent Pathfinding)** bằng cách tối ưu luồng giao thông chung giữa nhiều agent thay vì tìm đường độc lập cho từng agent.
+PIBT được port từ mã nguồn C++ của team **No Man's Sky** tham dự **League of Robot Runners 2024** (kho lưu trữ: `Team_No_Man's_Sky/`). Thuật toán này giải bài toán **MAPF (Multi-Agent Pathfinding)** bằng cách tối ưu luồng giao thông chung giữa nhiều agent thay vì tìm đường độc lập cho từng agent.
 
 ---
 
-## Kiến trúc thuật toán LNS2
+## Kiến trúc thuật toán PIBT
 
 ### Ý tưởng cốt lõi
 
-Thay vì mỗi agent tự tìm đường tốt nhất cho mình (có thể gây tắc nghẽn tập thể), LNS2 xây dựng một **flow grid chia sẻ** và tối ưu hóa đường đi của tất cả agent cùng nhau qua **Frank-Wolfe iterations**.
+Thay vì mỗi agent tự tìm đường tốt nhất cho mình (có thể gây tắc nghẽn tập thể), PIBT xây dựng một **flow grid chia sẻ** và tối ưu hóa đường đi của tất cả agent cùng nhau qua **Frank-Wolfe iterations**.
 
 ```
 [Khởi tạo]
@@ -55,7 +55,7 @@ Cả `op_flow` và `vertex_flow` được **tích lũy dọc theo đường đi*
 
 ### Heuristic Table
 
-Thay vì Manhattan distance, LNS2 dùng **BFS ngược từ goal** để có heuristic chính xác hơn trên map có vật cản:
+Thay vì Manhattan distance, PIBT dùng **BFS ngược từ goal** để có heuristic chính xác hơn trên map có vật cản:
 
 ```
 h[goal][source] = số bước tối thiểu từ source đến goal
@@ -70,27 +70,27 @@ Bảng được tính **lazy** (chỉ khi cần) và **cache** theo goal. Với 
 
 | File | Vị trí | Vai trò |
 |------|--------|---------|
-| `LNS2Planner.cs` | `Assets/Scripts/` | Static singleton — flow grid, A\*, Frank-Wolfe, heuristic |
-| `GridLNS2Pathfinder.cs` | `Assets/Scripts/` | Wrapper gọi `LNS2Planner`, trả về `List<Vector2Int>` |
-| `GridEnemyAgentLNS2.cs` | `Assets/Scripts/` | MonoBehaviour điều khiển enemy tank (thay `GridEnemyAgent`) |
-| `MapScenarioBootstrapLNS2.cs` | `Assets/Scripts/` | Spawner cho scene LNS2 (thay `MapScenarioBootstrap`) |
-| `AIPatrolLNS2PathBehaviour.cs` | `Assets/Scripts/Ai/` | `AIBehaviour` dùng LNS2 cho legacy `DefaultEnemyAI` |
+| `PIBTPlanner.cs` | `Assets/Scripts/` | Static singleton — flow grid, A\*, Frank-Wolfe, heuristic |
+| `GridPIBTPathfinder.cs` | `Assets/Scripts/` | Wrapper gọi `PIBTPlanner`, trả về `List<Vector2Int>` |
+| `GridEnemyAgentPIBT.cs` | `Assets/Scripts/` | MonoBehaviour điều khiển enemy tank (thay `GridEnemyAgent`) |
+| `MapScenarioBootstrapPIBT.cs` | `Assets/Scripts/` | Spawner cho scene PIBT (thay `MapScenarioBootstrap`) |
+| `AIPatrolPIBTPathBehaviour.cs` | `Assets/Scripts/Ai/` | `AIBehaviour` dùng PIBT cho legacy `DefaultEnemyAI` |
 
 ### Dependency graph
 
 ```
-LNS2Planner.cs                          ← compile độc lập
-├── GridLNS2Pathfinder.cs               ← wrapper tiện dụng
-│    └── GridEnemyAgentLNS2.cs          ← MAPF agent chính
-│         └── MapScenarioBootstrapLNS2  ← spawner scene
-└── AIPatrolLNS2PathBehaviour.cs        ← legacy AI path
+PIBTPlanner.cs                          ← compile độc lập
+├── GridPIBTPathfinder.cs               ← wrapper tiện dụng
+│    └── GridEnemyAgentPIBT.cs          ← MAPF agent chính
+│         └── MapScenarioBootstrapPIBT  ← spawner scene
+└── AIPatrolPIBTPathBehaviour.cs        ← legacy AI path
 ```
 
-`LNS2Planner` là **static class** — tất cả agent trong cùng một session dùng chung một flow grid. Khi nhiều `GridEnemyAgentLNS2` cùng chạy, trajectory của mỗi agent ảnh hưởng lẫn nhau và Frank-Wolfe giúp tối ưu phối hợp.
+`PIBTPlanner` là **static class** — tất cả agent trong cùng một session dùng chung một flow grid. Khi nhiều `GridEnemyAgentPIBT` cùng chạy, trajectory của mỗi agent ảnh hưởng lẫn nhau và Frank-Wolfe giúp tối ưu phối hợp.
 
 ---
 
-## Khởi tạo màn LNS2
+## Khởi tạo màn PIBT
 
 ### Boot flow
 
@@ -99,32 +99,32 @@ MapTankTestBootstrap.Start()
  ├─ mapLoader.LoadAndBuild()
  ├─ SpawnPlayer()
  ├─ SetupCamera()
- └─ SpawnScenario()         ← tìm MapScenarioBootstrapLNS2 trước,
+ └─ SpawnScenario()         ← tìm MapScenarioBootstrapPIBT trước,
                                fallback về MapScenarioBootstrap nếu không có
-      └─ MapScenarioBootstrapLNS2.SpawnScenario()
-           ├─ LNS2Planner.Init(mapLoader)   ← build flow grid + neighbor list
+      └─ MapScenarioBootstrapPIBT.SpawnScenario()
+           ├─ PIBTPlanner.Init(mapLoader)   ← build flow grid + neighbor list
            ├─ SpawnEagleBase()
            └─ SpawnEnemies()
                 └─ ConfigureEnemy()
                      ├─ AddPlayerBlocker()
-                     └─ AddGridEnemyAgentLNS2()
-                          └─ GridEnemyAgentLNS2 (component)
+                     └─ AddGridEnemyAgentPIBT()
+                          └─ GridEnemyAgentPIBT (component)
                                ├─ Awake: lấy TankController
-                               ├─ Update → EnsureLNS2Ready()
-                               │    ├─ LNS2Planner.Init nếu chưa
-                               │    └─ LNS2Planner.Register() → agentId
+                               ├─ Update → EnsurePIBTReady()
+                               │    ├─ PIBTPlanner.Init nếu chưa
+                               │    └─ PIBTPlanner.Register() → agentId
                                ├─ ReplanPath() mỗi replanInterval
-                               │    └─ GridLNS2Pathfinder.TryFindPath()
-                               │         └─ LNS2Planner.FrankWolfe()
+                               │    └─ GridPIBTPathfinder.TryFindPath()
+                               │         └─ PIBTPlanner.FrankWolfe()
                                └─ FollowPath() mỗi frame
 ```
 
 ### Setup trong Unity Editor
 
-1. Duplicate scene `MapF_TankTest` → đặt tên `MapF_TankTest_LNS2`
+1. Duplicate scene `MapF_TankTest` → đặt tên `MapF_TankTest_PIBT`
 2. Chọn GameObject `MapRuntime` (hoặc chứa `MapTankTestBootstrap`)
 3. **Xóa** component `MapScenarioBootstrap`
-4. **Thêm** component `MapScenarioBootstrapLNS2`
+4. **Thêm** component `MapScenarioBootstrapPIBT`
 5. Gán Inspector:
 
 | Field | Giá trị |
@@ -137,9 +137,9 @@ MapTankTestBootstrap.Start()
 
 ---
 
-## So sánh A\* vs LNS2
+## So sánh A\* vs PIBT
 
-| Tiêu chí | A\* (`GridEnemyAgent`) | LNS2 (`GridEnemyAgentLNS2`) |
+| Tiêu chí | A\* (`GridEnemyAgent`) | PIBT (`GridEnemyAgentPIBT`) |
 |----------|----------------------|-----------------------------|
 | Thuật toán | A\* + Manhattan/BFS heuristic | Flow-aware A\* + Frank-Wolfe |
 | Phối hợp agent | Không (độc lập) | Có (flow grid chia sẻ) |
@@ -162,19 +162,19 @@ MapTankTestBootstrap.Start()
 
 ## Tham số điều chỉnh
 
-### `MapScenarioBootstrapLNS2`
+### `MapScenarioBootstrapPIBT`
 
 | Tham số | Mô tả | Giá trị gợi ý |
 |---------|-------|--------------|
 | `frankWolfeMs` | Time budget (ms) cho Frank-Wolfe mỗi replan | `10–30` |
 | `enemyReplanInterval` | Giây giữa các lần replan | `0.5–1.0` |
 
-### `GridEnemyAgentLNS2`
+### `GridEnemyAgentPIBT`
 
 | Tham số | Mô tả | Ghi chú |
 |---------|-------|---------|
 | `frankWolfeMs` | Budget riêng cho agent này | Kế thừa từ bootstrap |
-| `replanInterval` | Tần suất gọi LNS2 | Giống A\* để so sánh công bằng |
+| `replanInterval` | Tần suất gọi PIBT | Giống A\* để so sánh công bằng |
 | `forwardAlignmentThreshold` | Ngưỡng dot product để đi thẳng | `0.97` |
 | `stuckTimeout` | Giây trước khi bắt đầu recovery | `1.5` |
 
@@ -189,7 +189,7 @@ Với 4 agent, `frankWolfeMs = 15` cho phép mỗi agent được replan ít nh�
 
 ---
 
-## Luồng dữ liệu LNS2Planner
+## Luồng dữ liệu PIBTPlanner
 
 ```
 Khởi tạo (Init):

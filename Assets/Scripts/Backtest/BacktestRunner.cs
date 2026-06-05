@@ -11,7 +11,7 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Headless backtest: 5 maps × 2 algorithms (A* / LNS2) × 3 repetitions = 30 runs.
+/// Headless backtest: 5 maps × 2 algorithms (A* / PIBT) × 3 repetitions = 30 runs.
 /// No player. Run ends when Eagle HP = 0, all enemies dead, or timeout (120 s).
 /// Results exported to two CSV files in Application.persistentDataPath.
 /// Attach to any scene, or call BacktestRunner.Launch() from code.
@@ -78,7 +78,7 @@ public class BacktestRunner : MonoBehaviour
 
     private Damagable              _eagleDamagable;
     private readonly List<GridEnemyAgent>     _agentsA = new List<GridEnemyAgent>();
-    private readonly List<GridEnemyAgentLNS2> _agentsL = new List<GridEnemyAgentLNS2>();
+    private readonly List<GridEnemyAgentPIBT> _agentsL = new List<GridEnemyAgentPIBT>();
 
     private Text _progressText;
     private Text _statusText;
@@ -119,8 +119,8 @@ public class BacktestRunner : MonoBehaviour
     // ── Job list ───────────────────────────────────────────────────────────
     private void BuildJobs()
     {
-        string[] scenes = { "MapF_TankTest", "MapF_TankTest_LNS2" };
-        string[] algos  = { "AStar", "LNS2" };
+        string[] scenes = { "MapF_TankTest", "MapF_TankTest_PIBT" };
+        string[] algos  = { "AStar", "PIBT" };
 
         // If no selection provided, run all maps
         var indices = _selectedMapIndices ?? AllMapIndices();
@@ -216,7 +216,7 @@ public class BacktestRunner : MonoBehaviour
         if (scenario != null && scenario.EagleBase != null)
             _eagleDamagable = scenario.EagleBase.GetComponentInChildren<Damagable>();
 
-        var scenarioLns2 = FindFirstObjectByType<MapScenarioBootstrapLNS2>();
+        var scenarioLns2 = FindFirstObjectByType<MapScenarioBootstrapPIBT>();
         if (_eagleDamagable == null && scenarioLns2 != null && scenarioLns2.EagleBase != null)
             _eagleDamagable = scenarioLns2.EagleBase.GetComponentInChildren<Damagable>();
 
@@ -243,7 +243,7 @@ public class BacktestRunner : MonoBehaviour
         }
 
         _agentsA.AddRange(FindObjectsByType<GridEnemyAgent>(FindObjectsSortMode.None));
-        _agentsL.AddRange(FindObjectsByType<GridEnemyAgentLNS2>(FindObjectsSortMode.None));
+        _agentsL.AddRange(FindObjectsByType<GridEnemyAgentPIBT>(FindObjectsSortMode.None));
 
         // Subscribe to each agent's death to track all-dead condition
         foreach (var a in _agentsA) SubscribeAgentDeath(a.GetComponentInChildren<Damagable>());
@@ -320,7 +320,7 @@ public class BacktestRunner : MonoBehaviour
         });
     }
 
-    private static void CollectAgentLns2(GridEnemyAgentLNS2 a, ref RunRecord rec, ref int alive, bool isAlive)
+    private static void CollectAgentLns2(GridEnemyAgentPIBT a, ref RunRecord rec, ref int alive, bool isAlive)
     {
         if (a == null) return;
         if (isAlive) alive++;

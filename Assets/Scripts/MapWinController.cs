@@ -6,7 +6,7 @@ public class MapWinController : MonoBehaviour
 {
     public string menuSceneName  = "Menu";
     public string astarSceneName = "MapF_TankTest";
-    public string lns2SceneName  = "MapF_TankTest_LNS2";
+    public string pibtSceneName  = "MapF_TankTest_PIBT";
 
     private bool winStarted;
 
@@ -27,6 +27,23 @@ public class MapWinController : MonoBehaviour
         if (BacktestMode.IsActive) return;
         if (winStarted) return;
         winStarted = true;
+
+        if (LanSessionManager.IsActive && LanSessionManager.IsServer)
+        {
+            // Server: broadcast victory to all clients, then show own overlay.
+            LanGameCoordinator.Instance?.BroadcastWin();
+            ShowOverlay();
+            return;
+        }
+
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            // Client: received win via BroadcastEventClientRpc — show overlay with navigation buttons.
+            ShowOverlay();
+            return;
+        }
+
+        // Single-player / non-LAN mode.
         ShowOverlay();
     }
 
@@ -101,9 +118,9 @@ public class MapWinController : MonoBehaviour
                 new Vector2(0f, y3), new Vector2(BtnW, BtnH),
                 () => SceneManager.LoadScene(currentScene));
 
-            MakeButton(panel, "ContinueBtn", "CHƠI TIẾP  ▶  LNS2", BtnGreen, Color.white,
+            MakeButton(panel, "ContinueBtn", "CHƠI TIẾP  ▶  PIBT", BtnGreen, Color.white,
                 new Vector2(0f, y2), new Vector2(BtnW, BtnH),
-                () => SceneManager.LoadScene(lns2SceneName));
+                () => SceneManager.LoadScene(pibtSceneName));
 
             MakeButton(panel, "MainMenuBtn", "MAIN MENU", BtnDark, Color.white,
                 new Vector2(0f, y1), new Vector2(BtnW, BtnH),

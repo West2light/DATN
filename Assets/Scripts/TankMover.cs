@@ -21,6 +21,11 @@ public class TankMover : MonoBehaviour
     private void Awake()
     {
         rb2d = GetComponentInParent<Rigidbody2D>();
+        // Prevent physics collisions from spinning the tank body.
+        // FreezeRotation blocks impulse-based rotation; we still control angle
+        // programmatically by assigning rb2d.rotation directly each FixedUpdate.
+        if (rb2d != null)
+            rb2d.constraints |= RigidbodyConstraints2D.FreezeRotation;
     }
 
     public void Move(Vector2 movementVector)
@@ -68,6 +73,8 @@ public class TankMover : MonoBehaviour
 
     private void FixedUpdate()
     {
+        rb2d.angularVelocity = 0f;
+
         if (useWorldMovement)
         {
             rb2d.linearVelocity = worldMovementVector * movementData.maxSpeed * Time.fixedDeltaTime;
@@ -76,16 +83,17 @@ public class TankMover : MonoBehaviour
             {
                 float desiredAngle = Mathf.Atan2(worldMovementVector.y, worldMovementVector.x) * Mathf.Rad2Deg - 90f;
                 Quaternion targetRotation = Quaternion.Euler(0f, 0f, desiredAngle);
-                rb2d.MoveRotation(Quaternion.RotateTowards(
+                // Use rb2d.rotation (degrees) instead of MoveRotation — works even with FreezeRotation.
+                rb2d.rotation = Quaternion.RotateTowards(
                     transform.rotation,
                     targetRotation,
-                    movementData.rotationSpeed * Time.fixedDeltaTime));
+                    movementData.rotationSpeed * Time.fixedDeltaTime).eulerAngles.z;
             }
 
             return;
         }
 
         rb2d.linearVelocity = (Vector2)transform.up * currentSpeed * currentForewardDirection * Time.fixedDeltaTime;
-        rb2d.MoveRotation(transform.rotation * Quaternion.Euler(0, 0, -movementVector.x * movementData.rotationSpeed * Time.fixedDeltaTime));
+        rb2d.rotation = (transform.rotation * Quaternion.Euler(0, 0, -movementVector.x * movementData.rotationSpeed * Time.fixedDeltaTime)).eulerAngles.z;
     }
 }

@@ -26,12 +26,27 @@ public class MapGameOverController : MonoBehaviour
     public void BeginGameOver()
     {
         if (BacktestMode.IsActive) return;
-        if (gameOverStarted)
+        if (gameOverStarted) return;
+        gameOverStarted = true;
+
+        if (LanSessionManager.IsActive && LanSessionManager.IsServer)
         {
+            // Server: broadcast to all clients, then show own overlay.
+            LanGameCoordinator.Instance?.BroadcastGameOver();
+            ShowOverlay();
+            StartCoroutine(ReturnToMenuAfterDelay());
             return;
         }
 
-        gameOverStarted = true;
+        if (LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            // Client: received game-over via BroadcastEventClientRpc — show overlay and return to menu.
+            ShowOverlay();
+            StartCoroutine(ReturnToMenuAfterDelay());
+            return;
+        }
+
+        // Single-player / non-LAN mode.
         ShowOverlay();
         StartCoroutine(ReturnToMenuAfterDelay());
     }
@@ -65,7 +80,7 @@ public class MapGameOverController : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 100;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         overlayGroup = canvasObject.AddComponent<CanvasGroup>();

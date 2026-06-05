@@ -45,7 +45,7 @@ public class MapScenarioBootstrap : MonoBehaviour
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
     public bool loadNextMapWhenAllEnemiesDead = true;
-    public string nextMapSceneName = "MapF_TankTest_LNS2";
+    public string nextMapSceneName = "MapF_TankTest_PIBT";
     [Min(0f)] public float nextMapLoadDelay = 1f;
 
     [Header("Phase v4.2: Physical hard inflate (preferred)")]
@@ -111,6 +111,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         scenarioRoot = new GameObject("ScenarioRuntime").transform;
         scenarioRoot.SetParent(transform, false);
         navMask = BuildNavMask();
+        navMask.PatchDestructibleCells(mapLoader);
 
         eagleBase = SpawnEagleBase();
         SpawnEnemies();
@@ -229,10 +230,19 @@ public class MapScenarioBootstrap : MonoBehaviour
     private bool TryFindRandomWalkableNearPlayer(Transform player, out Vector2Int spawnCell)
     {
         Vector2Int playerCell = mapLoader.WorldToCell(player.position);
-        int minDistance = Mathf.Max(1, eagleMinPlayerDistanceCells);
-        int maxDistance = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
+        int minDistance    = Mathf.Max(1, eagleMinPlayerDistanceCells);
+        int maxDistance    = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
         int minDistanceSqr = minDistance * minDistance;
         int maxDistanceSqr = maxDistance * maxDistance;
+
+        // Collect cells occupied by ALL players so the eagle doesn't spawn on any of them.
+        // In LAN mode there are multiple player tanks ("Player", "Player_1", …) and the
+        // reference player (tank 0) is 3+ cells away from tank 1 — exactly the minimum
+        // distance — which would previously allow the eagle to land on tank 1's cell.
+        var allPlayerCells = new System.Collections.Generic.HashSet<Vector2Int>();
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                allPlayerCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
         List<Vector2Int> candidates = new List<Vector2Int>();
         for (int y = playerCell.y - maxDistance; y <= playerCell.y + maxDistance; y++)
@@ -244,6 +254,7 @@ public class MapScenarioBootstrap : MonoBehaviour
                 int distanceSqr = delta.sqrMagnitude;
                 if (distanceSqr < minDistanceSqr || distanceSqr > maxDistanceSqr) continue;
                 if (!mapLoader.IsWalkable(candidate)) continue;
+                if (allPlayerCells.Contains(candidate)) continue; // don't land on any player
 
                 candidates.Add(candidate);
             }
@@ -275,7 +286,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -422,39 +433,38 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private void IgnoreFriendlyCollisions(GameObject enemy, FactionMember factionMember)
     {
+        // Rule: only ignore a pair when AT LEAST ONE of the two colliders is either
+        //   • a trigger  (Hittable layer — bullet sensors, not physics objects), or
+        //   • named "PlayerBlocker" (exists only to block the player tank, not agents).
+        //
+        // Physical body colliders (non-trigger, non-blocker) are kept ACTIVE between
+        // agents so they naturally push each other apart and don't visually pile up.
+        // The A* BuildDynamicBlockedCells already avoids occupied cells at replan time;
+        // this physical separation fills the gap between replans.
+
         Collider2D[] enemyColliders = enemy.GetComponentsInChildren<Collider2D>(true);
         for (int i = 0; i < enemies.Count; i++)
         {
             GameObject otherEnemy = enemies[i];
-            if (otherEnemy == null)
-            {
-                continue;
-            }
+            if (otherEnemy == null) continue;
 
             FactionMember otherFaction = otherEnemy.GetComponent<FactionMember>();
-            if (!FactionMember.AreFriendly(factionMember, otherFaction))
-            {
-                continue;
-            }
+            if (!FactionMember.AreFriendly(factionMember, otherFaction)) continue;
 
             Collider2D[] otherColliders = otherEnemy.GetComponentsInChildren<Collider2D>(true);
-            for (int enemyIndex = 0; enemyIndex < enemyColliders.Length; enemyIndex++)
+            foreach (var c1 in enemyColliders)
             {
-                Collider2D enemyCollider = enemyColliders[enemyIndex];
-                if (enemyCollider == null)
+                if (c1 == null) continue;
+                foreach (var c2 in otherColliders)
                 {
-                    continue;
-                }
-
-                for (int otherIndex = 0; otherIndex < otherColliders.Length; otherIndex++)
-                {
-                    Collider2D otherCollider = otherColliders[otherIndex];
-                    if (otherCollider == null)
-                    {
-                        continue;
-                    }
-
-                    Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    if (c2 == null) continue;
+                    bool shouldIgnore =
+                        c1.isTrigger                            ||
+                        c2.isTrigger                            ||
+                        c1.gameObject.name == "PlayerBlocker"   ||
+                        c2.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
+                        Physics2D.IgnoreCollision(c1, c2, true);
                 }
             }
         }
@@ -515,7 +525,7 @@ public class MapScenarioBootstrap : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -648,30 +658,22 @@ public class MapScenarioBootstrap : MonoBehaviour
 
     private GameObject ResolveEnemyPrefab()
     {
-        if (enemyPrefab != null)
-        {
-            return enemyPrefab;
-        }
-
+        if (enemyPrefab != null) return enemyPrefab;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<GameObject>(enemyPrefabPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<GameObject>("Prefabs/StaticEnemy");
     }
 
     private TankMovementData ResolveEnemyMovementData()
     {
-        if (enemyMovementData != null)
-        {
-            return enemyMovementData;
-        }
-
+        if (enemyMovementData != null) return enemyMovementData;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<TankMovementData>("Data/EnemyTankMovementData");
     }
 
     private void OnDrawGizmosSelected()

@@ -5,6 +5,14 @@ using UnityEngine.Events;
 
 public class Bullet : MonoBehaviour
 {
+    // Fired on the SERVER whenever any bullet is created. LanGameCoordinator uses this
+    // to immediately RPC clients so they see bullets without positional-sync delay.
+    public static System.Action<Vector2, Vector2, float, float> OnAnyBulletFired; // pos, dir, speed, maxDist
+
+    // Fired on the SERVER whenever any bullet hits something. LanGameCoordinator relays
+    // this to clients so they see the explosion effect at the correct world position.
+    public static System.Action<Vector2> OnAnyBulletHit; // world position of impact
+
     public BulletData bulletData;
 
     [Tooltip("Các lớp mà đạn được phép va chạm. Để trống = tự động dùng các lớp vật cản + xe tăng.")]
@@ -39,6 +47,8 @@ public class Bullet : MonoBehaviour
         startPosition = transform.position;
         previousPosition = transform.position;
         rb2d.linearVelocity = transform.up * this.bulletData.speed;
+        OnAnyBulletFired?.Invoke(transform.position, transform.up,
+            this.bulletData.speed, this.bulletData.maxDistance);
     }
 
     private void Update()
@@ -66,6 +76,14 @@ public class Bullet : MonoBehaviour
     }
 
     // Đạn bỏ qua chính nó và toàn bộ collider của xe tăng đã bắn ra nó.
+    // Player bullets stop at the Eagle Base but deal no damage (only enemy agents can destroy it).
+    private bool IsPlayerHittingBase(Collider2D col)
+    {
+        if (ownerFaction == null || ownerFaction.CurrentFaction != Faction.Player) return false;
+        FactionMember target = FactionMember.FindForCollider(col);
+        return target != null && target.CurrentFaction == Faction.Base;
+    }
+
     private bool ShouldIgnore(Collider2D col)
     {
         if (col.gameObject == gameObject)
@@ -96,8 +114,9 @@ public class Bullet : MonoBehaviour
         }
 
         OnHit?.Invoke();
+        OnAnyBulletHit?.Invoke(transform.position);
         var damagable = collision.GetComponentInParent<Damagable>();
-        if (damagable != null)
+        if (damagable != null && !IsPlayerHittingBase(collision))
         {
             damagable.Hit(bulletData.damage);
         }

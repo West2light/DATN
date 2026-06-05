@@ -276,6 +276,45 @@ public class GridNavMask
         return tMin <= tMax;
     }
 
+    /// <summary>
+    /// Sau khi navMask được build, mở lại các cell destructible và vùng lân cận
+    /// mà bị đánh dấu non-walkable do inflation — để A* có thể tìm đường qua thùng gỗ.
+    /// Gọi ngay sau BuildNavMask() trong MapScenarioBootstrap.
+    /// </summary>
+    public void PatchDestructibleCells(MapLoader mapLoader)
+    {
+        if (agentWalkable == null || mapLoader == null) return;
+
+        int patchRadius = physicalRadius >= 0
+            ? Mathf.CeilToInt(physicalRadius / Mathf.Max(0.001f, mapLoader.tileSize)) + 1
+            : Mathf.Max(1, InflateRadius + 1);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (!mapLoader.IsDestructibleBlocked(new Vector2Int(x, y))) continue;
+
+                // Bản thân cell destructible: coi là passable trong pathfinding
+                agentWalkable[x, y] = true;
+
+                // Các cell lân cận bị inflation block vì crate — mở lại nếu là grid-walkable
+                for (int dy = -patchRadius; dy <= patchRadius; dy++)
+                {
+                    for (int dx = -patchRadius; dx <= patchRadius; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                        var nb = new Vector2Int(nx, ny);
+                        // Chỉ mở lại cell thuần walkable hoặc cũng là destructible, không phải static wall
+                        if (!mapLoader.IsWalkable(nb) && !mapLoader.IsDestructibleBlocked(nb)) continue;
+                        agentWalkable[nx, ny] = true;
+                    }
+                }
+            }
+        }
+    }
+
     public bool TryFindAgentWalkableNear(Vector2Int preferredCell, out Vector2Int result)
     {
         if (IsAgentWalkable(preferredCell))

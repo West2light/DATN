@@ -36,18 +36,16 @@ public class MapTankTestBootstrap : MonoBehaviour
     private float mapHeightWorld;
     private bool allowCameraFollow = true;
 
+    // Spectator mode: activated when the local player's tank is destroyed in LAN mode.
+    private bool    _spectating;
+    private Vector2 _spectatorPos;
+
     private void Start()
     {
         if (mapLoader == null)
-        {
             mapLoader = GetComponent<MapLoader>();
-        }
-
         if (mapLoader == null)
-        {
             mapLoader = FindFirstObjectByType<MapLoader>();
-        }
-
         if (mapLoader == null)
         {
             Debug.LogError("[MapTankTestBootstrap] MapLoader is missing.");
@@ -55,6 +53,51 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
 
         mapLoader.LoadAndBuild();
+
+        // ── LAN multiplayer ──────────────────────────────────────────────────
+        if (LanSessionManager.IsActive)
+        {
+            SetupCamera();
+
+            if (LanSessionManager.IsServer)
+            {
+                // Server: spawn all player tanks + enemies, then link to bridges
+                var lanCoord = gameObject.AddComponent<LanGameCoordinator>();
+                var spawnedTanks = SpawnAllLanPlayers();
+                var spawnCells   = ComputeEnemySpawnCells();
+                MapScenarioBootstrap scenario = GetComponent<MapScenarioBootstrap>()
+                    ?? GetComponentInChildren<MapScenarioBootstrap>();
+                if (scenario != null)
+                {
+                    scenario.mapLoader = mapLoader;
+                    scenario.enemySpawnCells = spawnCells;
+                }
+                SpawnScenario();                       // spawns enemies
+                var enemies = GetSpawnedEnemies();
+
+                // Wire all player transforms so every enemy targets every player.
+                var playerTransforms = new Transform[spawnedTanks.Count];
+                for (int i = 0; i < spawnedTanks.Count; i++)
+                    playerTransforms[i] = spawnedTanks[i].transform;
+                foreach (var enemy in enemies)
+                {
+                    var agent = enemy.GetComponent<GridEnemyAgent>();
+                    if (agent != null) agent.playerTargets = playerTransforms;
+                    var agentLns2 = enemy.GetComponent<GridEnemyAgentPIBT>();
+                    if (agentLns2 != null) agentLns2.playerTargets = playerTransforms;
+                }
+
+                lanCoord.RegisterServerTanks(spawnedTanks, enemies);
+            }
+            else
+            {
+                // Client: add view immediately so Instance is ready before first RPC arrives.
+                gameObject.AddComponent<LanClientView>();
+                Debug.Log("[LAN Client] LanClientView created. Waiting for server state...");
+            }
+            return;
+        }
+        // ── End LAN multiplayer ──────────────────────────────────────────────
 
         if (!BacktestMode.IsActive)
             SpawnPlayer();
@@ -82,19 +125,60 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void LateUpdate()
     {
+        // LAN client: pick up OwnGhost once lazy-init creates it, then re-setup camera.
+        if (!_spectating && LanSessionManager.IsActive && !LanSessionManager.IsServer)
+        {
+            Transform ghost = LanClientView.Instance?.OwnGhost;
+            if (ghost != null && player != ghost) { player = ghost; SetupCamera(); }
+
+            // Own tank just died — switch to spectator mode.
+            if (LanClientView.Instance?.IsSpectating == true)
+            {
+                _spectating   = true;
+                _spectatorPos = mainCamera != null
+                    ? (Vector2)mainCamera.transform.position
+                    : Vector2.zero;
+            }
+        }
+
+        if (_spectating)
+        {
+            HandleSpectatorCamera();
+            return;
+        }
+
         UpdateCameraPosition();
+    }
+
+    // Free-roam camera for spectators: WASD pans within map bounds.
+    private void HandleSpectatorCamera()
+    {
+        if (mainCamera == null) return;
+        float speed = mainCamera.orthographicSize * 2f;
+        _spectatorPos.x += Input.GetAxisRaw("Horizontal") * speed * Time.deltaTime;
+        _spectatorPos.y += Input.GetAxisRaw("Vertical")   * speed * Time.deltaTime;
+
+        float halfH = mainCamera.orthographicSize;
+        float halfW = halfH * mainCamera.aspect;
+        _spectatorPos.x = Mathf.Clamp(_spectatorPos.x,
+            -mapWidthWorld  / 2f + halfW, mapWidthWorld  / 2f - halfW);
+        _spectatorPos.y = Mathf.Clamp(_spectatorPos.y,
+            -mapHeightWorld / 2f + halfH, mapHeightWorld / 2f - halfH);
+
+        mainCamera.transform.position = new Vector3(
+            _spectatorPos.x, _spectatorPos.y, cameraOffset.z);
     }
 
     private void SpawnScenario()
     {
         List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
 
-        MapScenarioBootstrapLNS2 lns2Bootstrap = GetComponent<MapScenarioBootstrapLNS2>();
-        if (lns2Bootstrap != null)
+        MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
+        if (pibtBootstrap != null)
         {
-            lns2Bootstrap.mapLoader = mapLoader;
-            if (spawnCells != null) lns2Bootstrap.enemySpawnCells = spawnCells;
-            lns2Bootstrap.SpawnScenario();
+            pibtBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) pibtBootstrap.enemySpawnCells = spawnCells;
+            pibtBootstrap.SpawnScenario();
             return;
         }
 
@@ -112,15 +196,131 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (mapLoader == null) return null;
         int c = mapLoader.BuildWidth;
         int r = mapLoader.BuildHeight;
-        return new List<Vector2Int>
+
+        // Base 6 spawn positions (corners + mid-edges)
+        var baseSet = new List<Vector2Int>
         {
             new Vector2Int(c - 2, 1),
-            new Vector2Int(1, r - 2),
+            new Vector2Int(1,     r - 2),
             new Vector2Int(c - 2, r - 2),
             new Vector2Int(c / 2, 1),
-            new Vector2Int(1, r / 2),
+            new Vector2Int(1,     r / 2),
             new Vector2Int(c - 2, r / 2),
         };
+
+        // In LAN mode, need 6 * playerCount cells
+        int needed = LanSessionManager.IsActive
+            ? LanSessionManager.EnemyCount
+            : baseSet.Count;
+
+        // Collect player spawn cells so we can keep enemies away from them.
+        var playerCells = new System.Collections.Generic.HashSet<Vector2Int>();
+        if (LanSessionManager.IsActive)
+        {
+            int n = LanSessionManager.PlayerCount;
+            for (int i = 0; i < n; i++)
+            {
+                int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, r - 2);
+                playerCells.Add(new Vector2Int(playerSpawnCell.x, row));
+            }
+            // Remove any base-set enemy cells that coincide with player cells.
+            baseSet.RemoveAll(cell => playerCells.Contains(cell));
+        }
+
+        if (needed <= baseSet.Count) return baseSet.GetRange(0, needed);
+
+        // Generate additional random walkable cells for extra enemies.
+        var result = new List<Vector2Int>(baseSet);
+        var rng = new System.Random(42);
+        int attempts = 0;
+        while (result.Count < needed && attempts < 10000)
+        {
+            attempts++;
+            var cell = new Vector2Int(rng.Next(1, c - 1), rng.Next(1, r - 1));
+            if (mapLoader.IsWalkable(cell) && !result.Contains(cell)
+                && !playerCells.Contains(cell))
+                result.Add(cell);
+        }
+        return result;
+    }
+
+    // ── LAN: spawn one player tank per connected client ────────────────────────
+
+    private List<TankController> SpawnAllLanPlayers()
+    {
+        var tanks = new List<TankController>();
+        int n = LanSessionManager.PlayerCount;
+
+        for (int i = 0; i < n; i++)
+        {
+            int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, mapLoader.BuildHeight - 2);
+            var cell = new Vector2Int(playerSpawnCell.x, row);
+            if (!mapLoader.TryFindWalkableNear(cell, out Vector2Int spawnCell)) continue;
+
+            GameObject prefab = ResolveTankPrefab();
+            if (prefab == null) continue;
+
+            GameObject tank = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity);
+            tank.name = i == 0 ? "Player" : $"Player_{i}";
+            if (i == 0) player = tank.transform;
+
+            // Only the host's own tank (slot 0) shows the HP bar on the host screen.
+            // Client tanks are server-side representations only; their HP is shown on
+            // the respective client machine via LanClientView world-state sync.
+            bool savedShowHp = showPlayerHealthBar;
+            if (i > 0) showPlayerHealthBar = false;
+            ConfigureTank(tank);
+            showPlayerHealthBar = savedShowHp;
+
+            // In LAN mode, individual player deaths don't end the game.
+            // Remove the global game-over trigger wired by ConfigureTank and replace it
+            // with per-slot tracking in LanGameCoordinator.
+            Damagable d = tank.GetComponentInChildren<Damagable>();
+            if (d != null)
+            {
+                MapGameOverController goc = MapGameOverController.Ensure();
+                d.OnDead.RemoveListener(goc.BeginGameOver);
+                int slot = i;
+                d.OnDead.AddListener(() => LanGameCoordinator.Instance?.OnPlayerTankDead(slot));
+
+                // Hook the host's own tank death to switch this machine to spectator mode.
+                if (i == 0)
+                    d.OnDead.AddListener(EnterSpectatorMode);
+            }
+
+            // Trong LAN mode, input đi qua LanNetworkBridge — không cần PlayerInput.
+            // Dùng cả enabled=false (ngăn frame này) VÀ Destroy (xóa vĩnh viễn kể cả
+            // persistent listener được serialize trong prefab mà RemoveListener không xóa được).
+            foreach (var pi in tank.GetComponentsInChildren<PlayerInput>(true))
+            {
+                pi.enabled = false;
+                Destroy(pi);
+            }
+
+            tanks.Add(tank.GetComponent<TankController>());
+        }
+        return tanks;
+    }
+
+    // Called when the host's own player tank is destroyed.
+    private void EnterSpectatorMode()
+    {
+        _spectating    = true;
+        _spectatorPos  = mainCamera != null
+            ? (Vector2)mainCamera.transform.position
+            : Vector2.zero;
+    }
+
+    private List<GameObject> GetSpawnedEnemies()
+    {
+        // MapScenarioBootstrapPIBT takes priority (matches SpawnScenario() dispatch order)
+        var pibt = GetComponent<MapScenarioBootstrapPIBT>();
+        if (pibt != null) return new List<GameObject>(pibt.Enemies);
+
+        var bootstrap = GetComponent<MapScenarioBootstrap>()
+            ?? GetComponentInChildren<MapScenarioBootstrap>();
+        if (bootstrap == null) return new List<GameObject>();
+        return new List<GameObject>(bootstrap.Enemies);
     }
 
     private void SpawnPlayer()
@@ -267,7 +467,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingLayerName = "UI";
         canvas.sortingOrder = 20;
-        canvasObject.AddComponent<CanvasScaler>();
+        { var _sc = canvasObject.AddComponent<CanvasScaler>(); _sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; _sc.referenceResolution = new UnityEngine.Vector2(1280f, 720f); _sc.matchWidthOrHeight = 0.5f; }
         canvasObject.AddComponent<GraphicRaycaster>();
 
         CanvasGroup canvasGroup = canvasObject.AddComponent<CanvasGroup>();
@@ -424,11 +624,22 @@ public class MapTankTestBootstrap : MonoBehaviour
         sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
         if (sprite == null)
         {
-            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
-            if (tex != null)
-                sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            Texture2D edTex = AssetDatabase.LoadAssetAtPath<Texture2D>(spritePath);
+            if (edTex != null)
+                sprite = Sprite.Create(edTex, new Rect(0, 0, edTex.width, edTex.height), new Vector2(0.5f, 0.5f), 100f);
         }
 #endif
+        if (sprite == null)
+        {
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(VariantBodyFiles[index]);
+            sprite = Resources.Load<Sprite>("TankSprites/" + fileName);
+            if (sprite == null)
+            {
+                Texture2D tex = Resources.Load<Texture2D>("TankSprites/" + fileName);
+                if (tex != null)
+                    sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 128f);
+            }
+        }
         if (sprite == null) return;
 
         Transform bodyTransform = tank.transform.Find("TankBase");
@@ -454,43 +665,31 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private GameObject ResolveTankPrefab()
     {
-        if (tankPrefab != null)
-        {
-            return tankPrefab;
-        }
-
+        if (tankPrefab != null) return tankPrefab;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<GameObject>(tankPrefabPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<GameObject>(tankPrefabPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<GameObject>("Prefabs/Tank");
     }
 
     private TankMovementData ResolveMovementData()
     {
-        if (movementData != null)
-        {
-            return movementData;
-        }
-
+        if (movementData != null) return movementData;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<TankMovementData>(movementDataPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<TankMovementData>(movementDataPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<TankMovementData>("Data/PlayerTankMovementData");
     }
 
     private AudioClip ResolvePlayerEngineClip()
     {
-        if (playerEngineClip != null)
-        {
-            return playerEngineClip;
-        }
-
+        if (playerEngineClip != null) return playerEngineClip;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<AudioClip>(playerEngineClipPath);
-#else
-        return null;
+        var result = AssetDatabase.LoadAssetAtPath<AudioClip>(playerEngineClipPath);
+        if (result != null) return result;
 #endif
+        return Resources.Load<AudioClip>("Audio/spaceEngineSmall_001");
     }
 }
