@@ -288,11 +288,14 @@ public class MapTankTestBootstrap : MonoBehaviour
                     d.OnDead.AddListener(EnterSpectatorMode);
             }
 
-            // Trong LAN mode, input của MỌI tank đều đi qua LanNetworkBridge.Update().
-            // Tắt hết PlayerInput (kể cả tank của host) để không có luồng input nào leak
-            // sang tank khác dù là persistent listener hay runtime listener.
+            // Trong LAN mode, input đi qua LanNetworkBridge — không cần PlayerInput.
+            // Dùng cả enabled=false (ngăn frame này) VÀ Destroy (xóa vĩnh viễn kể cả
+            // persistent listener được serialize trong prefab mà RemoveListener không xóa được).
             foreach (var pi in tank.GetComponentsInChildren<PlayerInput>(true))
+            {
                 pi.enabled = false;
+                Destroy(pi);
+            }
 
             tanks.Add(tank.GetComponent<TankController>());
         }

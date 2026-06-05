@@ -301,6 +301,28 @@ public class LanGameCoordinator : MonoBehaviour
         mgr.SendNamedMessageToAll(MsgWorldState, writer, NetworkDelivery.Reliable);
     }
 
+    // ── Host input (called every frame from LanNetworkBridge when IsServer) ─────
+    //
+    // Route qua đây thay vì dùng _serverTank trên bridge trực tiếp để đảm bảo
+    // input của host CHỈ đến _serverTanks[0] (tank của host), không bao giờ nhầm sang slot khác.
+
+    public void ApplyHostInput(Vector2 move, Vector2 mouseWorldPos, bool shoot)
+    {
+        if (_serverTanks.Count == 0 || _serverTanks[0] == null) return;
+        var tank = _serverTanks[0];
+        tank.HandleMoveWorldDirection(move);
+        // Compute angle from the host's own tank turret position to mouse world pos.
+        // Same approach as the client-side ComputeTurretAngle — decouples from camera.
+        if (tank.aimTurret != null)
+        {
+            Vector2 dir = mouseWorldPos - (Vector2)tank.aimTurret.transform.position;
+            if (dir.sqrMagnitude > 0.001f)
+                tank.aimTurret.transform.rotation =
+                    Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+        }
+        if (shoot) tank.HandleShoot();
+    }
+
     // ── Player-death tracking (called by MapTankTestBootstrap per player slot) ──
     //
     // Individual player deaths do NOT end the game.  Game over only triggers when

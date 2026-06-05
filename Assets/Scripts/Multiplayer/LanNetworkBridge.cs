@@ -6,13 +6,16 @@ using UnityEngine;
 public struct LanInputPacket : INetworkSerializable
 {
     public Vector2 move;
-    public Vector2 turretWorldPos;
+    // Turret rotation in degrees, pre-computed on the sender relative to their own
+    // tank/ghost position.  Replaces world-pos to avoid camera-position coupling
+    // (two machines at similar world positions would otherwise share the same angle).
+    public float   turretAngle;
     public bool    shoot;
 
     public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
     {
         s.SerializeValue(ref move);
-        s.SerializeValue(ref turretWorldPos);
+        s.SerializeValue(ref turretAngle);
         s.SerializeValue(ref shoot);
     }
 }
@@ -103,31 +106,57 @@ public class LanNetworkBridge : NetworkBehaviour
         if (_ownerCamera == null)
             _ownerCamera = Camera.main;
 
-        Vector2 move   = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-        bool    shoot  = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
-        Vector2 turret = _ownerCamera != null
+        Vector2 move      = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        bool    shoot     = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
+        Vector2 mouseWorld = _ownerCamera != null
             ? (Vector2)_ownerCamera.ScreenToWorldPoint(Input.mousePosition)
             : Vector2.zero;
 
         if (IsServer)
         {
-            // Host: áp input thẳng vào tank mà không cần round-trip mạng.
-            // _serverTank đã được gán đúng tank của host qua LinkTank().
-            if (_serverTank != null)
-            {
-                _serverTank.HandleMoveWorldDirection(move);
-                _serverTank.HandleTurretMovement(turret);
-                if (shoot) _serverTank.HandleShoot();
-            }
+            // Host: route qua Coordinator để CHẮC CHẮN chỉ Tank[0] (slot host) nhận input.
+            LanGameCoordinator.Instance?.ApplyHostInput(move, mouseWorld, shoot);
             return;
         }
 
+        // Client: compute turret angle from OwnGhost's turret position (not raw world pos).
+        // This decouples the angle from camera position — two machines with similar camera
+        // views would otherwise compute the same world-pos and therefore the same angle.
+        float turretAngle = ComputeTurretAngle(mouseWorld);
+
         // Client từ xa: gửi input qua RPC.
-        SendInputServerRpc(new LanInputPacket { move = move, turretWorldPos = turret, shoot = shoot });
+        SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = shoot });
 
         // Client-side prediction — phản hồi tức thì trước khi server confirm.
         LanClientView.Instance?.PredictOwnMovement(move);
-        LanClientView.Instance?.PredictTurretAim(turret);
+        LanClientView.Instance?.PredictTurretAim(mouseWorld);
+    }
+
+    // Compute the desired turret rotation (degrees) for this client.
+    // Uses OwnGhost's turret world position as the "from" point so the angle is
+    // independent of camera position and matches what the player sees locally.
+    private float ComputeTurretAngle(Vector2 mouseWorld)
+    {
+        Transform ghost = LanClientView.Instance?.OwnGhost;
+        if (ghost != null)
+        {
+            AimTurret aim = ghost.GetComponentInChildren<AimTurret>(true);
+            if (aim != null)
+            {
+                Vector2 dir = mouseWorld - (Vector2)aim.transform.position;
+                if (dir.sqrMagnitude > 0.001f)
+                    return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            }
+        }
+        // Fallback: direction from camera centre to mouse (before ghost is ready).
+        if (_ownerCamera != null)
+        {
+            Vector2 camPos = _ownerCamera.transform.position;
+            Vector2 dir    = mouseWorld - camPos;
+            if (dir.sqrMagnitude > 0.001f)
+                return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        }
+        return 0f;
     }
 
     // ── Server receives owner input ───────────────────────────────────────────
@@ -137,7 +166,9 @@ public class LanNetworkBridge : NetworkBehaviour
     {
         if (_serverTank == null) return;
         _serverTank.HandleMoveWorldDirection(pkt.move);
-        _serverTank.HandleTurretMovement(pkt.turretWorldPos);
+        // Apply pre-computed angle directly — no world-pos re-derivation needed.
+        if (_serverTank.aimTurret != null)
+            _serverTank.aimTurret.transform.rotation = Quaternion.Euler(0f, 0f, pkt.turretAngle);
         if (pkt.shoot) _serverTank.HandleShoot();
     }
 

@@ -27,6 +27,9 @@ public class LanClientView : MonoBehaviour
     // Interpolation targets for player ghosts (set each RPC, consumed in Update)
     private Vector3[]    _playerTargetPos;
     private Quaternion[] _playerTargetRot;
+    // Authoritative turret world-rotation for non-own ghosts (re-applied every Update
+    // after body-rotation lerp, which would otherwise drag the turret child along).
+    private float[]      _playerTargetTurretRot;
     // Own-ghost server correction target
     private Vector3    _ownTargetPos;
     private Quaternion _ownTargetRot;
@@ -177,7 +180,9 @@ public class LanClientView : MonoBehaviour
                 _ownTargetPos = new Vector3(p.px, p.py, 0f);
                 _ownTargetRot = Quaternion.Euler(0f, 0f, p.bodyRot);
                 _ownTargetSet = true;
-                if (OwnGhost != null) SetTurretRot(OwnGhost, p.turretRot);
+                // Do NOT override OwnGhost turret from server state — prediction in
+                // LanNetworkBridge.Update (PredictTurretAim) already handles this every
+                // frame. Applying server state at 30 Hz would cause visible snapping.
 
                 // HP bar: normalize raw int HP against known max.
                 if (_ownHpSlider != null)
@@ -204,6 +209,10 @@ public class LanClientView : MonoBehaviour
                     _playerGhosts[i].position = new Vector3(p.px, p.py, 0f);
                     _playerGhosts[i].rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
                 }
+                // Store authoritative turret rotation; Update() re-applies it every frame
+                // to counteract body-rotation interpolation dragging the turret child.
+                if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
+                    _playerTargetTurretRot[i] = p.turretRot;
                 SetTurretRot(_playerGhosts[i], p.turretRot);
             }
         }
@@ -288,6 +297,10 @@ public class LanClientView : MonoBehaviour
                 else
                     _playerGhosts[i].position = Vector3.Lerp(_playerGhosts[i].position, _playerTargetPos[i], t);
                 _playerGhosts[i].rotation = Quaternion.Lerp(_playerGhosts[i].rotation, _playerTargetRot[i], t);
+                // Re-apply turret world rotation AFTER body lerp — body rotation drags
+                // the turret child, making it appear to follow the wrong player's aim.
+                if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
+                    SetTurretRot(_playerGhosts[i], _playerTargetTurretRot[i]);
             }
         }
 
@@ -354,8 +367,9 @@ public class LanClientView : MonoBehaviour
         for (int i = 0; i < enemyCount; i++)
             _enemyGhosts.Add(SpawnDisplay(enemyPrefab, $"GhostEnemy_{i}", 0.72f, Color.white));
 
-        _playerTargetPos = new Vector3[playerCount];
-        _playerTargetRot = new Quaternion[playerCount];
+        _playerTargetPos       = new Vector3[playerCount];
+        _playerTargetRot       = new Quaternion[playerCount];
+        _playerTargetTurretRot = new float[playerCount];
         for (int i = 0; i < playerCount; i++) _playerTargetRot[i] = Quaternion.identity;
 
         BuildHud();
@@ -463,7 +477,10 @@ public class LanClientView : MonoBehaviour
         if (aim == null) return;
         Vector2 dir = mouseWorldPos - (Vector2)aim.transform.position;
         if (dir.sqrMagnitude < 0.001f) return;
-        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
+        // Phải khớp với AimTurret.Aim() phía server: Atan2(y,x)*Rad2Deg (không trừ 90°).
+        // Trừ 90° là quy ước cho thân tank (tank body mặc định nhìn lên +Y),
+        // nhưng AimTurret dùng atan2 trực tiếp — nên prediction phải dùng giống vậy.
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         aim.transform.rotation = Quaternion.Euler(0f, 0f, angle);
     }
 
