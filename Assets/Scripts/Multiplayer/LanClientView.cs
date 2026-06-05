@@ -111,6 +111,15 @@ public class LanClientView : MonoBehaviour
             if (ownerClientId == myClientId) ownSlot = i;
         }
 
+        // LanClientView only exists on non-server clients. Slot 0 always belongs to the
+        // host (smallest OwnerClientId after sort). If LocalClientId was not yet assigned
+        // at message time (returns 0), the loop above would incorrectly match slot 0.
+        // Guard: CLIENT is never slot 0 in host-mode NGO.
+        if (ownSlot == 0 && playerCount > 1)
+        {
+            ownSlot = Mathf.Min(1, playerCount - 1);
+            Debug.LogWarning($"[LanClientView] ownSlot resolved to 0 (LocalClientId race?) — forced to {ownSlot}");
+        }
         Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} ownSlot={ownSlot}");
 
         // Skip if ghost counts and own-slot are already correct — avoids
@@ -297,15 +306,27 @@ public class LanClientView : MonoBehaviour
                 else
                     _playerGhosts[i].position = Vector3.Lerp(_playerGhosts[i].position, _playerTargetPos[i], t);
                 _playerGhosts[i].rotation = Quaternion.Lerp(_playerGhosts[i].rotation, _playerTargetRot[i], t);
-                // Re-apply turret world rotation AFTER body lerp — body rotation drags
-                // the turret child, making it appear to follow the wrong player's aim.
-                if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
-                    SetTurretRot(_playerGhosts[i], _playerTargetTurretRot[i]);
+                // Turret re-apply is done in LateUpdate (after all Updates) to guarantee
+                // body-rotation lerp cannot corrupt turret world rotation before render.
             }
         }
 
         // Enemy positions are set directly in OnReceiveWorldState at 30 Hz —
         // the per-tick delta is tiny, so no additional lerp is needed.
+    }
+
+    // ── LateUpdate: enforce authoritative turret rotations after all Updates ──
+    // Runs after every Update() on every MonoBehaviour, so body-rotation lerp
+    // (which drags turret children) can no longer corrupt these values before render.
+
+    private void LateUpdate()
+    {
+        if (_playerTargetTurretRot == null) return;
+        for (int i = 0; i < _playerGhosts.Count && i < _playerTargetTurretRot.Length; i++)
+        {
+            if (i == _ownSlot || _playerGhosts[i] == null) continue;
+            SetTurretRot(_playerGhosts[i], _playerTargetTurretRot[i]);
+        }
     }
 
     // ── Ghost initialisation ──────────────────────────────────────────────────
@@ -347,18 +368,17 @@ public class LanClientView : MonoBehaviour
         }
 
         // Spawn ghosts ─────────────────────────────────────────────────────────
-        Color[] slotColors =
-        {
-            Color.cyan, Color.yellow, Color.magenta, Color.green,
-            Color.white, Color.red, new Color(1f, 0.5f, 0f), Color.blue
-        };
+        // Own ghost = yellow tint, others = cyan — helps players visually distinguish
+        // their own tank from other players' tanks during multiplayer.
+        Color ownColor   = new Color(1f, 1f, 0.3f, 1f);   // yellow
+        Color otherColor = new Color(0.3f, 0.9f, 1f, 1f);  // cyan
 
         GameObject tankPrefab  = Resources.Load<GameObject>("Prefabs/Tank");
         GameObject enemyPrefab = Resources.Load<GameObject>("Prefabs/StaticEnemy");
 
         for (int i = 0; i < playerCount; i++)
         {
-            Color     col = i < slotColors.Length ? slotColors[i] : Color.white;
+            Color     col = (i == _ownSlot) ? ownColor : otherColor;
             Transform g   = SpawnDisplay(tankPrefab, $"GhostPlayer_{i}", 1.3f, col);
             _playerGhosts.Add(g);
             if (i == _ownSlot) OwnGhost = g;
@@ -376,17 +396,20 @@ public class LanClientView : MonoBehaviour
         Debug.Log($"[LanClientView] InitGhosts: {playerCount} players / {enemyCount} enemies / ownSlot={_ownSlot} / OwnGhost={(OwnGhost != null ? "set" : "NULL")}");
     }
 
-    private static Transform SpawnDisplay(GameObject prefab, string goName, float scale, Color fallback)
+    private static Transform SpawnDisplay(GameObject prefab, string goName, float scale, Color tint)
     {
         if (prefab != null)
         {
             var go = Object.Instantiate(prefab);
             go.name = goName;
             go.transform.localScale = Vector3.one * scale;
+            // Apply slot tint so players can visually distinguish their ghost from others.
+            foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>(true))
+                sr.color = tint;
             StripToDisplayOnly(go);
             return go.transform;
         }
-        return MakeSquareGhost(goName, fallback, scale);
+        return MakeSquareGhost(goName, tint, scale);
     }
 
     /// <summary>

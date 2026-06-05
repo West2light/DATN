@@ -127,8 +127,21 @@ public class LanNetworkBridge : NetworkBehaviour
         // Client từ xa: gửi input qua RPC.
         SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = shoot });
 
-        // Client-side prediction — phản hồi tức thì trước khi server confirm.
+        // Body prediction runs here (Update) for responsive movement.
+        // Turret prediction is deferred to LateUpdate so it always wins over any
+        // body-rotation side-effects that happen later in this same Update phase.
         LanClientView.Instance?.PredictOwnMovement(move);
+    }
+
+    private void LateUpdate()
+    {
+        // Only the owning client's bridge applies turret prediction.
+        if (!IsOwner || IsServer) return;
+        if (_ownerCamera == null) _ownerCamera = Camera.main;
+        Vector2 mouseWorld = _ownerCamera != null
+            ? (Vector2)_ownerCamera.ScreenToWorldPoint(Input.mousePosition)
+            : Vector2.zero;
+        // Runs after ALL Update() calls — guarantees turret is correct before render.
         LanClientView.Instance?.PredictTurretAim(mouseWorld);
     }
 
