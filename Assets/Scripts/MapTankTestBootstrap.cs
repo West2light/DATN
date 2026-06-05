@@ -15,6 +15,12 @@ public class MapTankTestBootstrap : MonoBehaviour
     public AudioClip playerEngineClip;
     public string playerEngineClipPath = "Assets/Audio/Kenny Assets/Si-fi sounds/Audio/spaceEngineSmall_001.ogg";
     public Vector2Int playerSpawnCell = new Vector2Int(1, 1);
+    [Min(3)]
+    [Tooltip("Số ô walkable liên thông tối thiểu tại điểm spawn, tránh player bị kẹt trong hốc.")]
+    public int playerSpawnMinRegionSize = 9;
+    [Range(1, 4)]
+    [Tooltip("Số lối thoát trực tiếp (4 hướng) tối thiểu tại ô spawn. Giá trị 2 đảm bảo không phải ngõ cụt.")]
+    public int playerSpawnMinNeighbors = 2;
 
     [Range(0.5f, 3f)]
     [Tooltip("Hệ số phóng to tank người chơi so với 1 ô map")]
@@ -325,10 +331,15 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private void SpawnPlayer()
     {
-        if (!mapLoader.TryFindWalkableNear(playerSpawnCell, out Vector2Int spawnCell))
+        if (!mapLoader.TryFindWalkableWithSpace(playerSpawnCell, playerSpawnMinRegionSize, playerSpawnMinNeighbors, out Vector2Int spawnCell))
         {
-            Debug.LogError("[MapTankTestBootstrap] Could not find a walkable spawn cell.");
-            return;
+            // Fallback: ô đủ rộng không tìm được → lấy ô walkable gần nhất
+            if (!mapLoader.TryFindWalkableNear(playerSpawnCell, out spawnCell))
+            {
+                Debug.LogError("[MapTankTestBootstrap] Could not find a walkable spawn cell.");
+                return;
+            }
+            Debug.LogWarning($"[MapTankTestBootstrap] No ideal spawn found — falling back to {spawnCell}. Player may be in a tight spot.");
         }
 
         GameObject prefab = ResolveTankPrefab();

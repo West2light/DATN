@@ -184,6 +184,70 @@ public class MapLoader : MonoBehaviour
         return false;
     }
 
+    // Tìm ô spawn an toàn: walkable, ≥ minNeighbors lối thoát trực tiếp,
+    // và vùng liên thông ≥ minRegionSize ô — tránh player bị kẹt trong hốc không có đường ra.
+    public bool TryFindWalkableWithSpace(Vector2Int preferredCell, int minRegionSize, int minNeighbors, out Vector2Int result)
+    {
+        int maxRadius = Mathf.Max(width, height);
+        for (int radius = 0; radius <= maxRadius; radius++)
+        {
+            for (int y = preferredCell.y - radius; y <= preferredCell.y + radius; y++)
+            {
+                for (int x = preferredCell.x - radius; x <= preferredCell.x + radius; x++)
+                {
+                    Vector2Int candidate = new Vector2Int(x, y);
+                    if (IsWalkable(candidate)
+                        && CountWalkableNeighbors(candidate) >= minNeighbors
+                        && CountConnectedWalkable(candidate, minRegionSize) >= minRegionSize)
+                    {
+                        result = candidate;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        result = default;
+        return false;
+    }
+
+    // Đếm số ô walkable liền kề 4 hướng (lối thoát trực tiếp).
+    private int CountWalkableNeighbors(Vector2Int cell)
+    {
+        int count = 0;
+        if (IsWalkable(cell + Vector2Int.up))    count++;
+        if (IsWalkable(cell + Vector2Int.down))  count++;
+        if (IsWalkable(cell + Vector2Int.left))  count++;
+        if (IsWalkable(cell + Vector2Int.right)) count++;
+        return count;
+    }
+
+    // BFS flood-fill đếm số ô walkable liên thông, dừng sớm khi đạt maxCount.
+    private int CountConnectedWalkable(Vector2Int start, int maxCount)
+    {
+        var visited = new HashSet<Vector2Int>();
+        var queue = new Queue<Vector2Int>();
+        queue.Enqueue(start);
+        visited.Add(start);
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        while (queue.Count > 0 && visited.Count < maxCount)
+        {
+            Vector2Int cur = queue.Dequeue();
+            foreach (Vector2Int d in dirs)
+            {
+                Vector2Int nb = cur + d;
+                if (!visited.Contains(nb) && IsWalkable(nb))
+                {
+                    visited.Add(nb);
+                    queue.Enqueue(nb);
+                }
+            }
+        }
+
+        return visited.Count;
+    }
+
     private void FitCamera()
     {
         Camera cam = Camera.main;
