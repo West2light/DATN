@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -50,11 +51,19 @@ public class LanClientView : MonoBehaviour
     private bool _ownDied;          // latched so we only react to the first death
     private int  _ownPrevHp = -1;   // tracks previous HP to detect the death transition
 
+    private bool _returningToMenu;
+
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         RegisterMessagingHandlers();
+
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnNetworkDisconnect;
+            NetworkManager.Singleton.OnTransportFailure         += OnTransportFailure;
+        }
     }
 
     private void OnDestroy()
@@ -65,7 +74,38 @@ public class LanClientView : MonoBehaviour
             mgr.UnregisterNamedMessageHandler(LanGameCoordinator.MsgWorldState);
             mgr.UnregisterNamedMessageHandler(LanGameCoordinator.MsgInitWorld);
         }
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetworkDisconnect;
+            NetworkManager.Singleton.OnTransportFailure         -= OnTransportFailure;
+        }
         if (Instance == this) Instance = null;
+    }
+
+    // Fired when NGO reports that THIS client was disconnected (server dropped or kicked).
+    private void OnNetworkDisconnect(ulong clientId)
+    {
+        if (_returningToMenu) return;
+        if (NetworkManager.Singleton == null) return;
+        // NGO signals self-disconnect when the server shuts down.
+        if (clientId != NetworkManager.Singleton.LocalClientId) return;
+        ReturnToMenuAfterDisconnect();
+    }
+
+    // Fired when the transport layer itself fails (host crashed, network lost).
+    private void OnTransportFailure()
+    {
+        if (_returningToMenu) return;
+        ReturnToMenuAfterDisconnect();
+    }
+
+    private void ReturnToMenuAfterDisconnect()
+    {
+        _returningToMenu = true;
+        LanSessionManager.Deactivate();
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            NetworkManager.Singleton.Shutdown();
+        SceneManager.LoadScene("Menu");
     }
 
     // Register CustomMessaging handlers as early as possible (Awake).
@@ -124,13 +164,23 @@ public class LanClientView : MonoBehaviour
         }
         Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} ownSlot={ownSlot}");
 
-        // Skip if ghost counts and own-slot are already correct — avoids
-        // an unnecessary ghost-destroy/recreate cycle when the server
-        // re-sends init after a late-spawning client bridge is linked.
+        // Skip ghost recreate if counts and own-slot are already correct, but still
+        // re-apply variants — ghosts may have been created via the world-state fallback
+        // (no variant data) before the init message arrived.
         if (_playerGhosts.Count == playerCount
             && _enemyGhosts.Count == enemyCount
             && _ownSlot == ownSlot)
+        {
+            if (variantIndices != null)
+            {
+                for (int i = 0; i < playerCount && i < variantIndices.Length; i++)
+                {
+                    if (i < _playerGhosts.Count && _playerGhosts[i] != null)
+                        ApplyVariantToGhost(_playerGhosts[i].gameObject, variantIndices[i]);
+                }
+            }
             return;
+        }
 
         InitGhosts(playerCount, enemyCount, ownSlot, variantIndices);
     }
@@ -396,8 +446,26 @@ public class LanClientView : MonoBehaviour
         _playerTargetTurretRot = new float[playerCount];
         for (int i = 0; i < playerCount; i++) _playerTargetRot[i] = Quaternion.identity;
 
+        // Override ghost variants with authoritative NetworkVariable values from bridges.
+        // Bridge NetworkVariables sync automatically via NGO, bypassing message timing issues.
+        var allBridges = FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
+        System.Array.Sort(allBridges, (a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
+        for (int i = 0; i < allBridges.Length && i < _playerGhosts.Count; i++)
+        {
+            if (_playerGhosts[i] != null)
+                ApplyVariantToGhost(_playerGhosts[i].gameObject, allBridges[i].VariantIndex.Value);
+        }
+
         BuildHud();
         Debug.Log($"[LanClientView] InitGhosts: {playerCount} players / {enemyCount} enemies / ownSlot={_ownSlot} / OwnGhost={(OwnGhost != null ? "set" : "NULL")}");
+    }
+
+    // Called from LanNetworkBridge.OnVariantIndexChanged to directly update the ghost
+    // when the NetworkVariable syncs — works on both server and client machines.
+    public void UpdateGhostVariant(int slot, int variant)
+    {
+        if (slot >= 0 && slot < _playerGhosts.Count && _playerGhosts[slot] != null)
+            ApplyVariantToGhost(_playerGhosts[slot].gameObject, variant);
     }
 
     // Spawn a player ghost with the chosen tank body sprite.

@@ -97,18 +97,41 @@ public class LanNetworkBridge : NetworkBehaviour
     {
         if (IsServer)
         {
-            LanGameCoordinator.Instance?.OnBridgeSpawned(this);
-            // Host is both server and owner — set its own variant directly.
+            // Set host variant BEFORE registering so TryLink reads the correct value.
             if (IsOwner) VariantIndex.Value = LanSessionManager.LocalVariantIndex;
+            LanGameCoordinator.Instance?.OnBridgeSpawned(this);
         }
 
         // Non-host client: send chosen variant to server via RPC.
         if (IsOwner && !IsServer)
             SendVariantServerRpc(LanSessionManager.LocalVariantIndex);
 
+        // Re-apply sprite whenever variant resolves (client RPC may arrive after TryLink).
+        VariantIndex.OnValueChanged += OnVariantIndexChanged;
+
         // Cả host lẫn client đều cần camera để convert mouse → world position.
         if (IsOwner)
             _ownerCamera = Camera.main;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        VariantIndex.OnValueChanged -= OnVariantIndexChanged;
+    }
+
+    private void OnVariantIndexChanged(int prev, int next)
+    {
+        if (IsServer)
+        {
+            if (_serverTank != null && _serverTank.gameObject != null)
+                MapTankTestBootstrap.ApplyVariantToTank(_serverTank.gameObject, next);
+            // Re-broadcast init so all clients receive the updated variant.
+            LanGameCoordinator.Instance?.ResendInit();
+        }
+        // On ALL machines: update the corresponding ghost sprite via LanClientView.
+        int slot = Slot.Value;
+        if (slot >= 0)
+            LanClientView.Instance?.UpdateGhostVariant(slot, next);
     }
 
     [ServerRpc]

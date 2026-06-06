@@ -155,6 +155,8 @@ public class LanGameCoordinator : MonoBehaviour
     // Always writes exactly playerCount entries so the client can read
     // a well-formed packet regardless of how many bridges are registered.
 
+    public void ResendInit() => SendInitWorldMsg();
+
     private void SendInitWorldMsg()
     {
         var mgr = NetworkManager.Singleton?.CustomMessagingManager;
