@@ -315,6 +315,14 @@ public class GridNavMask
         }
     }
 
+    // Cập nhật walkability của một ô cụ thể — dùng bởi DynamicObstacleSpawner
+    // để đồng bộ NavMask khi thùng sắt động xuất hiện / biến mất.
+    public void SetCellAgentWalkable(Vector2Int cell, bool walkable)
+    {
+        if (agentWalkable != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height)
+            agentWalkable[cell.x, cell.y] = walkable;
+    }
+
     public bool TryFindAgentWalkableNear(Vector2Int preferredCell, out Vector2Int result)
     {
         if (IsAgentWalkable(preferredCell))

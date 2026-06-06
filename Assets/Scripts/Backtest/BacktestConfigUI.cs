@@ -20,7 +20,7 @@ public static class BacktestConfigUI
 
     // ── Layout constants ───────────────────────────────────────────────────
     private const float PanelW   = 640f;
-    private const float HeaderH  = 96f;   // title + reps stepper
+    private const float HeaderH  = 124f;  // title + reps stepper + dynamic-obstacle toggle
     private const float RowH     = 56f;   // each map row
     private const float RowGap   = 6f;    // vertical gap between rows
     private const float FooterH  = 72f;   // buttons area
@@ -36,6 +36,9 @@ public static class BacktestConfigUI
     private static GameObject _root;
     private static int        _reps = BacktestRunner.Reps;
     private static Text       _repsTxt;
+    private static bool       _dynamicObstacles;
+    private static Image      _dynToggleBg;
+    private static Text       _dynToggleTxt;
 
     // ── Entry point ────────────────────────────────────────────────────────
     public static void Show()
@@ -129,6 +132,9 @@ public static class BacktestConfigUI
 
         // Reps stepper row
         BuildRepsStepper(panel, layer);
+
+        // Dynamic obstacle toggle
+        BuildDynamicObstacleToggle(panel, layer);
     }
 
     // ── Map rows ───────────────────────────────────────────────────────────
@@ -238,7 +244,6 @@ public static class BacktestConfigUI
         footRt.sizeDelta = new Vector2(0f, FooterH);
 
         float btnH  = 42f;
-        float btnY  = FooterH / 2f;   // vertically centered in footer
 
         // Left cluster ─────────────────────────────────────────────────────
         // Anchor left buttons to left edge of footer
@@ -313,8 +318,9 @@ public static class BacktestConfigUI
     {
         var indices = new List<int>();
         for (int i = 0; i < _sel.Length; i++) if (_sel[i]) indices.Add(i);
+        bool dyn = _dynamicObstacles;
         Close();
-        BacktestRunner.Launch(indices, _reps);
+        BacktestRunner.Launch(indices, _reps, dyn);
     }
 
     // ── Reps stepper ───────────────────────────────────────────────────────
@@ -356,6 +362,63 @@ public static class BacktestConfigUI
         // [+] button
         StepBtn(row, layer, "Plus", "+", new Vector2(196f, 0f), new Vector2(22f, 22f),
             () => ChangeReps(+1));
+    }
+
+    // ── Dynamic obstacle toggle ─────────────────────────────────────────────
+    private static void BuildDynamicObstacleToggle(GameObject panel, int layer)
+    {
+        // Row container — placed below reps stepper
+        var row  = Child(panel, "DynObsRow", layer);
+        var rRt  = row.GetComponent<RectTransform>();
+        rRt.anchorMin = new Vector2(0.5f, 1f); rRt.anchorMax = new Vector2(0.5f, 1f);
+        rRt.pivot = new Vector2(0.5f, 1f);
+        rRt.anchoredPosition = new Vector2(0f, -98f);
+        rRt.sizeDelta = new Vector2(320f, 22f);
+
+        // Label
+        var lbl  = Child(row, "Lbl", layer);
+        var lRt  = lbl.GetComponent<RectTransform>();
+        lRt.anchorMin = new Vector2(0f, 0f); lRt.anchorMax = new Vector2(0f, 1f);
+        lRt.pivot = new Vector2(0f, 0.5f);
+        lRt.anchoredPosition = Vector2.zero; lRt.sizeDelta = new Vector2(220f, 0f);
+        var lt = lbl.AddComponent<Text>();
+        lt.text = "Thùng sắt động (stress test):";
+        lt.font = Fnt(); lt.fontSize = 12; lt.color = TextMuted;
+        lt.alignment = TextAnchor.MiddleLeft;
+
+        // Toggle button
+        var tog  = Child(row, "Toggle", layer);
+        var tRt  = tog.GetComponent<RectTransform>();
+        tRt.anchorMin = new Vector2(0f, 0.5f); tRt.anchorMax = new Vector2(0f, 0.5f);
+        tRt.pivot = new Vector2(0f, 0.5f);
+        tRt.anchoredPosition = new Vector2(226f, 0f); tRt.sizeDelta = new Vector2(58f, 20f);
+
+        _dynToggleBg = tog.AddComponent<Image>();
+        _dynToggleBg.color = _dynamicObstacles ? BtnGreen : BtnSlate;
+
+        var btn = tog.AddComponent<Button>(); btn.targetGraphic = _dynToggleBg;
+        var bc  = btn.colors;
+        bc.normalColor = Color.white; bc.highlightedColor = new Color(1.1f, 1.1f, 1.1f);
+        bc.pressedColor = new Color(0.8f, 0.8f, 0.8f);
+        btn.colors = bc;
+        btn.onClick.AddListener(ToggleDynamicObstacles);
+
+        var tl   = Child(tog, "L", layer);
+        var tlRt = tl.GetComponent<RectTransform>();
+        tlRt.anchorMin = Vector2.zero; tlRt.anchorMax = Vector2.one;
+        tlRt.offsetMin = Vector2.zero; tlRt.offsetMax = Vector2.zero;
+        _dynToggleTxt = tl.AddComponent<Text>();
+        _dynToggleTxt.text = _dynamicObstacles ? "BẬT" : "TẮT";
+        _dynToggleTxt.font = Fnt(); _dynToggleTxt.fontSize = 11;
+        _dynToggleTxt.fontStyle = FontStyle.Bold;
+        _dynToggleTxt.color = TextWhite; _dynToggleTxt.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private static void ToggleDynamicObstacles()
+    {
+        _dynamicObstacles = !_dynamicObstacles;
+        if (_dynToggleBg  != null) _dynToggleBg.color  = _dynamicObstacles ? BtnGreen : BtnSlate;
+        if (_dynToggleTxt != null) _dynToggleTxt.text   = _dynamicObstacles ? "BẬT" : "TẮT";
     }
 
     private static void StepBtn(GameObject parent, int layer,

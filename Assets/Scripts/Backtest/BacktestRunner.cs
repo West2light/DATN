@@ -52,27 +52,11 @@ public class BacktestRunner : MonoBehaviour
         public int    rep;
     }
 
-    private struct AgentRecord
-    {
-        public string agentName;
-        public int    replanCount, recoveryCount, shotCount, cellsVisited, initialPathLength;
-        public bool   deadAtEnd;
-    }
-
-    private struct RunRecord
-    {
-        public string map, algorithm, outcome;
-        public int    rep, eagleHpAtEnd, enemiesAliveAtEnd, agentCount;
-        public float  duration;
-        public int    totalReplans, totalRecoveries, totalShots, totalCells;
-        public List<AgentRecord> agents;
-    }
-
     // ── State ──────────────────────────────────────────────────────────────
     private static BacktestRunner _instance;
 
-    private readonly List<Job>       _jobs    = new List<Job>();
-    private readonly List<RunRecord> _results = new List<RunRecord>();
+    private readonly List<Job>                  _jobs    = new List<Job>();
+    private readonly List<BacktestRunRecord>    _results = new List<BacktestRunRecord>();
     private int   _jobIndex;
     private float _runElapsed;
 
@@ -80,26 +64,39 @@ public class BacktestRunner : MonoBehaviour
     private readonly List<GridEnemyAgent>     _agentsA = new List<GridEnemyAgent>();
     private readonly List<GridEnemyAgentPIBT> _agentsL = new List<GridEnemyAgentPIBT>();
 
-    private Text _progressText;
-    private Text _statusText;
+    private Text       _progressText;
+    private Text       _statusText;
+    private Text       _realtimeText;
+    private GameObject _overlayCanvas;
 
     // Flags set by event subscription (safe after eagle/enemies are destroyed)
     private bool _eagleDestroyed;
     private bool _allEnemiesDead;
 
-    // ── Public entry point ─────────────────────────────────────────────────
+    // ── Public entry / cleanup ─────────────────────────────────────────────
+    public static void Cleanup()
+    {
+        if (_instance == null) return;
+        if (_instance._overlayCanvas != null) Destroy(_instance._overlayCanvas);
+        Destroy(_instance.gameObject);
+        _instance = null;
+    }
+
     // selectedMapIndices: indices into MapFiles/MapLabels; null = run all maps
-    public static void Launch(List<int> selectedMapIndices = null, int reps = Reps)
+    public static void Launch(List<int> selectedMapIndices = null, int reps = Reps, bool dynamicObstacles = false)
     {
         if (_instance != null) return;
         var go = new GameObject("BacktestRunner");
         var runner = go.AddComponent<BacktestRunner>();
-        runner._selectedMapIndices = selectedMapIndices;
-        runner._reps = Mathf.Max(1, reps);
+        runner._selectedMapIndices  = selectedMapIndices;
+        runner._reps                = Mathf.Max(1, reps);
+        runner._dynamicObstacles    = dynamicObstacles;
     }
 
     private List<int> _selectedMapIndices;
     private int       _reps = Reps;
+    private bool      _dynamicObstacles;
+    private DynamicObstacleSpawner _obstacleSpawner;
 
     // ── Unity lifecycle ────────────────────────────────────────────────────
     private void Awake()
@@ -154,6 +151,7 @@ public class BacktestRunner : MonoBehaviour
         catch (Exception e) { Debug.LogError($"[BacktestRunner] ExportCSV failed: {e}"); }
 
         ShowDoneUI();
+        BacktestResultChart.Show(_results);
     }
 
     private IEnumerator RunJob(Job job)
@@ -162,7 +160,7 @@ public class BacktestRunner : MonoBehaviour
 
         PlayerPrefs.SetString("SelectedMapFile", job.mapFile);
         PlayerPrefs.Save();
-        BacktestMode.Activate(job.algorithm, job.mapLabel);
+        BacktestMode.Activate(job.algorithm, job.mapLabel, _dynamicObstacles);
 
         SceneManager.LoadScene(job.scene);
 
@@ -172,6 +170,9 @@ public class BacktestRunner : MonoBehaviour
 
         _enemiesAliveCount = 0;
         InjectScene();
+
+        // Khởi động dynamic obstacle spawner nếu mode được bật
+        if (_dynamicObstacles) StartDynamicObstacles();
 
         float startTime = Time.time;
         _runElapsed = 0f;
@@ -187,6 +188,7 @@ public class BacktestRunner : MonoBehaviour
 
             if (endReason != null)
             {
+                StopDynamicObstacles();
                 try { RecordRun(job, endReason); }
                 catch (Exception e) { Debug.LogError($"[BacktestRunner] RecordRun failed: {e}"); }
                 Debug.Log($"[BacktestRunner] Run {_jobIndex + 1}/{_jobs.Count} done — {endReason} ({_runElapsed:F1}s)");
@@ -196,6 +198,7 @@ public class BacktestRunner : MonoBehaviour
             int completed = _jobIndex;
             int total     = _jobs.Count;
             SetProgress($"[{completed}/{total}] {job.mapLabel} | {job.algorithm} | rep {job.rep} | {_runElapsed:F0}s");
+            UpdateRealtimePanel(job);
             yield return null;
         }
 
@@ -254,6 +257,29 @@ public class BacktestRunner : MonoBehaviour
         foreach (var a in _agentsL) a.btSpawnTime = t;
 
         Debug.Log($"[BacktestRunner] Injected: eagle={_eagleDamagable != null}, agentsA={_agentsA.Count}, agentsL={_agentsL.Count}");
+
+        AttachCameraController();
+    }
+
+    private BacktestCameraController _camCtrl;
+
+    private void AttachCameraController()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        // Remove stale controller from previous run
+        var old = cam.GetComponent<BacktestCameraController>();
+        if (old != null) Destroy(old);
+
+        var mapLoader = FindFirstObjectByType<MapLoader>();
+        if (mapLoader == null) return;
+
+        float mapW = mapLoader.BuildWidth  * mapLoader.tileSize;
+        float mapH = mapLoader.BuildHeight * mapLoader.tileSize;
+
+        _camCtrl = cam.gameObject.AddComponent<BacktestCameraController>();
+        _camCtrl.Init(cam, mapW, mapH);
     }
 
     private int _enemiesAliveCount;
@@ -270,10 +296,55 @@ public class BacktestRunner : MonoBehaviour
         });
     }
 
+    // ── Dynamic obstacle integration ───────────────────────────────────────
+    private void StartDynamicObstacles()
+    {
+        if (_eagleDamagable == null) return;
+
+        var mapLoader = FindFirstObjectByType<MapLoader>();
+        if (mapLoader == null) return;
+
+        var scenario  = FindFirstObjectByType<MapScenarioBootstrap>();
+        var navMask   = scenario?.NavMask;
+
+        var go = new GameObject("DynamicObstacleSpawner");
+        _obstacleSpawner = go.AddComponent<DynamicObstacleSpawner>();
+        _obstacleSpawner.Init(mapLoader, navMask, _eagleDamagable.transform.position);
+    }
+
+    private void StopDynamicObstacles()
+    {
+        if (_obstacleSpawner != null)
+        {
+            Destroy(_obstacleSpawner.gameObject);
+            _obstacleSpawner = null;
+        }
+    }
+
+    // ── Real-time metrics panel ────────────────────────────────────────────
+    private void UpdateRealtimePanel(Job job)
+    {
+        if (_realtimeText == null) return;
+
+        int eagleHp = _eagleDamagable != null ? Mathf.Max(0, _eagleDamagable.Health) : 0;
+        int totalReplans = 0;
+        foreach (var a in _agentsA) totalReplans += a.btReplanCount;
+        foreach (var a in _agentsL) totalReplans += a.btReplanCount;
+
+        string dynTag = _dynamicObstacles ? "  [DYN]" : "";
+        _realtimeText.text =
+            $"<b>{job.algorithm}{dynTag}</b>\n" +
+            $"Map: {job.mapLabel}\n" +
+            $"Agents: {_enemiesAliveCount}\n" +
+            $"Eagle HP: {eagleHp}\n" +
+            $"Replans: {totalReplans}\n" +
+            $"Time: {_runElapsed:F0}s";
+    }
+
     // ── Record results ─────────────────────────────────────────────────────
     private void RecordRun(Job job, string outcome)
     {
-        var rec = new RunRecord
+        var rec = new BacktestRunRecord
         {
             map       = job.mapLabel,
             algorithm = job.algorithm,
@@ -281,7 +352,7 @@ public class BacktestRunner : MonoBehaviour
             outcome   = outcome,
             duration  = _runElapsed,
             eagleHpAtEnd = _eagleDamagable != null ? Mathf.Max(0, _eagleDamagable.Health) : -1,
-            agents       = new List<AgentRecord>(),
+            agents       = new List<BacktestAgentRecord>(),
         };
 
         int alive = 0;
@@ -304,11 +375,11 @@ public class BacktestRunner : MonoBehaviour
 
     private static bool IsAlive(Damagable d) => d != null && d.Health > 0;
 
-    private static void CollectAgent(GridEnemyAgent a, ref RunRecord rec, ref int alive, bool isAlive)
+    private static void CollectAgent(GridEnemyAgent a, ref BacktestRunRecord rec, ref int alive, bool isAlive)
     {
         if (a == null) return;
         if (isAlive) alive++;
-        rec.agents.Add(new AgentRecord
+        rec.agents.Add(new BacktestAgentRecord
         {
             agentName         = a.name,
             replanCount       = a.btReplanCount,
@@ -320,11 +391,11 @@ public class BacktestRunner : MonoBehaviour
         });
     }
 
-    private static void CollectAgentLns2(GridEnemyAgentPIBT a, ref RunRecord rec, ref int alive, bool isAlive)
+    private static void CollectAgentLns2(GridEnemyAgentPIBT a, ref BacktestRunRecord rec, ref int alive, bool isAlive)
     {
         if (a == null) return;
         if (isAlive) alive++;
-        rec.agents.Add(new AgentRecord
+        rec.agents.Add(new BacktestAgentRecord
         {
             agentName         = a.name,
             replanCount       = a.btReplanCount,
@@ -387,8 +458,19 @@ public class BacktestRunner : MonoBehaviour
         File.WriteAllText(agt, sb.ToString(), Encoding.UTF8);
         Debug.Log($"[BacktestRunner] Agents saved: {Path.GetFullPath(agt)}");
 
+        // ── HTML chart report ──────────────────────────────────────────────
+        string html = Path.Combine(dir, $"backtest_chart_{ts}.html");
+        try
+        {
+            File.WriteAllText(html, BuildHTML(_results), Encoding.UTF8);
+            Debug.Log($"[BacktestRunner] Chart HTML saved: {Path.GetFullPath(html)}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[BacktestRunner] ExportHTML failed: {e}");
+        }
+
 #if UNITY_EDITOR
-        // Reveal in Finder/Explorer so the user can find the files immediately
         UnityEditor.EditorUtility.RevealInFinder(Path.GetFullPath(sum));
 #endif
     }
@@ -397,6 +479,7 @@ public class BacktestRunner : MonoBehaviour
     private void BuildOverlayUI()
     {
         var canvasGo = new GameObject("BacktestOverlay");
+        _overlayCanvas = canvasGo;
         DontDestroyOnLoad(canvasGo);
         canvasGo.layer = LayerMask.NameToLayer("UI");
         var cv = canvasGo.AddComponent<Canvas>();
@@ -446,6 +529,47 @@ public class BacktestRunner : MonoBehaviour
         _statusText.fontSize  = 13;
         _statusText.color     = new Color(0.7f, 0.9f, 0.7f, 1f);
         _statusText.alignment = TextAnchor.MiddleRight;
+
+        // Camera hint (left of counter, inside bar)
+        var hintGo = new GameObject("CamHint");
+        hintGo.layer = canvasGo.layer;
+        hintGo.transform.SetParent(bar.transform, false);
+        var hRt = hintGo.AddComponent<RectTransform>();
+        hRt.anchorMin = new Vector2(0.5f, 0f); hRt.anchorMax = new Vector2(0.5f, 1f);
+        hRt.pivot = new Vector2(0.5f, 0.5f);
+        hRt.anchoredPosition = Vector2.zero; hRt.sizeDelta = new Vector2(280f, 0f);
+        var hTxt = hintGo.AddComponent<Text>();
+        hTxt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        hTxt.fontSize  = 11;
+        hTxt.color     = new Color(0.55f, 0.60f, 0.68f, 1f);
+        hTxt.alignment = TextAnchor.MiddleCenter;
+        hTxt.text      = "Scroll = Zoom  |  RMB/MMB drag = Pan  |  WASD = Pan";
+
+        // ── Real-time metrics panel (top-right) ───────────────────────────
+        var panel = new GameObject("RealtimePanel");
+        panel.layer = canvasGo.layer;
+        panel.transform.SetParent(canvasGo.transform, false);
+        var panelRt = panel.AddComponent<RectTransform>();
+        panelRt.anchorMin = new Vector2(1f, 1f); panelRt.anchorMax = new Vector2(1f, 1f);
+        panelRt.pivot = new Vector2(1f, 1f);
+        panelRt.anchoredPosition = new Vector2(-12f, -12f);
+        panelRt.sizeDelta = new Vector2(170f, 112f);
+        var panelImg = panel.AddComponent<Image>();
+        panelImg.color = new Color(0.05f, 0.06f, 0.08f, 0.88f);
+
+        var rtGo = new GameObject("RealtimeText");
+        rtGo.layer = canvasGo.layer;
+        rtGo.transform.SetParent(panel.transform, false);
+        var rtRt = rtGo.AddComponent<RectTransform>();
+        rtRt.anchorMin = Vector2.zero; rtRt.anchorMax = Vector2.one;
+        rtRt.offsetMin = new Vector2(8f, 6f); rtRt.offsetMax = new Vector2(-8f, -6f);
+        _realtimeText = rtGo.AddComponent<Text>();
+        _realtimeText.font           = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        _realtimeText.fontSize       = 12;
+        _realtimeText.color          = new Color(0.85f, 0.92f, 1f, 1f);
+        _realtimeText.alignment      = TextAnchor.UpperLeft;
+        _realtimeText.supportRichText = true;
+        _realtimeText.text           = "";
     }
 
     private void SetProgress(string msg)
@@ -464,6 +588,151 @@ public class BacktestRunner : MonoBehaviour
         string msg = $"[BACKTEST DONE]  {_results.Count} / {_jobs.Count} runs  —  CSV saved to  BacktestResults/";
         if (_progressText != null) _progressText.text = msg;
         if (_statusText   != null) _statusText.text   = $"DONE {_results.Count}/{_jobs.Count}";
+        // Hide real-time panel so it doesn't overlap the result chart
+        if (_realtimeText != null) _realtimeText.transform.parent.gameObject.SetActive(false);
         Debug.Log($"[BacktestRunner] All done. {_results.Count} records. Folder: {dir}");
+    }
+
+    // ── HTML chart builder ─────────────────────────────────────────────────
+    private static string BuildHTML(List<BacktestRunRecord> results)
+    {
+        // Collect unique maps preserving insertion order
+        var maps = new List<string>();
+        foreach (var r in results)
+            if (!maps.Contains(r.map)) maps.Add(r.map);
+
+        // Aggregate per (map, algo): sum & count for 4 metrics
+        // idx: 0=duration, 1=replans, 2=eagleHP, 3=cells
+        const int NM = 4;
+        var sums  = new Dictionary<(string, string), float[]>();
+        var cnts  = new Dictionary<(string, string), int[]>();
+        foreach (var r in results)
+        {
+            var k = (r.map, r.algorithm);
+            if (!sums.ContainsKey(k)) { sums[k] = new float[NM]; cnts[k] = new int[NM]; }
+            sums[k][0] += r.duration;      cnts[k][0]++;
+            sums[k][1] += r.totalReplans;  cnts[k][1]++;
+            sums[k][2] += r.eagleHpAtEnd >= 0 ? r.eagleHpAtEnd : 0; cnts[k][2]++;
+            sums[k][3] += r.totalCells;    cnts[k][3]++;
+        }
+
+        float Avg(string map, string algo, int i)
+        {
+            var k = (map, algo);
+            if (!sums.ContainsKey(k) || cnts[k][i] == 0) return 0f;
+            return sums[k][i] / cnts[k][i];
+        }
+
+        string[] metLabels    = { "Thời gian TB (s)", "Replan tổng", "Eagle HP còn", "Cells đã đi" };
+        bool[]   lowerBetter  = { true, false, false, false };
+        string[] metIds       = { "duration", "replans", "eagleHP", "cells" };
+
+        var sb = new StringBuilder();
+
+        // ── HTML head ──────────────────────────────────────────────────────
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html lang='vi'><head><meta charset='UTF-8'>");
+        sb.AppendLine("<title>Backtest Report — A* vs PIBT</title>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("*{box-sizing:border-box;margin:0;padding:0}");
+        sb.AppendLine("body{background:#0e1014;color:#d0d8e8;font-family:'Segoe UI',Arial,sans-serif;padding:32px}");
+        sb.AppendLine("h1{color:#f5d050;font-size:22px;margin-bottom:4px}");
+        sb.AppendLine(".subtitle{color:#6a7280;font-size:13px;margin-bottom:32px}");
+        sb.AppendLine(".section{background:#161820;border-radius:10px;padding:24px;margin-bottom:24px}");
+        sb.AppendLine(".section h2{font-size:14px;font-weight:600;color:#8a93a8;margin-bottom:20px;text-transform:uppercase;letter-spacing:.05em}");
+        sb.AppendLine(".chart-wrap{display:flex;align-items:flex-end;gap:0;height:200px;border-bottom:1px solid #2a2d38;padding-bottom:8px;margin-bottom:8px}");
+        sb.AppendLine(".group{display:flex;align-items:flex-end;gap:4px;margin-right:16px;flex-direction:column}");
+        sb.AppendLine(".bars{display:flex;align-items:flex-end;gap:4px}");
+        sb.AppendLine(".bar{width:28px;border-radius:3px 3px 0 0;position:relative;min-height:2px;transition:opacity .15s}");
+        sb.AppendLine(".bar:hover{opacity:.8}");
+        sb.AppendLine(".bar-a{background:#4a96ff}");
+        sb.AppendLine(".bar-p{background:#ff8c24}");
+        sb.AppendLine(".bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#c0c8d8}");
+        sb.AppendLine(".map-lbl{font-size:10px;color:#6a7280;text-align:center;margin-top:6px;width:62px}");
+        sb.AppendLine(".legend{display:flex;gap:20px;margin-bottom:12px}");
+        sb.AppendLine(".leg{display:flex;align-items:center;gap:6px;font-size:12px;color:#8a93a8}");
+        sb.AppendLine(".dot{width:12px;height:12px;border-radius:2px}");
+        sb.AppendLine(".win-a{color:#4a96ff;font-weight:700}");
+        sb.AppendLine(".win-p{color:#ff8c24;font-weight:700}");
+        sb.AppendLine("table{width:100%;border-collapse:collapse;font-size:12px}");
+        sb.AppendLine("th{background:#1e2128;color:#6a7280;padding:8px 12px;text-align:left;font-weight:600}");
+        sb.AppendLine("td{padding:7px 12px;border-bottom:1px solid #1e2128;color:#c0c8d8}");
+        sb.AppendLine("tr:last-child td{border-bottom:none}");
+        sb.AppendLine("</style></head><body>");
+
+        // ── Title ──────────────────────────────────────────────────────────
+        sb.AppendLine($"<h1>Backtest Report — A* vs PIBT</h1>");
+        sb.AppendLine($"<p class='subtitle'>Ngày chạy: {DateTime.Now:dd/MM/yyyy HH:mm}  •  {results.Count} runs  •  {maps.Count} map(s)</p>");
+
+        // ── One bar-chart section per metric ───────────────────────────────
+        for (int mi = 0; mi < NM; mi++)
+        {
+            // Compute max for scale
+            float maxVal = 0f;
+            foreach (var m in maps)
+                foreach (var algo in new[]{"AStar","PIBT"})
+                    maxVal = Mathf.Max(maxVal, Avg(m, algo, mi));
+            if (maxVal <= 0f) continue;
+            float scale = 180f / maxVal; // px per unit (chart height = 180px)
+
+            sb.AppendLine("<div class='section'>");
+            sb.AppendLine($"<h2>{metLabels[mi]}</h2>");
+            sb.AppendLine("<div class='legend'>");
+            sb.AppendLine("  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>");
+            sb.AppendLine("  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>");
+            sb.AppendLine("</div>");
+            sb.AppendLine("<div class='chart-wrap'>");
+
+            foreach (var map in maps)
+            {
+                float aVal = Avg(map, "AStar", mi);
+                float pVal = Avg(map, "PIBT",  mi);
+                int   aH   = Mathf.Max(2, Mathf.RoundToInt(aVal * scale));
+                int   pH   = Mathf.Max(2, Mathf.RoundToInt(pVal * scale));
+                string aFmt = aVal >= 100 ? aVal.ToString("F0") : aVal.ToString("F1");
+                string pFmt = pVal >= 100 ? pVal.ToString("F0") : pVal.ToString("F1");
+
+                sb.AppendLine($"<div class='group'>");
+                sb.AppendLine($"  <div class='bars'>");
+                sb.AppendLine($"    <div class='bar bar-a' style='height:{aH}px' title='A*: {aFmt}'><span class='bar-val'>{aFmt}</span></div>");
+                sb.AppendLine($"    <div class='bar bar-p' style='height:{pH}px' title='PIBT: {pFmt}'><span class='bar-val'>{pFmt}</span></div>");
+                sb.AppendLine($"  </div>");
+                sb.AppendLine($"  <div class='map-lbl'>{map}</div>");
+                sb.AppendLine($"</div>");
+            }
+
+            sb.AppendLine("</div></div>"); // chart-wrap / section
+        }
+
+        // ── Summary table ──────────────────────────────────────────────────
+        sb.AppendLine("<div class='section'><h2>Bảng tổng kết (trung bình)</h2>");
+        sb.AppendLine("<table><tr><th>Map</th><th>Thuật toán</th>");
+        foreach (var ml in metLabels) sb.AppendLine($"<th>{ml}</th>");
+        sb.AppendLine("</tr>");
+
+        foreach (var map in maps)
+        {
+            foreach (var algo in new[]{"AStar","PIBT"})
+            {
+                sb.Append($"<tr><td>{map}</td><td>{algo}</td>");
+                for (int mi = 0; mi < NM; mi++)
+                {
+                    float aVal = Avg(map, "AStar", mi);
+                    float pVal = Avg(map, algo,    mi);
+                    float v    = Avg(map, algo,    mi);
+                    bool  win  = algo == "AStar"
+                        ? (lowerBetter[mi] ? aVal <= pVal : aVal >= pVal)
+                        : (lowerBetter[mi] ? pVal <= aVal : pVal >= aVal);
+                    string cls  = win ? (algo == "AStar" ? "win-a" : "win-p") : "";
+                    string fmt  = v >= 100 ? v.ToString("F0") : v.ToString("F1");
+                    sb.Append($"<td class='{cls}'>{fmt}</td>");
+                }
+                sb.AppendLine("</tr>");
+            }
+        }
+
+        sb.AppendLine("</table></div>");
+        sb.AppendLine("</body></html>");
+        return sb.ToString();
     }
 }

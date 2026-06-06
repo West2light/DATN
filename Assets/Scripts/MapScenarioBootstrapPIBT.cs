@@ -156,6 +156,15 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
     private bool TryResolveEagleSpawnCell(out Vector2Int spawnCell)
     {
+        // Backtest mode không có player → spawn Eagle ở trung tâm map để công bằng.
+        if (BacktestMode.IsActive)
+        {
+            var center = new Vector2Int(
+                mapLoader.BuildStartX + mapLoader.BuildWidth  / 2,
+                mapLoader.BuildStartY + mapLoader.BuildHeight / 2);
+            return mapLoader.TryFindWalkableNear(center, out spawnCell);
+        }
+
         if (spawnEagleNearPlayer)
         {
             Transform player = GameObject.Find("Player")?.transform;
