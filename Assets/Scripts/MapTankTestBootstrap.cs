@@ -625,9 +625,22 @@ public class MapTankTestBootstrap : MonoBehaviour
         mainCamera.transform.position = target;
     }
 
+    // Called by LanGameCoordinator after it links bridges to tanks, so each player
+    // gets the sprite they chose in the lobby rather than the host's default.
+    public static void ApplyVariantToTank(GameObject tank, int index)
+    {
+        int clampedIndex = Mathf.Clamp(index, 0, VariantBodyFiles.Length - 1);
+        ApplyVariantInternal(tank, clampedIndex);
+    }
+
     private void ApplyTankVariant(GameObject tank)
     {
         int index = Mathf.Clamp(PlayerPrefs.GetInt(VariantPrefKey, 0), 0, VariantBodyFiles.Length - 1);
+        ApplyVariantInternal(tank, index);
+    }
+
+    private static void ApplyVariantInternal(GameObject tank, int index)
+    {
         string spritePath = VariantSpritesRoot + VariantBodyFiles[index];
 
         Sprite sprite = null;

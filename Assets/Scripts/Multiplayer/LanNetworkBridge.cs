@@ -82,6 +82,11 @@ public class LanNetworkBridge : NetworkBehaviour
     public NetworkVariable<int> Slot = new NetworkVariable<int>(
         -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+    // Tank variant (color) chosen by this player in the lobby.
+    // Server writes it (set by host directly, or via ServerRpc from client).
+    public NetworkVariable<int> VariantIndex = new NetworkVariable<int>(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
     // ── Server-side references ────────────────────────────────────────────────
     private TankController _serverTank;
 
@@ -91,11 +96,25 @@ public class LanNetworkBridge : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         if (IsServer)
+        {
             LanGameCoordinator.Instance?.OnBridgeSpawned(this);
+            // Host is both server and owner — set its own variant directly.
+            if (IsOwner) VariantIndex.Value = LanSessionManager.LocalVariantIndex;
+        }
+
+        // Non-host client: send chosen variant to server via RPC.
+        if (IsOwner && !IsServer)
+            SendVariantServerRpc(LanSessionManager.LocalVariantIndex);
 
         // Cả host lẫn client đều cần camera để convert mouse → world position.
         if (IsOwner)
             _ownerCamera = Camera.main;
+    }
+
+    [ServerRpc]
+    private void SendVariantServerRpc(int variantIndex)
+    {
+        VariantIndex.Value = variantIndex;
     }
 
     private void Update()

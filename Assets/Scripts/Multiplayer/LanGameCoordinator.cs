@@ -103,7 +103,13 @@ public class LanGameCoordinator : MonoBehaviour
         int n = Mathf.Min(_bridges.Count, _serverTanks.Count);
         if (n == 0) return;
 
-        for (int i = 0; i < n; i++) _bridges[i].LinkTank(_serverTanks[i], i);
+        for (int i = 0; i < n; i++)
+        {
+            _bridges[i].LinkTank(_serverTanks[i], i);
+            // Apply the tank body sprite chosen by this player in the lobby.
+            if (_serverTanks[i] != null && _serverTanks[i].gameObject != null)
+                MapTankTestBootstrap.ApplyVariantToTank(_serverTanks[i].gameObject, _bridges[i].VariantIndex.Value);
+        }
 
         // Start sync loop as soon as we have at least one bridge.
         if (_syncCoroutine == null)
@@ -144,9 +150,9 @@ public class LanGameCoordinator : MonoBehaviour
     // Packet layout:
     //   int  playerCount
     //   int  enemyCount
-    //   ulong ownerClientId[0..playerCount-1]   (slot i is owned by this clientId)
+    //   per slot: ulong ownerClientId, int variantIndex
     //
-    // Always writes exactly playerCount ownerClientIds so the client can read
+    // Always writes exactly playerCount entries so the client can read
     // a well-formed packet regardless of how many bridges are registered.
 
     private void SendInitWorldMsg()
@@ -160,16 +166,17 @@ public class LanGameCoordinator : MonoBehaviour
 
         int pc = _serverTanks.Count;
         int ec = _serverEnemies.Count;
-        // 4 (pc) + 4 (ec) + pc * 8 (ulong ownerClientId) + 16 safety
-        int bufSize = 8 + pc * 8 + 16;
+        // 4 (pc) + 4 (ec) + pc * (8 ownerClientId + 4 variantIndex) + 16 safety
+        int bufSize = 8 + pc * 12 + 16;
         using var writer = new FastBufferWriter(bufSize, Allocator.Temp);
         writer.WriteValueSafe(pc);
         writer.WriteValueSafe(ec);
-        // Write exactly pc ownerClientIds; use ulong.MaxValue for any unlinked slot.
         for (int i = 0; i < pc; i++)
         {
-            ulong ownerId = (i < _bridges.Count) ? _bridges[i].ClientId : ulong.MaxValue;
+            ulong ownerId   = (i < _bridges.Count) ? _bridges[i].ClientId          : ulong.MaxValue;
+            int   variantIdx = (i < _bridges.Count) ? _bridges[i].VariantIndex.Value : 0;
             writer.WriteValueSafe(ownerId);
+            writer.WriteValueSafe(variantIdx);
         }
 
         mgr.SendNamedMessageToAll(MsgInitWorld, writer, NetworkDelivery.Reliable);

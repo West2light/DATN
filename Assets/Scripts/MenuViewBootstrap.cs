@@ -80,6 +80,7 @@ public class MenuViewBootstrap : MonoBehaviour
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
     private int        _selectedVariant;
+    private bool       _isLanMode;   // true khi vào Outfit từ nút MULTIPLAYER LAN
     private readonly List<Image>  _variantSwatchImages = new List<Image>();
     private readonly List<GameObject> _variantRings    = new List<GameObject>();
 
@@ -176,14 +177,14 @@ public class MenuViewBootstrap : MonoBehaviour
         Button btnStart = MakeButton(card.transform, "BtnSingle",
             "SINGLE PLAY", new Vector2(0f, 22f), new Vector2(290f, 60f), AccentGold);
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
-        btnStart.onClick.AddListener(() => ShowScreen(Screen.Outfit));
+        btnStart.onClick.AddListener(() => { _isLanMode = false; ShowScreen(Screen.Outfit); });
 
-        // MULTIPLAYER LAN
+        // MULTIPLAYER LAN — đi qua màn chọn tank giống Single Play
         Button btnHost = MakeButton(card.transform, "BtnHost",
             "MULTIPLAYER  LAN", new Vector2(0f, -58f), new Vector2(290f, 60f),
             new Color(0.12f, 0.32f, 0.58f, 1f));
         SetTextColor(btnHost.transform, new Color(0.75f, 0.90f, 1f));
-        btnHost.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
+        btnHost.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.Outfit); });
 
         // SHOP — disabled
         Button btnShop = MakeButton(card.transform, "BtnShop",
@@ -300,7 +301,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Button btnNext = MakeButton(_screenOutfit.transform, "BtnNext",
             "NEXT →", new Vector2(500f, -320f), new Vector2(130f, 46f), AccentGold);
         SetTextColor(btnNext.transform, new Color(0.10f, 0.09f, 0.09f));
-        btnNext.onClick.AddListener(() => ShowScreen(Screen.MapSelect));
+        btnNext.onClick.AddListener(() => ShowScreen(_isLanMode ? Screen.LanMapSelect : Screen.MapSelect));
 
         // Apply initial selection
         SelectVariant(_selectedVariant, lockOverlay);
@@ -653,7 +654,7 @@ public class MenuViewBootstrap : MonoBehaviour
             "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
-        btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
     }
 
     private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)

@@ -55,6 +55,7 @@ public class GridEnemyAgent : MonoBehaviour
     public int spatialRecoveryBlockedCellCount = 4;
 
     private readonly List<Vector2Int> currentPath = new List<Vector2Int>();
+    public  IReadOnlyList<Vector2Int> CurrentPath => currentPath;
     private readonly Queue<SpatialSample> spatialSamples = new Queue<SpatialSample>();
     private readonly List<Vector2Int> recentVisitedCells = new List<Vector2Int>();
     private int pathIndex;

@@ -75,6 +75,7 @@ public class GridEnemyAgentPIBT : MonoBehaviour
     private int agentId = -1;
 
     private readonly List<Vector2Int> currentPath = new List<Vector2Int>();
+    public  IReadOnlyList<Vector2Int> CurrentPath => currentPath;
     private readonly Queue<SpatialSample> spatialSamples = new Queue<SpatialSample>();
     private readonly List<Vector2Int> recentVisitedCells = new List<Vector2Int>();
 

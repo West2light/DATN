@@ -310,6 +310,7 @@ public class BacktestRunner : MonoBehaviour
         var go = new GameObject("DynamicObstacleSpawner");
         _obstacleSpawner = go.AddComponent<DynamicObstacleSpawner>();
         _obstacleSpawner.Init(mapLoader, navMask, _eagleDamagable.transform.position);
+        _obstacleSpawner.SetAgents(_agentsA, _agentsL);
     }
 
     private void StopDynamicObstacles()

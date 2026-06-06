@@ -94,20 +94,22 @@ public class LanClientView : MonoBehaviour
     // MsgInitWorld packet:
     //   int playerCount
     //   int enemyCount
-    //   ulong ownerClientId[0..playerCount-1]  (which client owns each slot)
+    //   per slot: ulong ownerClientId, int variantIndex
     private void OnReceiveInitWorld(ulong senderId, FastBufferReader reader)
     {
         reader.ReadValueSafe(out int playerCount);
         reader.ReadValueSafe(out int enemyCount);
 
-        // Determine own slot from the ownership map embedded in the message.
+        // Determine own slot and collect variant indices from the ownership map.
         ulong myClientId = NetworkManager.Singleton != null
             ? NetworkManager.Singleton.LocalClientId
             : ulong.MaxValue;
         int ownSlot = Mathf.Min(1, playerCount - 1); // safe default (slot 1 for 2-player)
+        int[] variantIndices = new int[playerCount];
         for (int i = 0; i < playerCount; i++)
         {
             reader.ReadValueSafe(out ulong ownerClientId);
+            reader.ReadValueSafe(out variantIndices[i]);
             if (ownerClientId == myClientId) ownSlot = i;
         }
 
@@ -130,7 +132,7 @@ public class LanClientView : MonoBehaviour
             && _ownSlot == ownSlot)
             return;
 
-        InitGhosts(playerCount, enemyCount, ownSlot);
+        InitGhosts(playerCount, enemyCount, ownSlot, variantIndices);
     }
 
     // WsPlayer / WsEnemy: temporary structs to buffer all parsed data before applying.
@@ -331,12 +333,22 @@ public class LanClientView : MonoBehaviour
 
     // ── Ghost initialisation ──────────────────────────────────────────────────
 
+    // ── Variant body sprite lookup (mirrors MapTankTestBootstrap constants) ────
+    private static readonly string[] VariantBodyFiles =
+    {
+        "tankBody_blue.png", "tankBody_red.png",      "tankBody_green.png",
+        "tankBody_dark.png", "tankBody_sand.png",     "tankBody_bigRed.png",
+        "tankBody_darkLarge.png", "tankBody_huge.png",
+    };
+    private const string VariantSpritesRoot = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
+
     /// <summary>
     /// Creates or recreates all display-only ghosts.
     /// <paramref name="forcedOwnSlot"/> = the slot this client owns, as determined
     /// from the MsgInitWorld ownership map.  Pass -1 to fall back to NetworkVariable lookup.
+    /// <paramref name="variantIndices"/> = per-slot tank variant, received in MsgInitWorld.
     /// </summary>
-    public void InitGhosts(int playerCount, int enemyCount, int forcedOwnSlot = -1)
+    public void InitGhosts(int playerCount, int enemyCount, int forcedOwnSlot = -1, int[] variantIndices = null)
     {
         foreach (var g in _playerGhosts) if (g != null) Destroy(g.gameObject);
         foreach (var g in _enemyGhosts)  if (g != null) Destroy(g.gameObject);
@@ -354,32 +366,24 @@ public class LanClientView : MonoBehaviour
         // Determine own slot ──────────────────────────────────────────────────
         if (forcedOwnSlot >= 0)
         {
-            // Preferred path: slot was determined from the ownership map in MsgInitWorld.
             _ownSlot = forcedOwnSlot;
         }
         else
         {
-            // Fallback: read the Slot NetworkVariable from the bridge that this client owns.
-            // This can race with NetworkVariable replication, so it may return -1 initially.
             var bridges = FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
             foreach (var b in bridges)
                 if (b.IsOwner && b.Slot.Value >= 0) { _ownSlot = b.Slot.Value; break; }
             if (_ownSlot < 0) _ownSlot = Mathf.Min(1, playerCount - 1);
         }
 
-        // Spawn ghosts ─────────────────────────────────────────────────────────
-        // Own ghost = yellow tint, others = cyan — helps players visually distinguish
-        // their own tank from other players' tanks during multiplayer.
-        Color ownColor   = new Color(1f, 1f, 0.3f, 1f);   // yellow
-        Color otherColor = new Color(0.3f, 0.9f, 1f, 1f);  // cyan
-
+        // Spawn player ghosts with the correct tank body sprite per slot ──────
         GameObject tankPrefab  = Resources.Load<GameObject>("Prefabs/Tank");
         GameObject enemyPrefab = Resources.Load<GameObject>("Prefabs/StaticEnemy");
 
         for (int i = 0; i < playerCount; i++)
         {
-            Color     col = (i == _ownSlot) ? ownColor : otherColor;
-            Transform g   = SpawnDisplay(tankPrefab, $"GhostPlayer_{i}", 1.3f, col);
+            int   vi = (variantIndices != null && i < variantIndices.Length) ? variantIndices[i] : 0;
+            Transform g = SpawnPlayerGhost(tankPrefab, $"GhostPlayer_{i}", 1.3f, vi, i == _ownSlot);
             _playerGhosts.Add(g);
             if (i == _ownSlot) OwnGhost = g;
         }
@@ -396,6 +400,55 @@ public class LanClientView : MonoBehaviour
         Debug.Log($"[LanClientView] InitGhosts: {playerCount} players / {enemyCount} enemies / ownSlot={_ownSlot} / OwnGhost={(OwnGhost != null ? "set" : "NULL")}");
     }
 
+    // Spawn a player ghost with the chosen tank body sprite.
+    // Own ghost keeps a slight yellow tint so the player can tell which tank is theirs.
+    private static Transform SpawnPlayerGhost(GameObject prefab, string goName, float scale, int variantIndex, bool isOwn)
+    {
+        if (prefab == null) return MakeSquareGhost(goName, isOwn ? new Color(1f, 1f, 0.3f) : new Color(0.3f, 0.9f, 1f), scale);
+
+        var go = Object.Instantiate(prefab);
+        go.name = goName;
+        go.transform.localScale = Vector3.one * scale;
+
+        // Apply the chosen tank body sprite
+        ApplyVariantToGhost(go, variantIndex);
+
+        // Apply a subtle tint to distinguish own ghost from others
+        Color tint = isOwn ? new Color(1f, 1f, 0.85f) : Color.white;
+        foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>(true))
+            sr.color = new Color(sr.color.r * tint.r, sr.color.g * tint.g, sr.color.b * tint.b, 1f);
+
+        StripToDisplayOnly(go);
+        return go.transform;
+    }
+
+    private static void ApplyVariantToGhost(GameObject go, int variantIndex)
+    {
+        int idx = Mathf.Clamp(variantIndex, 0, VariantBodyFiles.Length - 1);
+        Sprite sprite = null;
+#if UNITY_EDITOR
+        sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(VariantSpritesRoot + VariantBodyFiles[idx]);
+#endif
+        if (sprite == null)
+        {
+            string name = System.IO.Path.GetFileNameWithoutExtension(VariantBodyFiles[idx]);
+            sprite = Resources.Load<Sprite>("TankSprites/" + name);
+        }
+        if (sprite == null) return;
+
+        Transform body = go.transform.Find("TankBase");
+        if (body != null)
+        {
+            var sr = body.GetComponent<SpriteRenderer>();
+            if (sr != null) { sr.sprite = sprite; return; }
+        }
+        foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (sr.sprite != null && sr.sprite.name.ToLower().Contains("tankbody"))
+            { sr.sprite = sprite; return; }
+        }
+    }
+
     private static Transform SpawnDisplay(GameObject prefab, string goName, float scale, Color tint)
     {
         if (prefab != null)
@@ -403,7 +456,6 @@ public class LanClientView : MonoBehaviour
             var go = Object.Instantiate(prefab);
             go.name = goName;
             go.transform.localScale = Vector3.one * scale;
-            // Apply slot tint so players can visually distinguish their ghost from others.
             foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>(true))
                 sr.color = tint;
             StripToDisplayOnly(go);
