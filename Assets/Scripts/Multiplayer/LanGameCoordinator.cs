@@ -342,7 +342,12 @@ public class LanGameCoordinator : MonoBehaviour
         _alivePlayerCount = Mathf.Max(0, _alivePlayerCount - 1);
         Debug.Log($"[Coordinator] Player slot {slot} died. Alive: {_alivePlayerCount}");
         if (_alivePlayerCount == 0)
-            BroadcastGameOver();
+        {
+            // Use BeginGameOver() instead of BroadcastGameOver() directly so the HOST
+            // also sees the overlay. [ClientRpc] is only received by non-server clients;
+            // the host would miss it if we only called BroadcastGameOver() here.
+            MapGameOverController.Ensure().BeginGameOver();
+        }
     }
 
     // ── Win / GameOver (reliable [ClientRpc]) ─────────────────────────────────
