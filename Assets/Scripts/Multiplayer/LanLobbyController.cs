@@ -71,18 +71,52 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Shut down any live NetworkManager, destroy all bridge GameObjects immediately,
+    /// and deactivate LAN session state.  Safe to call from any exit path; re-entrant
+    /// calls after the first are no-ops (guarded by LanSessionManager.IsActive).
+    /// </summary>
+    public static void CleanupSession()
+    {
+        // Guard: only the first call does real work.  When the server shuts down, the
+        // client receives OnNetworkDisconnect AND ReturnToMenuAfterDelay fires — both
+        // paths call CleanupSession, so we must not double-Shutdown.
+        if (!LanSessionManager.IsActive) return;
+        LanSessionManager.Deactivate();  // mark inactive before touching NGO so any
+                                          // re-entrant call from NGO callbacks bails out.
+
+        // Stop the 30 Hz sync coroutine before Shutdown so it cannot fire
+        // one more tick and call SendNamedMessageToAll on a shut-down NM.
+        LanGameCoordinator.Instance?.StopSync();
+
+        var nm = NetworkManager.Singleton;
+        if (nm != null)
+        {
+            if (nm.IsListening)
+                nm.Shutdown();
+
+            // Use DestroyImmediate for bridge GOs so they are gone BEFORE the deferred
+            // Destroy(nm) fires at end-of-frame.  If NM is destroyed first, NGO's
+            // internal NM.OnDestroy() may traverse the still-alive bridge NetworkObjects
+            // and throw MissingReferenceException.  Destroying bridges synchronously
+            // (while NM is still alive) prevents that race entirely.
+            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) Object.DestroyImmediate(b.gameObject);
+
+            Object.Destroy(nm.gameObject);
+        }
+        else
+        {
+            // NM already gone — clean up any orphaned bridge GOs that slipped through.
+            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) Object.DestroyImmediate(b.gameObject);
+        }
+    }
+
     public static void Show(string mapFile, string algorithm)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
-
-        // Destroy any leftover NetworkManager so its transport releases the socket
-        // immediately (Shutdown() alone leaves the port in TIME_WAIT on some OSes).
-        if (NetworkManager.Singleton != null)
-        {
-            if (NetworkManager.Singleton.IsListening)
-                NetworkManager.Singleton.Shutdown();
-            Destroy(NetworkManager.Singleton.gameObject);
-        }
+        CleanupSession();
 
         var go = new GameObject("LanLobbyController");
         DontDestroyOnLoad(go);
@@ -473,11 +507,14 @@ public class LanLobbyController : MonoBehaviour
 
     private void RetryHost()
     {
-        // Destroy leftover NM so EnsureNetworkManager() creates a fresh one with a clean socket.
+        // DestroyImmediate so EnsureNetworkManager() finds Singleton==null
+        // and creates a truly fresh NM — deferred Destroy leaves the old
+        // (shut-down) singleton alive until end-of-frame, causing StartHost()
+        // to run on a stale NM object.
         if (NetworkManager.Singleton != null)
         {
             if (NetworkManager.Singleton.IsListening) NetworkManager.Singleton.Shutdown();
-            Destroy(NetworkManager.Singleton.gameObject);
+            DestroyImmediate(NetworkManager.Singleton.gameObject);
         }
         DoHost();
     }

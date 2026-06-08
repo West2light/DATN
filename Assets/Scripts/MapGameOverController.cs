@@ -58,8 +58,13 @@ public class MapGameOverController : MonoBehaviour
 
         SaveSystem saveSystem = FindFirstObjectByType<SaveSystem>();
         if (saveSystem != null)
-        {
             saveSystem.ResetData();
+
+        if (LanSessionManager.IsActive)
+        {
+            // Destroy NM + bridge GOs before loading menu so session 2 starts clean.
+            LanLobbyController.CleanupSession();
+            yield return null;
         }
 
         SceneManager.LoadScene(menuSceneName);

@@ -50,7 +50,10 @@ public class MapWinController : MonoBehaviour
     private void ShowOverlay()
     {
         string currentScene = SceneManager.GetActiveScene().name;
-        bool showContinue = currentScene == astarSceneName;
+        // In LAN mode we can't reload the scene directly (NM manages scene loading);
+        // hide the replay button and only offer returning to the lobby/menu.
+        bool isLan = LanSessionManager.IsActive;
+        bool showContinue = !isLan && currentScene == astarSceneName;
         float panelH = showContinue ? 440f : 380f;
 
         // ── Canvas ─────────────────────────────────────────────────────────────
@@ -108,6 +111,13 @@ public class MapWinController : MonoBehaviour
         // ── Buttons (anchor bottom-centre, pivot bottom) ───────────────────────
         const float BtnW = 400f, BtnH = 52f, BtnGap = 12f, PadBottom = 30f;
 
+        void NavigateToMenu()
+        {
+            if (LanSessionManager.IsActive)
+                LanLobbyController.CleanupSession();
+            SceneManager.LoadScene(menuSceneName);
+        }
+
         if (showContinue)
         {
             float y1 = PadBottom;
@@ -124,7 +134,14 @@ public class MapWinController : MonoBehaviour
 
             MakeButton(panel, "MainMenuBtn", "MAIN MENU", BtnDark, Color.white,
                 new Vector2(0f, y1), new Vector2(BtnW, BtnH),
-                () => SceneManager.LoadScene(menuSceneName));
+                NavigateToMenu);
+        }
+        else if (isLan)
+        {
+            // LAN: only offer menu return — replaying requires a new lobby session.
+            MakeButton(panel, "MainMenuBtn", "MAIN MENU", BtnDark, Color.white,
+                new Vector2(0f, PadBottom), new Vector2(BtnW, BtnH),
+                NavigateToMenu);
         }
         else
         {
@@ -137,7 +154,7 @@ public class MapWinController : MonoBehaviour
 
             MakeButton(panel, "MainMenuBtn", "MAIN MENU", BtnDark, Color.white,
                 new Vector2(0f, y1), new Vector2(BtnW, BtnH),
-                () => SceneManager.LoadScene(menuSceneName));
+                NavigateToMenu);
         }
     }
 

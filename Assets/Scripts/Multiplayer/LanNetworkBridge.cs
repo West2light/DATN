@@ -95,6 +95,7 @@ public class LanNetworkBridge : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        enabled = true;
         if (IsServer)
         {
             // Set host variant BEFORE registering so TryLink reads the correct value.
@@ -116,6 +117,10 @@ public class LanNetworkBridge : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        // Prevent Update/LateUpdate from running after NGO despawn — accessing IsOwner,
+        // IsServer etc. would dereference the destroyed NetworkManager and throw
+        // MissingReferenceException every frame until the GO is garbage-collected.
+        enabled = false;
         VariantIndex.OnValueChanged -= OnVariantIndexChanged;
     }
 

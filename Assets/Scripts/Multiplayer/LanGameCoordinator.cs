@@ -87,7 +87,8 @@ public class LanGameCoordinator : MonoBehaviour
 
     public void OnBridgeSpawned(LanNetworkBridge bridge)
     {
-        if (!_bridges.Contains(bridge)) _bridges.Add(bridge);
+        if (bridge != null && bridge.IsSpawned && !_bridges.Contains(bridge))
+            _bridges.Add(bridge);
         TryLink();
     }
 
@@ -127,11 +128,24 @@ public class LanGameCoordinator : MonoBehaviour
 
     private void ScanBridges()
     {
+        // Prune despawned or destroyed bridges accumulated from previous sessions.
+        _bridges.RemoveAll(b => b == null || !b.IsSpawned);
+        // Add only actively-spawned bridges not yet tracked.
         foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-            if (b != null && !_bridges.Contains(b)) _bridges.Add(b);
+            if (b != null && b.IsSpawned && !_bridges.Contains(b))
+                _bridges.Add(b);
     }
 
     // ── Sync loop at 30 Hz ────────────────────────────────────────────────────
+
+    public void StopSync()
+    {
+        if (_syncCoroutine != null)
+        {
+            StopCoroutine(_syncCoroutine);
+            _syncCoroutine = null;
+        }
+    }
 
     private IEnumerator SyncLoop()
     {
@@ -140,6 +154,8 @@ public class LanGameCoordinator : MonoBehaviour
         while (true)
         {
             yield return wait;
+            var nm = NetworkManager.Singleton;
+            if (nm == null || !nm.IsListening) yield break;
             if (ticks++ % 30 == 0) ScanBridges();
             BroadcastWorldState();
         }
@@ -159,7 +175,9 @@ public class LanGameCoordinator : MonoBehaviour
 
     private void SendInitWorldMsg()
     {
-        var mgr = NetworkManager.Singleton?.CustomMessagingManager;
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsListening) return;
+        var mgr = nm.CustomMessagingManager;
         if (mgr == null)
         {
             Debug.LogWarning("[Coordinator] CustomMessagingManager not ready for SendInitWorldMsg.");
@@ -196,7 +214,9 @@ public class LanGameCoordinator : MonoBehaviour
 
     private void BroadcastWorldState()
     {
-        var mgr = NetworkManager.Singleton?.CustomMessagingManager;
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsListening) return;
+        var mgr = nm.CustomMessagingManager;
         if (mgr == null) return;
 
         int pc = _serverTanks.Count;

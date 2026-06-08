@@ -102,9 +102,7 @@ public class LanClientView : MonoBehaviour
     private void ReturnToMenuAfterDisconnect()
     {
         _returningToMenu = true;
-        LanSessionManager.Deactivate();
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
-            NetworkManager.Singleton.Shutdown();
+        LanLobbyController.CleanupSession();
         SceneManager.LoadScene("Menu");
     }
 
