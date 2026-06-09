@@ -47,6 +47,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
     public string             enemyPrefabPath          = "Assets/Prefabs/StaticEnemy.prefab";
     public TankMovementData   enemyMovementData;
     public string             enemyMovementDataPath     = "Assets/Data/TankData/EnemyTankMovementData.asset";
+    [Header("Phase 1 Copy Movement Test")]
+    public bool               useCopyMovementComponents = true;
+    public TankMovementData   enemyMovementDataCopy;
+    public string             enemyMovementDataCopyPath = "Assets/Data/TankData/EnemyTankMovementDataCopy.asset";
     public List<Vector2Int>   enemySpawnCells           = new List<Vector2Int>
     {
         new Vector2Int(30,  1),
@@ -122,6 +126,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             if (d != null && d.Health <= 0)
                 continue;
 
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null && copyAgent.CanShootEagleNow())
+                return true;
+
             GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
             if (agent != null && agent.CanShootEagleNow())
                 return true;
@@ -144,6 +152,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             Damagable d = enemy.GetComponentInChildren<Damagable>();
             if (d != null && d.Health <= 0)
                 continue;
+
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null && copyAgent.IsHoldingAssignedEagleSlot())
+                return true;
 
             GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
             if (agent != null && agent.IsHoldingAssignedEagleSlot())
@@ -234,6 +246,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             Damagable d = enemy.GetComponentInChildren<Damagable>();
             if (d != null && d.Health <= 0) continue;
 
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null && copyAgent.IsExecutingTcpAction)
+                return false;
+
             GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
             if (agent != null && agent.IsExecutingTcpAction)
                 return false;
@@ -289,13 +305,19 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         for (int i = 0; i < enemies.Count; i++)
         {
             if (enemies[i] == null) continue;
-            GridEnemyAgentPIBTTcp agent = enemies[i].GetComponent<GridEnemyAgentPIBTTcp>();
-            if (agent == null) continue;
-
             Damagable d = enemies[i].GetComponentInChildren<Damagable>();
             if (d != null && d.Health <= 0) continue;
 
-            states.Add(agent.BuildAgentStateDto());
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemies[i].GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null)
+            {
+                states.Add(copyAgent.BuildAgentStateDto());
+                continue;
+            }
+
+            GridEnemyAgentPIBTTcp agent = enemies[i].GetComponent<GridEnemyAgentPIBTTcp>();
+            if (agent != null)
+                states.Add(agent.BuildAgentStateDto());
         }
         return states;
     }
@@ -316,12 +338,53 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         string eagleCellText = eagleBase != null
             ? mapLoader.WorldToCell(eagleBase.transform.position).ToString()
             : "none";
-        return $"[PIBT_TCP_TRACE] send req={requestId} t={timestep} eagleCell={eagleCellText} agents={FormatAgentStates(agentStates)}";
+        string motionSummary = BuildMotionSummary();
+        return $"[PIBT_TCP_TRACE] send req={requestId} t={timestep} eagleCell={eagleCellText} summary={motionSummary} agents={FormatAgentStates(agentStates)}";
     }
 
     private string BuildResultTrace(PlanResult result)
     {
         return $"[PIBT_TCP_TRACE] recv req={result.requestId} t={result.timestep} compute={result.computeMs:F1} timeout={result.timeout} actions={FormatActions(result.actions)}";
+    }
+
+    private string BuildMotionSummary()
+    {
+        int shootingEagle = 0;
+        int shootingPlayer = 0;
+        int pendingMove = 0;
+        int reverseRecovery = 0;
+        int scuffing = 0;
+        int idle = 0;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            GameObject enemy = enemies[i];
+            if (enemy == null)
+                continue;
+
+            Damagable d = enemy.GetComponentInChildren<Damagable>();
+            if (d != null && d.Health <= 0)
+                continue;
+
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null)
+            {
+                string state = copyAgent.GetMotionStateForDebug();
+                if (state == "shoot_eagle") shootingEagle++;
+                else if (state == "shoot_player") shootingPlayer++;
+                else if (state == "fw_pending") pendingMove++;
+                else if (state == "reverse_recovery") reverseRecovery++;
+                else if (state == "scuffing") scuffing++;
+                else idle++;
+                continue;
+            }
+
+            GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+            if (agent != null)
+                idle++;
+        }
+
+        return $"shootEagle={shootingEagle} shootPlayer={shootingPlayer} pendingMove={pendingMove} reverse={reverseRecovery} scuffing={scuffing} idle={idle}";
     }
 
     private static string FormatAgentStates(List<AgentStateDto> states)
@@ -363,15 +426,26 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         foreach (GameObject enemy in enemies)
         {
             if (enemy == null) continue;
-            GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
-            if (agent == null) continue;
+            AgentStateDto state;
+            Vector3 pos;
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+            if (copyAgent != null)
+            {
+                state = copyAgent.BuildAgentStateDto();
+                pos = copyAgent.GetTankMoverPositionForDebug();
+            }
+            else
+            {
+                GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+                if (agent == null) continue;
+                state = agent.BuildAgentStateDto();
+                pos = agent.GetTankMoverPositionForDebug();
+            }
 
-            AgentStateDto state = agent.BuildAgentStateDto();
             Vector2Int facing = PibtTcpGridAdapter.OrientationToCell(state.orientation);
             int fwDelta = PibtTcpGridAdapter.ForwardDeltaLoc(state.orientation, width);
             int cw = PibtTcpGridAdapter.RotateClockwise(state.orientation);
             int ccw = PibtTcpGridAdapter.RotateCounterClockwise(state.orientation);
-            Vector3 pos = agent.GetTankMoverPositionForDebug();
 
             Debug.Log(
                 $"[PIBT_TCP_PHASE_B] agent={state.id} pos=({pos.x:F2},{pos.y:F2}) cell={PibtTcpGridAdapter.LocToCell(state.loc, width)} " +
@@ -599,21 +673,16 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
 
         activeEnemies.Sort((a, b) =>
         {
-            GridEnemyAgentPIBTTcp aa = a != null ? a.GetComponent<GridEnemyAgentPIBTTcp>() : null;
-            GridEnemyAgentPIBTTcp bb = b != null ? b.GetComponent<GridEnemyAgentPIBTTcp>() : null;
-            int idA = aa != null ? aa.agentId : int.MaxValue;
-            int idB = bb != null ? bb.agentId : int.MaxValue;
+            int idA = GetTcpAgentId(a);
+            int idB = GetTcpAgentId(b);
             return idA.CompareTo(idB);
         });
 
         bool needsAssignment = false;
         for (int i = 0; i < activeEnemies.Count; i++)
         {
-            GridEnemyAgentPIBTTcp agent = activeEnemies[i].GetComponent<GridEnemyAgentPIBTTcp>();
-            if (agent == null)
-                continue;
-
-            if (!agent.hasAssignedGoalCell || !IsAttackSlotValid(agent.assignedGoalCell))
+            if (!TryGetAssignedGoalCell(activeEnemies[i], out Vector2Int assignedGoalCell)
+                || !IsAttackSlotValid(assignedGoalCell))
             {
                 needsAssignment = true;
                 break;
@@ -632,19 +701,18 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         for (int i = 0; i < activeEnemies.Count; i++)
         {
             GameObject enemy = activeEnemies[i];
-            GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
-            if (agent == null)
+            if (!HasTcpAgent(enemy))
                 continue;
 
-            if (agent.hasAssignedGoalCell
-                && IsAttackSlotValid(agent.assignedGoalCell)
-                && !usedSlots.Contains(agent.assignedGoalCell))
+            if (TryGetAssignedGoalCell(enemy, out Vector2Int assignedSlotCell)
+                && IsAttackSlotValid(assignedSlotCell)
+                && !usedSlots.Contains(assignedSlotCell))
             {
-                usedSlots.Add(agent.assignedGoalCell);
+                usedSlots.Add(assignedSlotCell);
                 continue;
             }
 
-            agent.ClearAssignedGoalCell();
+            ClearTcpAgentGoalCell(enemy);
 
             Vector2Int enemyCell = mapLoader.WorldToCell(enemy.transform.position);
             int bestIndex = -1;
@@ -667,9 +735,86 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             {
                 Vector2Int assignedSlot = slots[bestIndex];
                 usedSlots.Add(assignedSlot);
-                agent.AssignGoalCell(assignedSlot);
+                AssignTcpAgentGoalCell(enemy, assignedSlot);
             }
         }
+    }
+
+    private int GetTcpAgentId(GameObject enemy)
+    {
+        if (enemy == null)
+            return int.MaxValue;
+
+        GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+        if (copyAgent != null)
+            return copyAgent.agentId;
+
+        GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+        return agent != null ? agent.agentId : int.MaxValue;
+    }
+
+    private bool HasTcpAgent(GameObject enemy)
+    {
+        return enemy != null
+            && (enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>() != null
+                || enemy.GetComponent<GridEnemyAgentPIBTTcp>() != null);
+    }
+
+    private bool TryGetAssignedGoalCell(GameObject enemy, out Vector2Int goalCell)
+    {
+        goalCell = default;
+        if (enemy == null)
+            return false;
+
+        GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+        if (copyAgent != null)
+        {
+            goalCell = copyAgent.assignedGoalCell;
+            return copyAgent.hasAssignedGoalCell;
+        }
+
+        GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+        if (agent != null)
+        {
+            goalCell = agent.assignedGoalCell;
+            return agent.hasAssignedGoalCell;
+        }
+
+        return false;
+    }
+
+    private void ClearTcpAgentGoalCell(GameObject enemy)
+    {
+        if (enemy == null)
+            return;
+
+        GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+        if (copyAgent != null)
+        {
+            copyAgent.ClearAssignedGoalCell();
+            return;
+        }
+
+        GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+        if (agent != null)
+            agent.ClearAssignedGoalCell();
+    }
+
+    private void AssignTcpAgentGoalCell(GameObject enemy, Vector2Int goalCell)
+    {
+        if (enemy == null)
+            return;
+
+        GridEnemyAgentPIBTTcpCopy copyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcpCopy>();
+        if (copyAgent != null)
+        {
+            copyAgent.AssignGoalCell(goalCell);
+            return;
+        }
+
+        GridEnemyAgentPIBTTcp agent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+        if (agent != null)
+            agent.AssignGoalCell(goalCell);
     }
 
     private List<Vector2Int> BuildEagleAttackSlots(Vector2Int eagleCell, int requiredCount)
@@ -809,9 +954,17 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
 
         FactionMember fm = FactionMember.Ensure(enemy, Faction.Enemy);
 
-        TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
-        if (tankMover != null && tankMover.movementData == null)
-            tankMover.movementData = ResolveEnemyMovementData();
+        TankControllerCopy copyController = null;
+        if (useCopyMovementComponents)
+        {
+            copyController = ConfigureCopyMovementComponents(enemy);
+        }
+        else
+        {
+            TankMover tankMover = enemy.GetComponentInChildren<TankMover>();
+            if (tankMover != null && tankMover.movementData == null)
+                tankMover.movementData = ResolveEnemyMovementData();
+        }
 
         ConfigureEnemyHealth(enemy);
         ConfigureEnemyHealthBar(enemy);
@@ -820,7 +973,7 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         IgnoreFriendlyCollisions(enemy, fm);
 
         // ── Gắn TCP agent (Sprint 4 sẽ implement đầy đủ) ──────────────────
-        AddGridEnemyAgentPIBTTcp(enemy, agentId);
+        AddGridEnemyAgentPIBTTcp(enemy, agentId, copyController);
 
         // ── Tắt mọi AI runtime khác ────────────────────────────────────────
         if (disableLegacyEnemyAI)
@@ -834,8 +987,71 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             detector.Target = eagleBase.transform;
     }
 
-private void AddGridEnemyAgentPIBTTcp(GameObject enemy, int agentIndex)
+    private TankControllerCopy ConfigureCopyMovementComponents(GameObject enemy)
     {
+        TankMover legacyMover = enemy.GetComponentInChildren<TankMover>(true);
+        if (legacyMover != null)
+            legacyMover.enabled = false;
+
+        TankMoverCopy copyMover = enemy.GetComponentInChildren<TankMoverCopy>(true);
+        if (copyMover == null)
+        {
+            GameObject moverHost = legacyMover != null ? legacyMover.gameObject : enemy;
+            copyMover = moverHost.AddComponent<TankMoverCopy>();
+        }
+        copyMover.movementData = ResolveEnemyMovementDataCopy();
+
+        TankController legacyController = enemy.GetComponentInChildren<TankController>(true);
+        if (legacyController != null)
+            legacyController.enabled = false;
+
+        TankControllerCopy copyController = enemy.GetComponentInChildren<TankControllerCopy>(true);
+        if (copyController == null)
+        {
+            GameObject controllerHost = legacyController != null ? legacyController.gameObject : enemy;
+            copyController = controllerHost.AddComponent<TankControllerCopy>();
+        }
+        copyController.tankMover = copyMover;
+        copyController.aimTurret = enemy.GetComponentInChildren<AimTurret>(true);
+        copyController.turrets = enemy.GetComponentsInChildren<Turret>(true);
+        return copyController;
+    }
+
+    private void AddGridEnemyAgentPIBTTcp(GameObject enemy, int agentIndex, TankControllerCopy copyController = null)
+    {
+        if (useCopyMovementComponents)
+        {
+            GridEnemyAgentPIBTTcp legacyAgent = enemy.GetComponent<GridEnemyAgentPIBTTcp>();
+            if (legacyAgent != null)
+                legacyAgent.enabled = false;
+
+            TankControllerCopy resolvedCopyController = copyController != null
+                ? copyController
+                : enemy.GetComponentInChildren<TankControllerCopy>(true);
+            if (resolvedCopyController == null || eagleBase == null) return;
+
+            GridEnemyAgentPIBTTcpCopy copyAgent = enemy.AddComponent<GridEnemyAgentPIBTTcpCopy>();
+            copyAgent.mapLoader            = mapLoader;
+            copyAgent.eagleTarget          = eagleBase.transform;
+            copyAgent.playerTarget         = enablePlayerCombat ? GameObject.Find("Player")?.transform : null;
+            copyAgent.tankController       = resolvedCopyController;
+            copyAgent.sessionState         = _sessionState;
+            copyAgent.agentId              = agentIndex;
+            copyAgent.eagleShootingRange   = enemyEagleShootingRange;
+            copyAgent.playerShootingRange  = enablePlayerCombat ? enemyPlayerShootingRange : 0f;
+            copyAgent.enablePlayerCombat   = enablePlayerCombat;
+            copyAgent.lineOfSightMask      = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable",
+                                            WallLayerName, LegacyMovementObstacleLayerName);
+            copyAgent.obstacleContactMask  = obstacleContactMask.value != 0
+                ? obstacleContactMask
+                : BuildObstacleContactMask();
+            copyAgent.scuffTimeout         = scuffTimeout;
+            copyAgent.stepInterval         = Mathf.Max(0.05f, enemyReplanInterval);
+
+            Debug.Log($"[MapScenarioBootstrapPIBTTcp] Agent {agentIndex} (GridEnemyAgentPIBTTcpCopy) attached to {enemy.name}.");
+            return;
+        }
+
         TankController tankController = enemy.GetComponentInChildren<TankController>();
         if (tankController == null || eagleBase == null) return;
 
@@ -1050,5 +1266,15 @@ private void AddGridEnemyAgentPIBTTcp(GameObject enemy, int agentIndex)
         if (r != null) return r;
 #endif
         return Resources.Load<TankMovementData>("Data/EnemyTankMovementData");
+    }
+
+    private TankMovementData ResolveEnemyMovementDataCopy()
+    {
+        if (enemyMovementDataCopy != null) return enemyMovementDataCopy;
+#if UNITY_EDITOR
+        var r = AssetDatabase.LoadAssetAtPath<TankMovementData>(enemyMovementDataCopyPath);
+        if (r != null) return r;
+#endif
+        return ResolveEnemyMovementData();
     }
 }

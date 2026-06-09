@@ -1,0 +1,3 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Alpha32,AStar,1,EagleDestroyed,35.63,-1,6,6,163,0,18391,63
+2,Alpha32,LNS2,1,EagleDestroyed,35.09,-1,6,6,142,0,20741,57
