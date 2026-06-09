@@ -63,6 +63,11 @@ namespace PibtTcp
         public int               timestep;
         public float             computeMs;
         public bool              timeout;
+        public string            planner;
+        public int               opLen;
+        public int               revisitLimit;
+        public int               fallbackInherited;
+        public int               multiConflictSkipped;
         public List<string>      errors;
         public List<ActionDto>   actions;
     }
@@ -73,6 +78,10 @@ namespace PibtTcp
         public int    id;
         public string action;   // "FW" | "CR" | "CCR" | "W"
         public int    nextLoc;
+        public string planner;
+        public string operation;
+        public int    opIndex;
+        public string debugReason;
     }
 
     // ─── Outgoing: shutdown ───────────────────────────────────────────────────

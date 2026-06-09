@@ -42,6 +42,11 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
     [Min(0.01f)]     public float partialDrivePeriod = 0.1f;
     [Range(0f, 1f)]  public float partialDriveDutyCycle = 0.65f;
 
+    [Header("Rotation")]
+    [Min(90f)] public float rotationMaxDegreesPerSecond = 720f;
+    [Min(0.1f)] public float rotationToleranceDeg = 2f;
+    [Min(0.05f)] public float maxRotationDuration = 0.25f;
+
     [Header("Shooting")]
     public float      eagleShootingRange  = 5f;
     public float      playerShootingRange = 7f;
@@ -59,6 +64,7 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
     [Min(2)] public int diagnosticTurnStreakThreshold = 4;
     [Min(0.05f)] public float diagnosticReplanCooldown = 0.25f;
     public bool goalBiasCorrectBadFw = false;
+    public bool strictEpibtActionModel = false;
 
     [Header("PIBT TCP Diagnostics")]
     [Min(0.1f)] public float diagnosticLongFwSeconds = 1.5f;
@@ -98,13 +104,16 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
     private float        nextGoalDiagnosticTime;
     private float        nextSnapDiagnosticTime;
     private readonly ContactPoint2D[] debugContactBuffer = new ContactPoint2D[8];
+    private float        lastStrictRejectTime = float.NegativeInfinity;
+    private string       lastStrictRejectReason;
 
     // Rotation (CR/CCR)
     private bool         isRotating;
     private float        rotateStartAngle;
     private float        rotateTargetAngle;
-    private float        rotateProgress;
-    private const float  RotateDuration = 0.18f;   // seconds for a 90° turn
+    private float        rotationStartedTime = -1f;
+    private float        lastRotationSettleMs;
+    private float        lastRotationSnapAngle;
 
     // Recovery
     private RecoveryLevel recoveryLevel;
@@ -280,7 +289,8 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
             case "FW":
                 if (!TryDecodeServerForwardTarget(dto, out Vector2Int serverTarget, out string fwReason))
                 {
-                    if (goalBiasCorrectBadFw
+                    if (!strictEpibtActionModel
+                        && goalBiasCorrectBadFw
                         && TryCorrectBadForwardTarget(dto != null ? dto.nextLoc : -1, serverTarget, out Vector2Int correctedCell))
                     {
                         Debug.LogWarning(
@@ -303,11 +313,17 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
                     return;
                 }
 
+                if (strictEpibtActionModel && !IsForwardTargetConsistentWithCommittedFacing(targetCell, out string strictFwReason))
+                {
+                    RejectStrictAction(strictFwReason, dto);
+                    return;
+                }
+
                 BeginForwardMove();
                 break;
 
             case "CR":   // clockwise = -90°
-                if (TryCorrectBadTurnTarget("CR", out Vector2Int crCorrectedCell))
+                if (!strictEpibtActionModel && TryCorrectBadTurnTarget("CR", out Vector2Int crCorrectedCell))
                 {
                     StartCorrectedForwardMove(crCorrectedCell, "CR");
                     return;
@@ -316,7 +332,7 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
                 break;
 
             case "CCR":  // counter-clockwise = +90°
-                if (TryCorrectBadTurnTarget("CCR", out Vector2Int ccrCorrectedCell))
+                if (!strictEpibtActionModel && TryCorrectBadTurnTarget("CCR", out Vector2Int ccrCorrectedCell))
                 {
                     StartCorrectedForwardMove(ccrCorrectedCell, "CCR");
                     return;
@@ -326,7 +342,7 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
 
             case "W":
             default:
-                if (TryAutoAdvanceFromWait())
+                if (!strictEpibtActionModel && TryAutoAdvanceFromWait())
                     break;
                 hasPendingMove = false;
                 isRotating    = false;
@@ -436,26 +452,57 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
         isRotating        = true;
         hasPendingMove    = false;
         ClearForwardMoveTracking();
-        rotateProgress    = 0f;
         rotateStartAngle  = GetBodyRotationAngle();
         rotateTargetAngle = rotateStartAngle + deltaDeg;
+        rotationStartedTime = Time.time;
+
+        TankMoverCopy mover = GetTankMover();
+        if (mover != null)
+            mover.BeginRotateToAngle(rotateTargetAngle, rotationMaxDegreesPerSecond, rotationToleranceDeg);
+
+        Debug.Log(
+            $"[PIBT_TCP_ROT] agent={agentId} phase=start action={pendingAction} startAngle={rotateStartAngle:F1} targetAngle={rotateTargetAngle:F1}");
     }
 
     private void ContinueRotation()
     {
-        rotateProgress += Time.deltaTime / RotateDuration;
-        float angle = Mathf.LerpAngle(rotateStartAngle, rotateTargetAngle, Mathf.Clamp01(rotateProgress));
         StopMovement();
-        SetBodyRotationAngle(angle);
         ZeroBodyVelocity();
 
-        if (rotateProgress >= 1f)
+        TankMoverCopy mover = GetTankMover();
+        float currentAngle = GetBodyRotationAngle();
+        float angleDelta = Mathf.Abs(Mathf.DeltaAngle(currentAngle, rotateTargetAngle));
+
+        if (rotationStartedTime >= 0f && Time.time - rotationStartedTime > maxRotationDuration)
         {
-            SnapCommittedFacingAfterRotation(pendingAction);
-            isRotating = false;
-            TraceAgentExecution("rotate_done", sessionState.GetAction(agentId));
-            StopMovement();
+            Debug.LogWarning(
+                $"[PIBT_TCP_ROT] agent={agentId} phase=timeout action={pendingAction} currentAngle={currentAngle:F1} " +
+                $"targetAngle={rotateTargetAngle:F1} delta={angleDelta:F1}");
+            if (mover != null)
+                mover.CancelRotationTarget();
+            SetBodyRotationAngle(rotateTargetAngle);
+            angleDelta = Mathf.Abs(Mathf.DeltaAngle(GetBodyRotationAngle(), rotateTargetAngle));
         }
+
+        if (mover != null && !mover.IsRotationTargetComplete() && angleDelta > rotationToleranceDeg)
+            return;
+
+        lastRotationSettleMs = rotationStartedTime >= 0f ? (Time.time - rotationStartedTime) * 1000f : 0f;
+        lastRotationSnapAngle = angleDelta;
+        if (lastRotationSnapAngle > rotationToleranceDeg)
+        {
+            Debug.LogWarning(
+                $"[PIBT_TCP_ROT] agent={agentId} phase=snap_angle_large action={pendingAction} snapAngle={lastRotationSnapAngle:F1} " +
+                $"tolerance={rotationToleranceDeg:F1}");
+        }
+
+        SnapCommittedFacingAfterRotation(pendingAction);
+        isRotating = false;
+        rotationStartedTime = -1f;
+        Debug.Log(
+            $"[PIBT_TCP_ROT] agent={agentId} phase=done action={pendingAction} settleMs={lastRotationSettleMs:F1} snapAngle={lastRotationSnapAngle:F1}");
+        TraceAgentExecution("rotate_done", sessionState.GetAction(agentId));
+        StopMovement();
     }
 
     // ── Shooting ──────────────────────────────────────────────────────────────
@@ -500,6 +547,8 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
             return "rotating";
         if (IsScuffing())
             return "scuffing";
+        if (WasStrictRejectedRecently())
+            return "strict_reject";
         return "idle";
     }
 
@@ -649,7 +698,7 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
     private void StopMovement()
     {
         if (tankController != null)
-            tankController.HandleMoveBody(Vector2.zero);
+            tankController.StopBodyMovement(isRotating);
     }
 
     private void RejectForwardAction(string reason, ActionDto dto)
@@ -674,6 +723,22 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
             bodyPos,
             mapLoader != null ? Vector2.Distance(bodyPos, mapLoader.CellToWorld(observedCell)) : -1f);
 
+        RequestImmediatePlanStep();
+    }
+
+    private void RejectStrictAction(string reason, ActionDto dto)
+    {
+        lastStrictRejectTime = Time.time;
+        lastStrictRejectReason = reason;
+        pendingAction = "W";
+        hasPendingMove = false;
+        isRotating = false;
+        ClearForwardMoveTracking();
+        ResetPartialDrive();
+        StopMovement();
+        ZeroBodyVelocity();
+
+        TraceMovementDiagnostic($"strict_reject:{reason}", dto, GetDistanceToTargetCell());
         RequestImmediatePlanStep();
     }
 
@@ -986,6 +1051,19 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
     {
         Vector2Int delta = b - a;
         return Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1;
+    }
+
+    private bool IsForwardTargetConsistentWithCommittedFacing(Vector2Int serverTarget, out string reason)
+    {
+        Vector2Int expected = currentCell + committedFacing;
+        if (serverTarget != expected)
+        {
+            reason = $"strict_fw_facing_mismatch expected={expected} actual={serverTarget}";
+            return false;
+        }
+
+        reason = null;
+        return true;
     }
 
     private bool TryCorrectBadForwardTarget(int nextLoc, Vector2Int serverTarget, out Vector2Int correctedCell)
@@ -1391,6 +1469,9 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
         Vector3 pos = GetAgentPosition();
         string action = dto?.action ?? "W";
         int nextLoc = dto?.nextLoc ?? -1;
+        string planner = string.IsNullOrWhiteSpace(dto?.planner) ? "-" : dto.planner;
+        string operation = string.IsNullOrWhiteSpace(dto?.operation) ? "-" : dto.operation;
+        int opIndex = dto?.opIndex ?? -1;
         string targetCellText = hasPendingMove ? targetCell.ToString() : "-";
         float eagleDistance = eagleTarget != null ? Vector2.Distance(pos, eagleTarget.position) : -1f;
         bool canShootEagle = CanShootEagleNow();
@@ -1407,7 +1488,7 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
         Debug.Log(
             $"[PIBT_TCP_TRACE] agent={agentId} phase={phase} req={requestId} t={sessionState.LastTimestep} " +
             $"cell={currentCell} goal={eagleCell} assignedGoal={assignedGoalText} canShootEagle={canShootEagle} shootTarget={shootingTargetText} motionState={motionState} facing={committedFacing} physFacing={QuantizeFacingFromTransform()} pos=({pos.x:F2},{pos.y:F2}) " +
-            $"action={action} nextLoc={nextLoc} targetCell={targetCellText} pendingMove={hasPendingMove} " +
+            $"action={action} nextLoc={nextLoc} planner={planner} op={operation} opIndex={opIndex} strict={strictEpibtActionModel} strictReason={lastStrictRejectReason ?? "-"} targetCell={targetCellText} pendingMove={hasPendingMove} " +
             $"rotating={isRotating} turnStreak={repeatedTurnActionCount} distEagle={eagleDistance:F2}");
     }
 
@@ -1488,6 +1569,11 @@ public class GridEnemyAgentPIBTTcpCopy : MonoBehaviour
         }
 
         return string.IsNullOrEmpty(layers) ? "-" : layers;
+    }
+
+    private bool WasStrictRejectedRecently()
+    {
+        return Time.time - lastStrictRejectTime <= 0.5f;
     }
 
     private void OnDrawGizmos()

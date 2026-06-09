@@ -25,6 +25,18 @@ public class PibtTcpSessionState
         }
     }
 
+    public void SetPlannerMetadata(PlanResult result)
+    {
+        if (result == null)
+            return;
+
+        PlannerName = string.IsNullOrWhiteSpace(result.planner) ? null : result.planner;
+        OpLen = result.opLen;
+        RevisitLimit = result.revisitLimit;
+        FallbackInherited = result.fallbackInherited;
+        MultiConflictSkipped = result.multiConflictSkipped;
+    }
+
     /// <summary>Returns the action for the agent, or null if none available.</summary>
     public ActionDto GetAction(int agentId)
     {
@@ -63,6 +75,11 @@ public class PibtTcpSessionState
     public int   TimeoutCount   { get; set; }
     public int   LastRequestId  { get; set; }
     public int   LastTimestep   { get; set; }
+    public string PlannerName   { get; private set; }
+    public int   OpLen          { get; private set; }
+    public int   RevisitLimit   { get; private set; }
+    public int   FallbackInherited { get; private set; }
+    public int   MultiConflictSkipped { get; private set; }
 
     // ─── Readiness flag ──────────────────────────────────────────────────────
     /// <summary>True after a successful plan_result is stored and ready for agents.</summary>

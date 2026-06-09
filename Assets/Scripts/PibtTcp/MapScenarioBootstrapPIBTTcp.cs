@@ -79,6 +79,14 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
     [Min(1)] public int debugTraceRequestLimit = 24;
     [Min(1)] public int debugTraceEveryNthRequest = 10;
 
+    [Header("M2 Strict Action Model")]
+    public bool strictEpibtActionModel = false;
+
+    [Header("M0 Logging")]
+    public bool enableFileLogging = true;
+    public string fileLoggingPrefix = "epibt_m0_unity_console";
+    public bool writeAllRequestsToFile = true;
+
     [Header("Phase B Validation")]
     public bool debugValidateOrientationOnSpawn = false;
 
@@ -104,6 +112,7 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
     private float               _nextPlanTime;
     private int                 _requestId;
     private int                 _debugTraceCount;
+    private string              _activeLogPath;
 
     public GameObject            EagleBase => eagleBase;
     public IReadOnlyList<GameObject> Enemies => enemies;
@@ -188,6 +197,12 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             TeamSize  = enemySpawnCells.Count
         };
 
+        if (enableFileLogging)
+        {
+            _activeLogPath = PibtTcpFileLogger.StartCapture(_sessionState.SessionId, fileLoggingPrefix);
+            Debug.Log("[MapScenarioBootstrapPIBTTcp] File log started: " + _activeLogPath);
+        }
+
         _tcpClient = new PibtTcpClient(tcpHost, tcpPort, tcpTimeout);
 
         eagleBase = SpawnEagleBase();
@@ -270,8 +285,11 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         int requestId = ++_requestId;
         int timestep = Mathf.RoundToInt(Time.time * 10);
 
+        string requestTrace = BuildRequestTrace(requestId, timestep, agentStates);
         if (ShouldTraceRequest(requestId))
-            Debug.Log(BuildRequestTrace(requestId, timestep, agentStates));
+            Debug.Log(requestTrace);
+        else if (enableFileLogging && writeAllRequestsToFile)
+            PibtTcpFileLogger.WriteLine(requestTrace);
 
         try
         {
@@ -279,6 +297,7 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             if (result != null)
             {
                 _sessionState.SetActions(result.actions);
+                _sessionState.SetPlannerMetadata(result);
                 _sessionState.LatencyMsLast = _tcpClient.LatencyMsLast;
                 _sessionState.ComputeMsLast = _tcpClient.ComputeMsLast;
                 _sessionState.TimeoutCount = _tcpClient.TimeoutCount;
@@ -290,6 +309,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
                 {
                     _debugTraceCount++;
                     Debug.Log(BuildResultTrace(result));
+                }
+                else if (enableFileLogging && writeAllRequestsToFile)
+                {
+                    PibtTcpFileLogger.WriteLine(BuildResultTrace(result));
                 }
             }
         }
@@ -344,7 +367,11 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
 
     private string BuildResultTrace(PlanResult result)
     {
-        return $"[PIBT_TCP_TRACE] recv req={result.requestId} t={result.timestep} compute={result.computeMs:F1} timeout={result.timeout} actions={FormatActions(result.actions)}";
+        string planner = string.IsNullOrWhiteSpace(result?.planner) ? "-" : result.planner;
+        return
+            $"[PIBT_TCP_TRACE] recv req={result.requestId} t={result.timestep} compute={result.computeMs:F1} timeout={result.timeout} " +
+            $"planner={planner} opLen={result.opLen} revisitLimit={result.revisitLimit} fallbackInherited={result.fallbackInherited} " +
+            $"multiConflictSkipped={result.multiConflictSkipped} actions={FormatActions(result.actions)}";
     }
 
     private string BuildMotionSummary()
@@ -352,8 +379,11 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         int shootingEagle = 0;
         int shootingPlayer = 0;
         int pendingMove = 0;
+        int rotating = 0;
         int reverseRecovery = 0;
         int scuffing = 0;
+        int strictReject = 0;
+        int epibtFallback = _sessionState != null ? _sessionState.FallbackInherited : 0;
         int idle = 0;
 
         for (int i = 0; i < enemies.Count; i++)
@@ -373,8 +403,10 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
                 if (state == "shoot_eagle") shootingEagle++;
                 else if (state == "shoot_player") shootingPlayer++;
                 else if (state == "fw_pending") pendingMove++;
+                else if (state == "rotating") rotating++;
                 else if (state == "reverse_recovery") reverseRecovery++;
                 else if (state == "scuffing") scuffing++;
+                else if (state == "strict_reject") strictReject++;
                 else idle++;
                 continue;
             }
@@ -384,7 +416,7 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
                 idle++;
         }
 
-        return $"shootEagle={shootingEagle} shootPlayer={shootingPlayer} pendingMove={pendingMove} reverse={reverseRecovery} scuffing={scuffing} idle={idle}";
+        return $"shootEagle={shootingEagle} shootPlayer={shootingPlayer} pendingMove={pendingMove} rotating={rotating} reverse={reverseRecovery} scuffing={scuffing} strictReject={strictReject} epibtFallback={epibtFallback} idle={idle}";
     }
 
     private static string FormatAgentStates(List<AgentStateDto> states)
@@ -409,10 +441,27 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         var parts = new List<string>(actions.Count);
         foreach (ActionDto action in actions)
         {
-            parts.Add($"id={action.id},act={action.action},next={action.nextLoc}");
+            string planner = string.IsNullOrWhiteSpace(action.planner) ? "-" : action.planner;
+            string operation = string.IsNullOrWhiteSpace(action.operation) ? "-" : action.operation;
+            string debugReason = string.IsNullOrWhiteSpace(action.debugReason) ? "-" : action.debugReason;
+            parts.Add($"id={action.id},act={action.action},next={action.nextLoc},planner={planner},op={operation},opIndex={action.opIndex},reason={debugReason},trace={BuildActionTrace(action)}");
         }
 
         return "[" + string.Join(" | ", parts) + "]";
+    }
+
+    private static string BuildActionTrace(ActionDto action)
+    {
+        if (action == null)
+            return "-";
+
+        string operation = string.IsNullOrWhiteSpace(action.operation) ? "-" : action.operation;
+        string currentAction = string.IsNullOrWhiteSpace(action.action) ? "-" : action.action;
+        int opIndex = action.opIndex;
+        if (operation == "-" || opIndex < 0)
+            return currentAction;
+
+        return $"{currentAction}@{opIndex}:{operation}";
     }
 
     [ContextMenu("Phase B Validate Orientation")]
@@ -1040,6 +1089,7 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
             copyAgent.eagleShootingRange   = enemyEagleShootingRange;
             copyAgent.playerShootingRange  = enablePlayerCombat ? enemyPlayerShootingRange : 0f;
             copyAgent.enablePlayerCombat   = enablePlayerCombat;
+            copyAgent.strictEpibtActionModel = strictEpibtActionModel;
             copyAgent.lineOfSightMask      = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable",
                                             WallLayerName, LegacyMovementObstacleLayerName);
             copyAgent.obstacleContactMask  = obstacleContactMask.value != 0
@@ -1208,12 +1258,14 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
     private void OnDestroy()
     {
         _tcpClient?.Dispose();
+        StopFileLoggingCapture();
     }
 
     // ─── Utility ──────────────────────────────────────────────────────────────
 
     private void ClearScenario()
     {
+        StopFileLoggingCapture();
         enemies.Clear();
         winTriggered = false;
         Transform existing = transform.Find("ScenarioRuntime_PIBT_TCP");
@@ -1256,6 +1308,17 @@ public class MapScenarioBootstrapPIBTTcp : MonoBehaviour
         if (r != null) return r;
 #endif
         return Resources.Load<GameObject>("Prefabs/StaticEnemy");
+    }
+
+    private void StopFileLoggingCapture()
+    {
+        if (!enableFileLogging && !PibtTcpFileLogger.IsCapturing)
+            return;
+
+        if (PibtTcpFileLogger.IsCapturing)
+            PibtTcpFileLogger.StopCapture();
+
+        _activeLogPath = null;
     }
 
     private TankMovementData ResolveEnemyMovementData()

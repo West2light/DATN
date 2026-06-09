@@ -24,6 +24,11 @@ public class PibtTcpClient : IDisposable
     public float LatencyMsLast   { get; private set; }
     public float ComputeMsLast   { get; private set; }
     public int   TimeoutCount    { get; private set; }
+    public string PlannerNameLast { get; private set; }
+    public int    OpLenLast       { get; private set; }
+    public int    RevisitLimitLast { get; private set; }
+    public int    FallbackInheritedLast { get; private set; }
+    public int    MultiConflictSkippedLast { get; private set; }
 
     // ─── Internals ───────────────────────────────────────────────────────────
     private TcpClient       _tcp;
@@ -94,6 +99,7 @@ public async Task<bool> ConnectAndHelloAsync(
                 return false;
             }
 
+            PlannerNameLast = ack.planner;
             Debug.Log($"[PibtTcpClient] Connected: server={ack.server}, planner={ack.planner}");
             return true;
         }
@@ -161,11 +167,19 @@ public async Task<bool> ConnectAndHelloAsync(
                     }
 
                     ComputeMsLast = result.computeMs;
+                    PlannerNameLast = string.IsNullOrWhiteSpace(result.planner) ? PlannerNameLast : result.planner;
+                    OpLenLast = result.opLen;
+                    RevisitLimitLast = result.revisitLimit;
+                    FallbackInheritedLast = result.fallbackInherited;
+                    MultiConflictSkippedLast = result.multiConflictSkipped;
 
                     if (result.errors != null && result.errors.Count > 0)
                         Debug.LogWarning($"[PibtTcpClient] plan_result errors: {string.Join(", ", result.errors)}");
 
-                    Debug.Log($"[PibtTcpClient] req={requestId} latency={LatencyMsLast:F1}ms compute={ComputeMsLast:F1}ms timeout={TimeoutCount}");
+                    Debug.Log(
+                        $"[PibtTcpClient] req={requestId} latency={LatencyMsLast:F1}ms compute={ComputeMsLast:F1}ms timeout={TimeoutCount} " +
+                        $"planner={PlannerNameLast ?? "-"} opLen={OpLenLast} revisitLimit={RevisitLimitLast} " +
+                        $"fallbackInherited={FallbackInheritedLast} multiConflictSkipped={MultiConflictSkippedLast}");
                     return result;
                 }
             }

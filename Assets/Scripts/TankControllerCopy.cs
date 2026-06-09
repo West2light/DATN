@@ -40,6 +40,12 @@ public class TankControllerCopy : MonoBehaviour
             tankMover.MoveWorldDirection(movementVector);
     }
 
+    public void StopBodyMovement(bool preserveRotationTarget = false)
+    {
+        if (tankMover != null)
+            tankMover.StopBodyMovement(preserveRotationTarget);
+    }
+
     public void HandleTurretMovement(Vector2 pointerPosition)
     {
         if (aimTurret != null)
