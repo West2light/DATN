@@ -11,6 +11,7 @@ public class MapLoader : MonoBehaviour
 {
     [Header("Map Source")]
     public string mapFileName = "random-32-32-10.map";
+    public bool useSelectedMapFileOverride = true;
     public float tileSize = 1f;
     public bool buildOnStart = false;
     public Transform tilesParent;
@@ -82,7 +83,9 @@ public class MapLoader : MonoBehaviour
         ClearExistingTiles();
         LoadDefaultSprites();
 
-        string overrideFile = UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty);
+        string overrideFile = useSelectedMapFileOverride
+            ? UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty)
+            : string.Empty;
         if (!string.IsNullOrEmpty(overrideFile)) mapFileName = Path.GetFileName(overrideFile);
 
         string mapPath = Path.Combine(Application.streamingAssetsPath, "MapData", mapFileName);

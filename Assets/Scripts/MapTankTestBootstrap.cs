@@ -110,7 +110,8 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         SetupCamera();
 
-        if (!BacktestMode.IsActive && MapPlacementPhase.ShouldTrigger())
+        bool isPibtTcpScene = GetComponent<MapScenarioBootstrapPIBTTcp>() != null;
+        if (!isPibtTcpScene && !BacktestMode.IsActive && MapPlacementPhase.ShouldTrigger())
         {
             allowCameraFollow = false;
             MapPlacementPhase phase = gameObject.AddComponent<MapPlacementPhase>();
@@ -179,6 +180,17 @@ public class MapTankTestBootstrap : MonoBehaviour
     {
         List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
 
+        // Priority 1: TCP bootstrap (Sprint 3)
+        MapScenarioBootstrapPIBTTcp tcpBootstrap = GetComponent<MapScenarioBootstrapPIBTTcp>();
+        if (tcpBootstrap != null)
+        {
+            tcpBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) tcpBootstrap.enemySpawnCells = spawnCells;
+            tcpBootstrap.SpawnScenario();
+            return;
+        }
+
+        // Priority 2: PIBT bootstrap
         MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibtBootstrap != null)
         {
@@ -188,6 +200,7 @@ public class MapTankTestBootstrap : MonoBehaviour
             return;
         }
 
+        // Priority 3: classic A* bootstrap
         MapScenarioBootstrap scenarioBootstrap = GetComponent<MapScenarioBootstrap>();
         if (scenarioBootstrap != null)
         {
@@ -319,7 +332,11 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private List<GameObject> GetSpawnedEnemies()
     {
-        // MapScenarioBootstrapPIBT takes priority (matches SpawnScenario() dispatch order)
+        // TCP bootstrap has highest priority
+        var tcp = GetComponent<MapScenarioBootstrapPIBTTcp>();
+        if (tcp != null) return new List<GameObject>(tcp.Enemies);
+
+        // PIBT bootstrap second
         var pibt = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibt != null) return new List<GameObject>(pibt.Enemies);
 

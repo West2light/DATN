@@ -1,0 +1,13 @@
+﻿Run,Map,Algorithm,Rep,Outcome,AgentName,Replans,Recoveries,Shots,CellsVisited,InitialPathLen,DeadAtEnd
+1,Mansion,AStar,1,EagleDestroyed,Enemy_4,122,0,0,55,133,0
+1,Mansion,AStar,1,EagleDestroyed,Enemy_6,79,0,10576,39,66,0
+1,Mansion,AStar,1,EagleDestroyed,Enemy_5,119,0,718,49,94,0
+1,Mansion,AStar,1,EagleDestroyed,Enemy_2,82,0,9674,41,70,0
+1,Mansion,AStar,1,EagleDestroyed,Enemy_1,122,0,0,55,176,0
+1,Mansion,AStar,1,EagleDestroyed,Enemy_3,92,0,6600,40,70,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_4,123,0,0,53,129,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_5,176,0,15268,36,74,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_2,103,0,19074,2,62,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_6,77,0,18256,43,64,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_3,138,0,19347,1,66,0
+2,Mansion,PIBT,1,EagleDestroyed,EnemyPIBT_1,123,0,0,51,172,0

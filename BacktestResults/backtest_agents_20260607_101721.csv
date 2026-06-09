@@ -1,0 +1,13 @@
+﻿Run,Map,Algorithm,Rep,Outcome,AgentName,Replans,Recoveries,Shots,CellsVisited,InitialPathLen,DeadAtEnd
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_5,16,0,9148,8,18,0
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_4,30,1,5495,10,18,0
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_6,23,0,6992,8,21,0
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_2,32,0,4984,15,30,0
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_1,38,0,3428,13,30,0
+1,Alpha32,AStar,1,EagleDestroyed,Enemy_3,48,0,1367,14,29,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_5,14,0,8606,10,16,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_4,18,1,7937,6,16,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_6,17,0,8069,7,17,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_3,52,17,0,14,29,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_2,30,0,4930,13,30,0
+2,Alpha32,PIBT,1,EagleDestroyed,EnemyPIBT_1,34,2,3755,10,30,0
