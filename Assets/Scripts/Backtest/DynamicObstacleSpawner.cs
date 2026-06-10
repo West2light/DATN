@@ -16,12 +16,14 @@ using UnityEditor;
 /// </summary>
 public class DynamicObstacleSpawner : MonoBehaviour
 {
-    // Tốc độ spawn cố định (giây / crate)
+    // Tốc độ spawn (giây / crate) — tự động tính lại trong SetAgents
     public float spawnInterval  = 2.5f;
     // Thời gian mỗi crate tồn tại trước khi biến mất
-    public float crateLifetime  = 4f;
-    // Số crate tối đa đồng thời
+    public float crateLifetime  = 8f;
+    // Số crate tối đa đồng thời — được ghi đè bởi SetAgents() thành agentCount * cratesPerAgent
     public int   maxActiveCrates = 8;
+    // Số crate trên mỗi agent (1 = bằng số agent, 2 = gấp đôi, ...)
+    [Min(1)] public int cratesPerAgent = 1;
     // Bán kính an toàn quanh Eagle (world units) — không spawn trong vùng này
     public float safeRadius     = 6f;
 
@@ -57,6 +59,22 @@ public class DynamicObstacleSpawner : MonoBehaviour
     {
         _agentsA = agentsA;
         _agentsL = agentsL;
+
+        int totalAgents = (agentsA?.Count ?? 0) + (agentsL?.Count ?? 0);
+        if (totalAgents <= 0) return;
+
+        maxActiveCrates = totalAgents * cratesPerAgent;
+        // Để duy trì đúng maxActiveCrates crate đồng thời:
+        // steady-state = crateLifetime / spawnInterval  →  interval = lifetime / count
+        spawnInterval = Mathf.Max(0.3f, crateLifetime / maxActiveCrates);
+
+        // Spawn ngay lập tức để fill đủ số crate từ đầu (không cần đợi interval đầu tiên)
+        if (_mapLoader != null)
+        {
+            for (int i = 0; i < maxActiveCrates; i++)
+                TrySpawn();
+            _nextSpawn = Time.time + spawnInterval;
+        }
     }
 
     private void Update()
