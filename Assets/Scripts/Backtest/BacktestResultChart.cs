@@ -62,7 +62,7 @@ public class BacktestResultChart : MonoBehaviour
     {
         new Metric { label="Thời gian trung bình (s)", get=r=>r.duration,    maxHint=120f, lowerBetter=true  },
         new Metric { label="Số lần replan tổng",       get=r=>r.totalReplans,maxHint=0,    lowerBetter=false },
-        new Metric { label="Eagle HP còn lại",         get=r=>r.eagleHpAtEnd,maxHint=500f, lowerBetter=false },
+        new Metric { label="Tổng số shot",             get=r=>r.totalShots,  maxHint=0,    lowerBetter=false },
     };
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -301,8 +301,8 @@ public class BacktestResultChart : MonoBehaviour
                 bg.AddComponent<Image>().color = tint;
             }
 
-            DrawBar($"BA{mi}_{i}", panel, aX, baseline, aVal, maxVal, C_AStar, chartTop);
-            DrawBar($"BP{mi}_{i}", panel, pX, baseline, pVal, maxVal, C_PIBT,  chartTop);
+            DrawBar($"BA{mi}_{i}", panel, aX, baseline, aVal, maxVal, C_AStar, chartTop, TextAnchor.LowerRight);
+            DrawBar($"BP{mi}_{i}", panel, pX, baseline, pVal, maxVal, C_PIBT,  chartTop, TextAnchor.LowerLeft);
 
             // Map label
             Lbl($"MapL{mi}_{i}", panel, new Vector2(0f,1f),
@@ -315,7 +315,7 @@ public class BacktestResultChart : MonoBehaviour
     }
 
     private void DrawBar(string name, GameObject panel,
-        float x, float baseline, float val, float maxVal, Color col, float chartTop)
+        float x, float baseline, float val, float maxVal, Color col, float chartTop, TextAnchor valueAlign)
     {
         if (maxVal <= 0f) return;
 
@@ -332,10 +332,12 @@ public class BacktestResultChart : MonoBehaviour
         if (val > 0.01f)
         {
             string txt = val >= 10f ? val.ToString("F0") : val.ToString("F1");
+            const float labelW = 54f;
+            float labelX = valueAlign == TextAnchor.LowerRight ? x + BarW - labelW : x;
             Lbl(name + "V", panel, new Vector2(0f,1f),
-                new Vector2(x - 2f, baseline + h + 13f),
-                new Vector2(BarW + 4f, 13f),
-                txt, 8, FontStyle.Normal, C_White, TextAnchor.LowerCenter);
+                new Vector2(labelX, baseline + h + 13f),
+                new Vector2(labelW, 13f),
+                txt, 8, FontStyle.Normal, C_White, valueAlign);
         }
     }
 

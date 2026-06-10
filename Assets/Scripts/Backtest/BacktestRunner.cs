@@ -6,6 +6,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Process = System.Diagnostics.Process;
+using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -463,8 +465,18 @@ public class BacktestRunner : MonoBehaviour
         string html = Path.Combine(dir, $"backtest_chart_{ts}.html");
         try
         {
-            File.WriteAllText(html, BuildHTML(_results), Encoding.UTF8);
-            Debug.Log($"[BacktestRunner] Chart HTML saved: {Path.GetFullPath(html)}");
+            string png = Path.Combine(dir, $"backtest_chart_{ts}.png");
+            if (TryRunMatplotlibReport(sum, html, png))
+            {
+                Debug.Log($"[BacktestRunner] Matplotlib chart saved: {Path.GetFullPath(png)}");
+                Debug.Log($"[BacktestRunner] Chart HTML saved: {Path.GetFullPath(html)}");
+            }
+            else
+            {
+                File.WriteAllText(html, BuildHTML(_results), Encoding.UTF8);
+                Debug.LogWarning("[BacktestRunner] Matplotlib report unavailable; wrote built-in HTML fallback.");
+                Debug.Log($"[BacktestRunner] Chart HTML saved: {Path.GetFullPath(html)}");
+            }
         }
         catch (Exception e)
         {
@@ -474,6 +486,67 @@ public class BacktestRunner : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.RevealInFinder(Path.GetFullPath(sum));
 #endif
+    }
+
+    private static bool TryRunMatplotlibReport(string summaryCsv, string htmlOut, string pngOut)
+    {
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
+        string[] pythonCandidates = { "/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3", "python3" };
+#else
+        string[] pythonCandidates = { "python3", "python" };
+#endif
+        string script = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools", "backtest_plot_report.py"));
+        if (!File.Exists(script))
+        {
+            Debug.LogWarning($"[BacktestRunner] Matplotlib script not found: {script}");
+            return false;
+        }
+
+        foreach (string python in pythonCandidates)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = python,
+                    Arguments = $"\"{script}\" \"{summaryCsv}\" \"{htmlOut}\" \"{pngOut}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+
+                using (var proc = Process.Start(psi))
+                {
+                    if (proc == null) continue;
+                    bool exited = proc.WaitForExit(30000);
+                    if (!exited)
+                    {
+                        try { proc.Kill(); } catch { }
+                        Debug.LogWarning($"[BacktestRunner] Matplotlib via {python} timed out.");
+                        continue;
+                    }
+                    string stdout = proc.StandardOutput.ReadToEnd();
+                    string stderr = proc.StandardError.ReadToEnd();
+
+                    if (proc.ExitCode == 0 && File.Exists(htmlOut) && File.Exists(pngOut))
+                    {
+                        if (!string.IsNullOrWhiteSpace(stdout))
+                            Debug.Log($"[BacktestRunner] Matplotlib: {stdout.Trim()}");
+                        return true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(stderr))
+                        Debug.LogWarning($"[BacktestRunner] Matplotlib via {python} failed: {stderr.Trim()}");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[BacktestRunner] Matplotlib via {python} unavailable: {e.Message}");
+            }
+        }
+
+        return false;
     }
 
     // ── Overlay UI ─────────────────────────────────────────────────────────
@@ -603,7 +676,7 @@ public class BacktestRunner : MonoBehaviour
             if (!maps.Contains(r.map)) maps.Add(r.map);
 
         // Aggregate per (map, algo): sum & count for 4 metrics
-        // idx: 0=duration, 1=replans, 2=eagleHP, 3=cells
+        // idx: 0=duration, 1=replans, 2=shots, 3=cells
         const int NM = 4;
         var sums  = new Dictionary<(string, string), float[]>();
         var cnts  = new Dictionary<(string, string), int[]>();
@@ -613,7 +686,7 @@ public class BacktestRunner : MonoBehaviour
             if (!sums.ContainsKey(k)) { sums[k] = new float[NM]; cnts[k] = new int[NM]; }
             sums[k][0] += r.duration;      cnts[k][0]++;
             sums[k][1] += r.totalReplans;  cnts[k][1]++;
-            sums[k][2] += r.eagleHpAtEnd >= 0 ? r.eagleHpAtEnd : 0; cnts[k][2]++;
+            sums[k][2] += r.totalShots;    cnts[k][2]++;
             sums[k][3] += r.totalCells;    cnts[k][3]++;
         }
 
@@ -624,9 +697,8 @@ public class BacktestRunner : MonoBehaviour
             return sums[k][i] / cnts[k][i];
         }
 
-        string[] metLabels    = { "Thời gian TB (s)", "Replan tổng", "Eagle HP còn", "Cells đã đi" };
+        string[] metLabels    = { "Thời gian TB (s)", "Replan tổng", "Tổng số shot", "Cells đã đi" };
         bool[]   lowerBetter  = { true, false, false, false };
-        string[] metIds       = { "duration", "replans", "eagleHP", "cells" };
 
         var sb = new StringBuilder();
 
@@ -648,7 +720,7 @@ public class BacktestRunner : MonoBehaviour
         sb.AppendLine(".bar:hover{opacity:.8}");
         sb.AppendLine(".bar-a{background:#4a96ff}");
         sb.AppendLine(".bar-p{background:#ff8c24}");
-        sb.AppendLine(".bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#c0c8d8}");
+        sb.AppendLine(".bar-val{display:none}");
         sb.AppendLine(".map-lbl{font-size:10px;color:#6a7280;text-align:center;margin-top:6px;width:62px}");
         sb.AppendLine(".legend{display:flex;gap:20px;margin-bottom:12px}");
         sb.AppendLine(".leg{display:flex;align-items:center;gap:6px;font-size:12px;color:#8a93a8}");
