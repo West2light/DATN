@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -46,7 +47,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     private bool    _spectating;
     private Vector2 _spectatorPos;
 
-    private void Start()
+    private IEnumerator Start()
     {
         if (mapLoader == null)
             mapLoader = GetComponent<MapLoader>();
@@ -55,10 +56,18 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (mapLoader == null)
         {
             Debug.LogError("[MapTankTestBootstrap] MapLoader is missing.");
-            return;
+            yield break;
         }
 
         mapLoader.LoadAndBuild();
+        while (mapLoader.IsLoading)
+            yield return null;
+
+        if (!mapLoader.IsLoaded)
+        {
+            Debug.LogError($"[MapTankTestBootstrap] Map failed to load. {mapLoader.LastLoadError}");
+            yield break;
+        }
 
         // ── LAN multiplayer ──────────────────────────────────────────────────
         if (LanSessionManager.IsActive)
@@ -267,14 +276,14 @@ public class MapTankTestBootstrap : MonoBehaviour
             if (prefab == null) continue;
 
             GameObject tank = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity);
-            tank.name = i == 0 ? "Player" : $"Player_{i}";
-            if (i == 0) player = tank.transform;
+            tank.name = i == 0 && !LanSessionManager.IsDedicatedServer ? "Player" : $"Player_{i}";
+            if (i == 0 && !LanSessionManager.IsDedicatedServer) player = tank.transform;
 
-            // Only the host's own tank (slot 0) shows the HP bar on the host screen.
-            // Client tanks are server-side representations only; their HP is shown on
-            // the respective client machine via LanClientView world-state sync.
+            // In host mode, only the host's own tank (slot 0) shows the HP bar locally.
+            // Dedicated server mode has no local player view, so all player tanks are
+            // purely server-side representations.
             bool savedShowHp = showPlayerHealthBar;
-            if (i > 0) showPlayerHealthBar = false;
+            if (LanSessionManager.IsDedicatedServer || i > 0) showPlayerHealthBar = false;
             ConfigureTank(tank);
             showPlayerHealthBar = savedShowHp;
 
@@ -289,8 +298,8 @@ public class MapTankTestBootstrap : MonoBehaviour
                 int slot = i;
                 d.OnDead.AddListener(() => LanGameCoordinator.Instance?.OnPlayerTankDead(slot));
 
-                // Hook the host's own tank death to switch this machine to spectator mode.
-                if (i == 0)
+                // Only host-mode has a local server-side player to switch into spectator mode.
+                if (i == 0 && !LanSessionManager.IsDedicatedServer)
                     d.OnDead.AddListener(EnterSpectatorMode);
             }
 

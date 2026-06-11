@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -79,8 +80,10 @@ public class MenuViewBootstrap : MonoBehaviour
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
+    private Text       _lanStatusText;
     private int        _selectedVariant;
     private bool       _isLanMode;   // true khi vào Outfit từ nút MULTIPLAYER LAN
+    private bool       _creatingInternetRoom;
     private readonly List<Image>  _variantSwatchImages = new List<Image>();
     private readonly List<GameObject> _variantRings    = new List<GameObject>();
 
@@ -112,6 +115,61 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildScreenMapSelect();
         BuildScreenLanMapSelect();
         ShowScreen(Screen.Main);
+        TryAutoJoinInternetSession();
+    }
+
+    private void TryAutoJoinInternetSession()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        string joinTarget = GetAutoJoinTarget(Application.absoluteURL);
+        if (string.IsNullOrWhiteSpace(joinTarget))
+            return;
+
+        string defaultMap = Maps.Length > 0 ? Maps[0].mapFile : "Assets/MapData/random-32-32-10.map";
+        LanLobbyController.ShowAndJoin(defaultMap, "AStar", joinTarget);
+#endif
+    }
+
+    private static string GetAutoJoinTarget(string absoluteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(absoluteUrl))
+            return string.Empty;
+
+        if (!Uri.TryCreate(absoluteUrl, UriKind.Absolute, out Uri uri))
+            return string.Empty;
+
+        string sessionFromQuery = GetQueryValue(uri, "session");
+        if (!string.IsNullOrWhiteSpace(sessionFromQuery))
+            return $"{uri.Scheme}://{uri.Authority}/s/{sessionFromQuery.Trim()}";
+
+        string[] segments = uri.AbsolutePath.Trim('/').Split(new[] { '/' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length >= 2 && segments[0].Equals("s", System.StringComparison.OrdinalIgnoreCase))
+            return $"{uri.Scheme}://{uri.Authority}/s/{segments[1]}";
+
+        return string.Empty;
+    }
+
+    private static string GetQueryValue(Uri uri, string key)
+    {
+        string query = uri.Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+            return string.Empty;
+
+        string[] pairs = query.Split(new[] { '&' }, System.StringSplitOptions.RemoveEmptyEntries);
+        foreach (string pair in pairs)
+        {
+            string[] keyValue = pair.Split(new[] { '=' }, 2);
+            if (keyValue.Length == 0)
+                continue;
+
+            string currentKey = Uri.UnescapeDataString(keyValue[0]);
+            if (!currentKey.Equals(key, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return keyValue.Length > 1 ? Uri.UnescapeDataString(keyValue[1]) : string.Empty;
+        }
+
+        return string.Empty;
     }
 
     // ── Setup ──────────────────────────────────────────────────────────────
@@ -643,6 +701,10 @@ public class MenuViewBootstrap : MonoBehaviour
             13, FontStyle.Italic, TextMuted,
             new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
 
+        _lanStatusText = MakeText(_screenLan.transform, "LanStatus", string.Empty,
+            13, FontStyle.Normal, TextMuted,
+            new Vector2(0.5f, 0f), new Vector2(0f, 58f), new Vector2(820f, 24f));
+
         const float CardW = 210f, CardH = 270f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
         float startX = -totalW / 2f + CardW / 2f;
@@ -706,8 +768,79 @@ public class MenuViewBootstrap : MonoBehaviour
                 new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
                 new Vector2(btnW, BtnH), modeColors[m]);
             SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
-            modeBtn.onClick.AddListener(() => LanLobbyController.Show(mapFileCap, algoCap));
+            modeBtn.onClick.AddListener(() => HandleLanModeSelected(mapFileCap, algoCap, modeBtn));
         }
+    }
+
+    private void HandleLanModeSelected(string mapFile, string algorithm, Button button)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (_creatingInternetRoom)
+            return;
+
+        StartCoroutine(CreateInternetRoomAndJoin(mapFile, algorithm, button));
+#else
+        LanLobbyController.Show(mapFile, algorithm);
+#endif
+    }
+
+    private System.Collections.IEnumerator CreateInternetRoomAndJoin(string mapFile, string algorithm, Button button)
+    {
+        _creatingInternetRoom = true;
+        if (button != null)
+            button.interactable = false;
+
+        SetLanStatus("Creating internet room...", TextMuted);
+
+        bool finished = false;
+        string joinTarget = string.Empty;
+        string error = string.Empty;
+
+        yield return InternetSessionClient.CreateRoom(
+            GetRuntimeRegistryBaseUrl(),
+            mapFile,
+            algorithm,
+            8,
+            url =>
+            {
+                joinTarget = url;
+                finished = true;
+            },
+            message =>
+            {
+                error = message;
+                finished = true;
+            });
+
+        _creatingInternetRoom = false;
+        if (button != null)
+            button.interactable = true;
+
+        if (!finished || !string.IsNullOrWhiteSpace(error))
+        {
+            SetLanStatus(string.IsNullOrWhiteSpace(error) ? "Create room did not complete." : error, new Color(1f, 0.4f, 0.4f));
+            yield break;
+        }
+
+        SetLanStatus("Room ready. Opening lobby and joining...", new Color(0.40f, 0.90f, 0.50f));
+        LanLobbyController.ShowAndJoin(mapFile, algorithm, joinTarget);
+    }
+
+    private string GetRuntimeRegistryBaseUrl()
+    {
+        if (Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out Uri uri))
+            return $"{uri.Scheme}://{uri.Authority}";
+
+        return "http://127.0.0.1";
+    }
+
+    private void SetLanStatus(string message, Color color)
+    {
+        if (_lanStatusText == null)
+            return;
+
+        _lanStatusText.text = message ?? string.Empty;
+        _lanStatusText.color = color;
     }
 
     // ── Screen transition ──────────────────────────────────────────────────

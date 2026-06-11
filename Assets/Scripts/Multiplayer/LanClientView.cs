@@ -151,11 +151,10 @@ public class LanClientView : MonoBehaviour
             if (ownerClientId == myClientId) ownSlot = i;
         }
 
-        // LanClientView only exists on non-server clients. Slot 0 always belongs to the
-        // host (smallest OwnerClientId after sort). If LocalClientId was not yet assigned
-        // at message time (returns 0), the loop above would incorrectly match slot 0.
-        // Guard: CLIENT is never slot 0 in host-mode NGO.
-        if (ownSlot == 0 && playerCount > 1)
+        // In host mode, slot 0 belongs to the host. If LocalClientId was not yet assigned
+        // when the init message arrived, the loop above can incorrectly resolve a remote
+        // client to slot 0. Dedicated server mode has no local host player, so slot 0 is valid.
+        if (!LanSessionManager.IsDedicatedServer && ownSlot == 0 && playerCount > 1)
         {
             ownSlot = Mathf.Min(1, playerCount - 1);
             Debug.LogWarning($"[LanClientView] ownSlot resolved to 0 (LocalClientId race?) — forced to {ownSlot}");
@@ -421,7 +420,10 @@ public class LanClientView : MonoBehaviour
             var bridges = FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
             foreach (var b in bridges)
                 if (b.IsOwner && b.Slot.Value >= 0) { _ownSlot = b.Slot.Value; break; }
-            if (_ownSlot < 0) _ownSlot = Mathf.Min(1, playerCount - 1);
+            if (_ownSlot < 0)
+                _ownSlot = LanSessionManager.IsDedicatedServer
+                    ? 0
+                    : Mathf.Min(1, playerCount - 1);
         }
 
         // Spawn player ghosts with the correct tank body sprite per slot ──────

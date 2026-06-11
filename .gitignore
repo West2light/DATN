@@ -67,3 +67,22 @@ Thumbs.db
 .claude/settings.local.json
 **/.claude/settings.local.json
 .codex/config.toml
+
+# Terraform local state, plans, and local variable files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+
+# Node / Python local artifacts
+node_modules/
+**/__pycache__/
+*.pyc
+
+# Invite registry runtime/test artifacts
+services/invite-registry/*.log
+services/invite-registry/data/sessions.json

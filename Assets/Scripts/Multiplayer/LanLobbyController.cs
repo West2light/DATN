@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
@@ -68,6 +70,7 @@ public class LanLobbyController : MonoBehaviour
 
     private readonly List<string> _clients = new List<string>();
     private string _pendingIp;
+    private string _autoJoinTarget;
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -100,20 +103,30 @@ public class LanLobbyController : MonoBehaviour
             // internal NM.OnDestroy() may traverse the still-alive bridge NetworkObjects
             // and throw MissingReferenceException.  Destroying bridges synchronously
             // (while NM is still alive) prevents that race entirely.
-            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-                if (b != null) Object.DestroyImmediate(b.gameObject);
+            foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
 
-            Object.Destroy(nm.gameObject);
+            UnityEngine.Object.Destroy(nm.gameObject);
         }
         else
         {
             // NM already gone — clean up any orphaned bridge GOs that slipped through.
-            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-                if (b != null) Object.DestroyImmediate(b.gameObject);
+            foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
         }
     }
 
     public static void Show(string mapFile, string algorithm)
+    {
+        ShowInternal(mapFile, algorithm, string.Empty);
+    }
+
+    public static void ShowAndJoin(string mapFile, string algorithm, string joinTarget)
+    {
+        ShowInternal(mapFile, algorithm, joinTarget);
+    }
+
+    private static void ShowInternal(string mapFile, string algorithm, string joinTarget)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
         CleanupSession();
@@ -123,8 +136,11 @@ public class LanLobbyController : MonoBehaviour
         _instance                = go.AddComponent<LanLobbyController>();
         _instance._mapFile       = mapFile;
         _instance._algorithm     = algorithm;
+        _instance._autoJoinTarget = joinTarget ?? string.Empty;
         _instance.Build();
         _instance.SwitchTo(Screen.Choose);
+        if (!string.IsNullOrWhiteSpace(_instance._autoJoinTarget))
+            _instance.BeginAutoJoin();
     }
 
     // ── Build the whole overlay ───────────────────────────────────────────────
@@ -332,7 +348,7 @@ public class LanLobbyController : MonoBehaviour
         var phTxt = phGo.AddComponent<Text>();
         phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
         phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = "Nhập IP host  (vd: 192.168.1.5)";
+        phTxt.text = "Nhập IP, IP:port, invite link, hoặc session code";
         phTxt.fontStyle = FontStyle.Italic;
         _ipInput.placeholder = phTxt;
 
@@ -344,7 +360,7 @@ public class LanLobbyController : MonoBehaviour
         cnGo.AddComponent<Image>().color = Blue;
         var cnBtn = cnGo.AddComponent<Button>(); cnBtn.targetGraphic = cnGo.GetComponent<Image>();
         cnBtn.onClick.AddListener(() => DoConnect(_ipInput.text.Trim()));
-        LblFill(cnGo, "KẾT NỐI", 13, FontStyle.Bold, White, L);
+        LblFill(cnGo, "JOIN", 13, FontStyle.Bold, White, L);
 
         return row;
     }
@@ -367,7 +383,7 @@ public class LanLobbyController : MonoBehaviour
                 RefreshPlayers();
                 break;
             case Screen.Joining:
-                SetStatus("Nhập IP của máy host rồi bấm KẾT NỐI:", Muted);
+                SetStatus("Nhập IP, IP:port, invite link, hoặc session code:", Muted);
                 SetVis(_btnHost,  false);  SetVis(_btnStart, false);
                 SetVis(_btnJoin,  false);  _joinRow.SetActive(true);
                 _ipBox?.SetActive(false);
@@ -393,6 +409,21 @@ public class LanLobbyController : MonoBehaviour
         LanSessionManager.ActivateClient(_mapFile, _algorithm);
         SwitchTo(Screen.Joining);
         StartAutoDiscover();
+    }
+
+    private void BeginAutoJoin()
+    {
+        if (string.IsNullOrWhiteSpace(_autoJoinTarget))
+            return;
+
+        if (!EnsureNetworkManager())
+            return;
+
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+        if (_ipInput != null)
+            _ipInput.text = _autoJoinTarget;
+        DoConnect(_autoJoinTarget);
     }
 
     private void StartAutoDiscover()
@@ -423,6 +454,7 @@ public class LanLobbyController : MonoBehaviour
         }
 
         LanSessionManager.ActivateHost(_mapFile, _algorithm);
+        NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: true);
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
         NetworkManager.Singleton.OnClientConnectedCallback  += OnJoin;
@@ -434,7 +466,11 @@ public class LanLobbyController : MonoBehaviour
 
         // Host listens on 0.0.0.0 (all interfaces) so LAN clients can reach it
         var hostTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        if (hostTransport != null) hostTransport.SetConnectionData("0.0.0.0", GamePort);
+        if (hostTransport != null)
+        {
+            hostTransport.SetConnectionData("0.0.0.0", GamePort);
+            hostTransport.UseWebSockets = false;
+        }
 
         // StartHost() returns false if transport fails — don't proceed on failure.
         // OnHostTransportFailure will handle retry; _hostRetryCount must NOT be reset here.
@@ -556,6 +592,13 @@ public class LanLobbyController : MonoBehaviour
     private void OnClientDisconnected(ulong _)
     {
         CancelInvoke(nameof(OnConnectionTimeout));
+        string reason = NetworkManager.Singleton != null ? NetworkManager.Singleton.DisconnectReason : string.Empty;
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            SetStatus($"Connection rejected: {reason}", new Color(1f, 0.4f, 0.4f));
+            Debug.LogWarning($"[LAN] Disconnected from host. Reason: {reason}");
+            return;
+        }
         SetStatus("Mất kết nối với host.", new Color(1f, 0.4f, 0.4f));
         Debug.LogWarning("[LAN] Disconnected from host.");
     }
@@ -572,27 +615,75 @@ public class LanLobbyController : MonoBehaviour
 
     private void DoConnect(string ip)
     {
-        if (string.IsNullOrWhiteSpace(ip))
+        if (!InternetJoinParser.TryParse(ip, LanSessionManager.RegistryUrl, out NetworkEndpointConfig endpoint, out string parseError))
         {
-            SetStatus("IP không được để trống!", new Color(1f, 0.35f, 0.35f));
+            SetStatus(parseError, new Color(1f, 0.35f, 0.35f));
             return;
         }
 
-        // Strip port if user typed "IP:port" format (code adds port automatically)
-        int colonIdx = ip.IndexOf(':');
-        if (colonIdx >= 0)
-            ip = ip.Substring(0, colonIdx).Trim();
-
-        if (string.IsNullOrWhiteSpace(ip))
+        if (string.IsNullOrWhiteSpace(endpoint.host))
         {
-            SetStatus("Địa chỉ IP không hợp lệ!", new Color(1f, 0.35f, 0.35f));
+            if (string.IsNullOrWhiteSpace(endpoint.sessionCode))
+            {
+                SetStatus("Invite link is missing a session code.", new Color(1f, 0.35f, 0.35f));
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(endpoint.registryUrl))
+            {
+                SetStatus("Registry URL is missing for this invite code.", new Color(1f, 0.35f, 0.35f));
+                return;
+            }
+
+            SetStatus($"Resolving session {endpoint.sessionCode}...", Muted);
+            StartCoroutine(ResolveSessionAndConnect(endpoint));
             return;
         }
 
+        BeginClientConnection(endpoint, ip);
+    }
+
+    private IEnumerator ResolveSessionAndConnect(NetworkEndpointConfig endpoint)
+    {
+        bool finished = false;
+        NetworkEndpointConfig resolvedEndpoint = endpoint;
+        string resolveError = string.Empty;
+
+        yield return InternetSessionClient.ResolveSession(
+            endpoint.registryUrl,
+            endpoint.sessionCode,
+            cfg =>
+            {
+                resolvedEndpoint = cfg;
+                finished = true;
+            },
+            error =>
+            {
+                resolveError = error;
+                finished = true;
+            });
+
+        if (!finished)
+        {
+            SetStatus("Registry request did not complete.", new Color(1f, 0.35f, 0.35f));
+            yield break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resolveError))
+        {
+            SetStatus(resolveError, new Color(1f, 0.35f, 0.35f));
+            yield break;
+        }
+
+        BeginClientConnection(resolvedEndpoint, $"{resolvedEndpoint.host}:{resolvedEndpoint.port}");
+    }
+
+    private void BeginClientConnection(NetworkEndpointConfig endpoint, string retryToken)
+    {
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
             NetworkManager.Singleton.Shutdown();
-            _pendingIp = ip;
+            _pendingIp = retryToken;
             Invoke(nameof(RetryConnect), 0.5f);
             return;
         }
@@ -601,16 +692,22 @@ public class LanLobbyController : MonoBehaviour
         var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
         if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
 
-        // Client connects to the host's specific LAN IP (not 0.0.0.0)
-        t.SetConnectionData(ip, GamePort);
-        Debug.Log($"[LAN] Connecting to {ip}:{GamePort}");
+        endpoint.mapFile = string.IsNullOrWhiteSpace(endpoint.mapFile) ? _mapFile : endpoint.mapFile;
+        endpoint.algorithm = string.IsNullOrWhiteSpace(endpoint.algorithm) ? _algorithm : endpoint.algorithm;
+        endpoint.maxPlayers = endpoint.maxPlayers <= 0 ? LanSessionManager.MaxPlayers : endpoint.maxPlayers;
+
+        LanSessionManager.ActivateInternetClient(endpoint);
+        t.SetConnectionData(endpoint.host, endpoint.port);
+        t.UseWebSockets = endpoint.transportMode == NetworkTransportMode.WebSocket;
+        NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: false);
+        Debug.Log($"[LAN] Connecting to {endpoint.host}:{endpoint.port} via {endpoint.transportMode.ToArgumentValue()}");
 
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
         NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
         NetworkManager.Singleton.StartClient();
-        SetStatus($"Đang kết nối tới {ip}:{GamePort}…", Muted);
+        SetStatus($"Connecting to {endpoint.host}:{endpoint.port}...", Muted);
 
         // Timeout: if not connected after 8s, show error
         CancelInvoke(nameof(OnConnectionTimeout));
@@ -632,45 +729,13 @@ public class LanLobbyController : MonoBehaviour
 
     private bool EnsureNetworkManager()
     {
-        if (NetworkManager.Singleton != null) return true;
-
-        var go = new GameObject("NetworkManager");
-        DontDestroyOnLoad(go);
-        var tr = go.AddComponent<UnityTransport>();
-        // "0.0.0.0" = listen on ALL network interfaces (required for LAN hosting)
-        tr.SetConnectionData("0.0.0.0", GamePort);
-
-        var nm = go.AddComponent<NetworkManager>();
-        if (nm.NetworkConfig == null)
-            nm.NetworkConfig = new NetworkConfig();
-
-        nm.NetworkConfig.NetworkTransport      = tr;
-        nm.NetworkConfig.EnableSceneManagement = true;
-
-        var bridge = GetOrCreateBridgePrefab();
-        if (bridge != null)
-            nm.NetworkConfig.PlayerPrefab = bridge;
-
-        return true;
-    }
-
-    private static GameObject GetOrCreateBridgePrefab()
-    {
-        var p = Resources.Load<GameObject>("LanBridgePrefab");
-        if (p != null) return p;
-#if UNITY_EDITOR
-        if (!AssetDatabase.IsValidFolder("Assets/Resources"))
-            AssetDatabase.CreateFolder("Assets", "Resources");
-        const string path = "Assets/Resources/LanBridgePrefab.prefab";
-        var tmp = new GameObject("LanBridgePrefab");
-        tmp.AddComponent<NetworkObject>();
-        tmp.AddComponent<LanNetworkBridge>();
-        bool ok;
-        PrefabUtility.SaveAsPrefabAsset(tmp, path, out ok);
-        DestroyImmediate(tmp);
-        if (ok) { AssetDatabase.Refresh(); return AssetDatabase.LoadAssetAtPath<GameObject>(path); }
+        NetworkTransportMode defaultTransportMode =
+#if UNITY_WEBGL && !UNITY_EDITOR
+            NetworkTransportMode.WebSocket;
+#else
+            NetworkTransportMode.Udp;
 #endif
-        return null;
+        return NetworkManagerFactory.Ensure("0.0.0.0", GamePort, isServer: false, defaultTransportMode, out _);
     }
 
     private static string GetLocalIP()
