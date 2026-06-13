@@ -104,19 +104,44 @@ jobs:
             Remove-Item -LiteralPath "${{ matrix.build_dir }}" -Recurse -Force
           }
 
-          & "${{ steps.unity.outputs.path }}" `
-            -batchmode `
-            -nographics `
-            -quit `
-            -projectPath "$env:GITHUB_WORKSPACE" `
-            -executeMethod "${{ matrix.method }}" `
-            -logFile "${{ matrix.log_file }}"
+          $expectedPath = Join-Path "${{ matrix.build_dir }}" "${{ matrix.expected_file }}"
+          $methodMarker = "[${{ matrix.method }}".Split(".")[0] + "]"
 
-          if ($LASTEXITCODE -ne 0) {
+          for ($attempt = 1; $attempt -le 2; $attempt++) {
             if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
-              Get-Content -Path "${{ matrix.log_file }}" -Tail 200
+              Remove-Item -LiteralPath "${{ matrix.log_file }}" -Force
             }
-            exit $LASTEXITCODE
+
+            Write-Host "Starting Unity build attempt $attempt for ${{ matrix.name }}"
+            & "${{ steps.unity.outputs.path }}" `
+              -batchmode `
+              -nographics `
+              -quit `
+              -projectPath "$env:GITHUB_WORKSPACE" `
+              -executeMethod "${{ matrix.method }}" `
+              -logFile "${{ matrix.log_file }}"
+
+            $unityExitCode = $LASTEXITCODE
+            $logText = ""
+            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
+              $logText = Get-Content -Path "${{ matrix.log_file }}" -Raw -ErrorAction SilentlyContinue
+            }
+
+            if ($unityExitCode -ne 0) {
+              if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
+                Get-Content -Path "${{ matrix.log_file }}" -Tail 200
+              }
+              exit $unityExitCode
+            }
+
+            if ((Test-Path -LiteralPath $expectedPath) -or $logText.Contains($methodMarker)) {
+              break
+            }
+
+            if ($attempt -lt 2) {
+              Write-Warning "Unity exited before running ${{ matrix.method }}. This can happen on a fresh checkout while Library is imported. Retrying once."
+              Start-Sleep -Seconds 10
+            }
           }
 
       - name: Validate build output
@@ -125,6 +150,23 @@ jobs:
           $ErrorActionPreference = "Stop"
           $expectedPath = Join-Path "${{ matrix.build_dir }}" "${{ matrix.expected_file }}"
           if (-not (Test-Path -LiteralPath $expectedPath)) {
+            Write-Host "Workspace root:"
+            Get-ChildItem -Force | Select-Object Name, Mode, Length, LastWriteTime | Format-Table -AutoSize
+
+            Write-Host "Builds tree:"
+            if (Test-Path -LiteralPath "Builds") {
+              Get-ChildItem -Path "Builds" -Recurse -Force | Select-Object FullName, Mode, Length, LastWriteTime | Format-Table -AutoSize
+            } else {
+              Write-Host "Builds directory does not exist."
+            }
+
+            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
+              Write-Host "Last 200 lines from ${{ matrix.log_file }}:"
+              Get-Content -Path "${{ matrix.log_file }}" -Tail 200
+            } else {
+              Write-Host "${{ matrix.log_file }} does not exist."
+            }
+
             Write-Error "Expected build output not found: $expectedPath"
           }
 
