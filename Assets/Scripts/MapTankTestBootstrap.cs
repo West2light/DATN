@@ -108,6 +108,9 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (!BacktestMode.IsActive)
             SpawnPlayer();
 
+        if (!BacktestMode.IsActive)
+            PauseMenuController.Ensure();
+
         SetupCamera();
 
         if (!BacktestMode.IsActive && MapPlacementPhase.ShouldTrigger())

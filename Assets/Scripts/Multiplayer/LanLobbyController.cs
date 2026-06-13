@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+using Unity.Services.Relay.Models;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -13,6 +16,10 @@ using UnityEditor;
 /// </summary>
 public class LanLobbyController : MonoBehaviour
 {
+    // Internet play: host gets a Room Code (via Unity Relay); clients enter code to join.
+    // LAN fallback: relay init fails → shows LAN IP instead; clients enter IP address.
+    // Relay requires UGS project link: Edit → Project Settings → Services.
+
     // ── Singleton ─────────────────────────────────────────────────────────────
     private static LanLobbyController _instance;
 
@@ -56,6 +63,7 @@ public class LanLobbyController : MonoBehaviour
     // Content refs
     private Text       _statusTxt;
     private GameObject _ipBox;
+    private Text       _ipLbl;
     private Text       _ipVal;
     private Text       _playersTxt;
 
@@ -100,16 +108,16 @@ public class LanLobbyController : MonoBehaviour
             // internal NM.OnDestroy() may traverse the still-alive bridge NetworkObjects
             // and throw MissingReferenceException.  Destroying bridges synchronously
             // (while NM is still alive) prevents that race entirely.
-            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-                if (b != null) Object.DestroyImmediate(b.gameObject);
+            foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
 
-            Object.Destroy(nm.gameObject);
+            UnityEngine.Object.Destroy(nm.gameObject);
         }
         else
         {
             // NM already gone — clean up any orphaned bridge GOs that slipped through.
-            foreach (var b in Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-                if (b != null) Object.DestroyImmediate(b.gameObject);
+            foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
         }
     }
 
@@ -220,18 +228,28 @@ public class LanLobbyController : MonoBehaviour
         aRt.anchoredPosition = Vector2.zero; aRt.sizeDelta = new Vector2(4f, 0f);
         accent.AddComponent<Image>().color = Gold;
 
-        TLbl(_ipBox, "IpLbl",
-            "IP của bạn  —  share cho người chơi khác:",
-            11, FontStyle.Normal, Muted, new Vector2(0f, -6f), new Vector2(FullW - 16f, 18f));
+        // Store label ref so DoHost can update it for relay vs LAN
+        {
+            var lgo = Mk(_ipBox, "IpLbl", L);
+            var lrt = lgo.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0f, 1f); lrt.anchorMax = new Vector2(1f, 1f);
+            lrt.pivot = new Vector2(0.5f, 1f);
+            lrt.anchoredPosition = new Vector2(0f, -6f); lrt.sizeDelta = new Vector2(FullW - 16f, 18f);
+            _ipLbl = lgo.AddComponent<Text>();
+            _ipLbl.font = F(); _ipLbl.fontSize = 11; _ipLbl.fontStyle = FontStyle.Normal;
+            _ipLbl.color = Muted; _ipLbl.alignment = TextAnchor.MiddleCenter;
+            _ipLbl.text = "IP của bạn  —  share cho người chơi khác:";
+        }
 
         var ivGo = Mk(_ipBox, "IpVal", L);
         var ivRt = ivGo.GetComponent<RectTransform>();
         ivRt.anchorMin = new Vector2(0f, 0f); ivRt.anchorMax = new Vector2(1f, 0f);
         ivRt.pivot = new Vector2(0.5f, 0f);
-        ivRt.anchoredPosition = new Vector2(0f, 8f); ivRt.sizeDelta = new Vector2(-16f, 26f);
+        ivRt.anchoredPosition = new Vector2(0f, 6f); ivRt.sizeDelta = new Vector2(-16f, 36f);
         _ipVal = ivGo.AddComponent<Text>();
-        _ipVal.font = F(); _ipVal.fontSize = 20; _ipVal.fontStyle = FontStyle.Bold;
+        _ipVal.font = F(); _ipVal.fontSize = 24; _ipVal.fontStyle = FontStyle.Bold;
         _ipVal.color = Gold; _ipVal.alignment = TextAnchor.MiddleCenter;
+        _ipVal.verticalOverflow = VerticalWrapMode.Overflow;
 
         // Player list (host-only)
         var plGo = Mk(_panel, "Players", L);
@@ -332,7 +350,7 @@ public class LanLobbyController : MonoBehaviour
         var phTxt = phGo.AddComponent<Text>();
         phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
         phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = "Nhập IP host  (vd: 192.168.1.5)";
+        phTxt.text = "Room Code hoặc IP  (vd: AB3X7K / 192.168.1.5)";
         phTxt.fontStyle = FontStyle.Italic;
         _ipInput.placeholder = phTxt;
 
@@ -411,7 +429,7 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Host flow ─────────────────────────────────────────────────────────────
 
-    private void DoHost()
+    private async void DoHost()
     {
         if (!EnsureNetworkManager()) return;
         if (NetworkManager.Singleton.IsListening)
@@ -427,27 +445,61 @@ public class LanLobbyController : MonoBehaviour
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
         NetworkManager.Singleton.OnClientConnectedCallback  += OnJoin;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnLeave;
+        NetworkManager.Singleton.OnTransportFailure         -= OnHostTransportFailure;
+        NetworkManager.Singleton.OnTransportFailure         += OnHostTransportFailure;
 
-        // Subscribe to transport failure so we can recover from "port already in use".
-        NetworkManager.Singleton.OnTransportFailure -= OnHostTransportFailure;
-        NetworkManager.Singleton.OnTransportFailure += OnHostTransportFailure;
+        // Try Unity Relay first
+        bool relayOk = false;
+        string roomCode = null;
+        SetStatus("Đang tạo phòng relay…", Muted);
 
-        // Host listens on 0.0.0.0 (all interfaces) so LAN clients can reach it
-        var hostTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        if (hostTransport != null) hostTransport.SetConnectionData("0.0.0.0", GamePort);
+        try
+        {
+            bool inited = await RelayManager.InitAsync();
+            if (inited)
+            {
+                var (allocation, code) = await RelayManager.CreateRoomAsync(MaxPlayers - 1);
+                RelayManager.ApplyHostToTransport(allocation);
+                roomCode = code;
+                relayOk = true;
+                LanSessionManager.UseRelay = true;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[Relay] Failed, falling back to LAN: {e.Message}");
+            relayOk = false;
+            LanSessionManager.UseRelay = false;
+        }
 
-        // StartHost() returns false if transport fails — don't proceed on failure.
-        // OnHostTransportFailure will handle retry; _hostRetryCount must NOT be reset here.
+        if (!relayOk)
+        {
+            // LAN fallback: listen on all interfaces
+            var hostTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            if (hostTransport != null) hostTransport.SetConnectionData("0.0.0.0", GamePort);
+        }
+
         if (!NetworkManager.Singleton.StartHost()) return;
 
-        string ip = GetLocalIP();
-        Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}  (LAN IP: {ip})");
-        if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
+        if (relayOk)
+        {
+            if (_ipLbl != null) _ipLbl.text = "Room Code  —  share cho nguoi choi khac:";
+            if (_ipVal != null) _ipVal.text = roomCode ?? "ERROR";
+            SetStatus($"Room Code: {roomCode}  (chia se de nguoi khac join)", Gold);
+            Debug.Log($"[Relay] Hosting with Room Code: {roomCode}");
+        }
+        else
+        {
+            string ip = GetLocalIP();
+            if (_ipLbl != null) _ipLbl.text = "IP cua ban  —  share cho nguoi choi khac (LAN):";
+            if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
+            SetStatus($"LAN IP: {ip}:{GamePort}", Muted);
+            Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort} (LAN IP: {ip})");
+            _discovery = gameObject.AddComponent<LanDiscovery>();
+            _discovery.StartBroadcasting(GamePort);
+        }
 
-        _discovery = gameObject.AddComponent<LanDiscovery>();
-        _discovery.StartBroadcasting(GamePort);
-
-        _hostRetryCount = 0;   // reset only on genuine success
+        _hostRetryCount = 0;
         LanSessionManager.PlayerCount = 1;
         SwitchTo(Screen.Hosting);
     }
@@ -570,15 +622,58 @@ public class LanLobbyController : MonoBehaviour
         }
     }
 
-    private void DoConnect(string ip)
+    private void DoConnect(string input)
     {
-        if (string.IsNullOrWhiteSpace(ip))
+        if (string.IsNullOrWhiteSpace(input))
         {
-            SetStatus("IP không được để trống!", new Color(1f, 0.35f, 0.35f));
+            SetStatus("Nhập Room Code hoặc IP!", new Color(1f, 0.35f, 0.35f));
             return;
         }
+        string trimmed = input.Trim();
+        if (RelayManager.IsJoinCode(trimmed.ToUpper()))
+            DoConnectViaRelayAsync(trimmed.ToUpper());
+        else
+            DoConnectViaIP(trimmed);
+    }
 
-        // Strip port if user typed "IP:port" format (code adds port automatically)
+    private async void DoConnectViaRelayAsync(string code)
+    {
+        if (!EnsureNetworkManager()) return;
+        SetStatus($"Đang kết nối Room Code {code}…", Muted);
+        try
+        {
+            bool inited = await RelayManager.InitAsync();
+            if (!inited)
+            {
+                SetStatus("Không thể kết nối Unity Relay.", new Color(1f, 0.4f, 0.3f));
+                return;
+            }
+            JoinAllocation joinAlloc = await RelayManager.JoinRoomAsync(code);
+            RelayManager.ApplyClientToTransport(joinAlloc);
+            LanSessionManager.UseRelay = true;
+
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+            NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+            NetworkManager.Singleton.StartClient();
+
+            SceneManager.sceneLoaded -= OnGameSceneLoaded;
+            SceneManager.sceneLoaded += OnGameSceneLoaded;
+            SetStatus($"Đã vào phòng! Chờ host bắt đầu…", new Color(0.3f, 0.9f, 0.4f));
+            CancelInvoke(nameof(OnConnectionTimeout));
+            Invoke(nameof(OnConnectionTimeout), 15f);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[Relay] Join failed: {e.Message}");
+            SetStatus($"Lỗi Room Code: {e.Message}", new Color(1f, 0.4f, 0.3f));
+        }
+    }
+
+    private void DoConnectViaIP(string ip)
+    {
+        // Strip port if typed as "IP:port"
         int colonIdx = ip.IndexOf(':');
         if (colonIdx >= 0)
             ip = ip.Substring(0, colonIdx).Trim();
@@ -601,8 +696,8 @@ public class LanLobbyController : MonoBehaviour
         var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
         if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
 
-        // Client connects to the host's specific LAN IP (not 0.0.0.0)
         t.SetConnectionData(ip, GamePort);
+        LanSessionManager.UseRelay = false;
         Debug.Log($"[LAN] Connecting to {ip}:{GamePort}");
 
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
@@ -612,7 +707,6 @@ public class LanLobbyController : MonoBehaviour
         NetworkManager.Singleton.StartClient();
         SetStatus($"Đang kết nối tới {ip}:{GamePort}…", Muted);
 
-        // Timeout: if not connected after 8s, show error
         CancelInvoke(nameof(OnConnectionTimeout));
         Invoke(nameof(OnConnectionTimeout), 8f);
     }

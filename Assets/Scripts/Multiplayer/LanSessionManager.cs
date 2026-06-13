@@ -10,6 +10,8 @@ public static class LanSessionManager
     public static string Algorithm        { get; set; } = "AStar";
     // Tank variant (color) chosen by this machine in the lobby (0-4 = unlocked, 5-7 = locked).
     public static int    LocalVariantIndex { get; set; } = 0;
+    // True when the active session is running over Unity Relay (internet) instead of direct LAN.
+    public static bool   UseRelay         { get; set; }
 
     public static void ActivateHost(string mapFile, string algorithm)
     {
@@ -37,6 +39,7 @@ public static class LanSessionManager
         IsActive    = false;
         IsServer    = false;
         PlayerCount = 1;
+        UseRelay    = false;
     }
 
     public static int    EnemyCount => 6 * Mathf.Max(1, PlayerCount);
