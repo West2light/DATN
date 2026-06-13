@@ -30,198 +30,81 @@ concurrency:
 
 env:
   ARTIFACT_BUCKET: ${{ vars.GCP_ARTIFACT_BUCKET }}
-  UNITY_EXECUTABLE: ${{ vars.UNITY_EXECUTABLE }}
 
 jobs:
   build:
     name: Build ${{ matrix.name }}
-    runs-on: ${{ vars.UNITY_RUNNER_LABEL || 'self-hosted' }}
+    runs-on: ubuntu-latest
+    environment: gcp-preview
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - name: Linux Dedicated Server
+            target_platform: StandaloneLinux64
             method: BuildServer.BuildLinuxServer
             build_dir: Builds/LinuxServer
             archive_prefix: tank-mapf-server
             gcs_prefix: server
             expected_file: TankMapfServer.x86_64
-            log_file: build-server.log
           - name: WebGL Client
+            target_platform: WebGL
             method: BuildWebClient.BuildWebGL
             build_dir: Builds/WebGL
             archive_prefix: tank-mapf-web
             gcs_prefix: web
             expected_file: index.html
-            log_file: build-webgl.log
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          clean: false
-
-      - name: Resolve Unity executable
-        id: unity
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-
-          if ($env:UNITY_EXECUTABLE -and (Test-Path -LiteralPath $env:UNITY_EXECUTABLE)) {
-            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$env:UNITY_EXECUTABLE`n", $utf8NoBom)
-            exit 0
-          }
-
-          $candidates = @(
-            "D:\Unity\6000.3.10f1\Editor\Unity.exe",
-            "D:\Unity\6000.3.10f1\Unity.exe",
-            "C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Unity.exe",
-            "/opt/unity/Editor/Unity",
-            "/opt/Unity/Editor/Unity",
-            "/Applications/Unity/Hub/Editor/6000.3.10f1/Unity.app/Contents/MacOS/Unity"
-          )
-
-          foreach ($candidate in $candidates) {
-            if (Test-Path -LiteralPath $candidate) {
-              [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$candidate`n", $utf8NoBom)
-              exit 0
-            }
-          }
-
-          $command = Get-Command unity-editor, Unity, Unity.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($command) {
-            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$($command.Source)`n", $utf8NoBom)
-            exit 0
-          }
-
-          Write-Error "Unity executable was not found. Set repository variable UNITY_EXECUTABLE or install Unity 6000.3.10f1 at D:\Unity\6000.3.10f1\Editor\Unity.exe."
-
-      - name: Warm up Unity project import
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $importLog = "unity-import-${{ matrix.gcs_prefix }}.log"
-          $hasScriptAssemblies = Test-Path -LiteralPath "Library\ScriptAssemblies"
-
-          if ($hasScriptAssemblies) {
-            Write-Host "Unity Library already contains ScriptAssemblies; skipping import warm-up."
-            exit 0
-          }
-
-          Write-Host "Unity Library is missing ScriptAssemblies. Running import warm-up before build."
-          $importArgs = @(
-            "-batchmode",
-            "-nographics",
-            "-quit",
-            "-projectPath",
-            "$env:GITHUB_WORKSPACE",
-            "-logFile",
-            "$importLog"
-          )
-
-          $importProcess = Start-Process -FilePath "${{ steps.unity.outputs.path }}" -ArgumentList $importArgs -Wait -PassThru
-
-          if ($importProcess.ExitCode -ne 0) {
-            if (Test-Path -LiteralPath $importLog) {
-              Get-Content -Path $importLog -Tail 200
-            }
-            exit $importProcess.ExitCode
-          }
 
       - name: Build ${{ matrix.name }}
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          if (Test-Path -LiteralPath "${{ matrix.build_dir }}") {
-            Remove-Item -LiteralPath "${{ matrix.build_dir }}" -Recurse -Force
-          }
-
-          $expectedPath = Join-Path "${{ matrix.build_dir }}" "${{ matrix.expected_file }}"
-          $methodMarker = "[${{ matrix.method }}".Split(".")[0] + "]"
-
-          for ($attempt = 1; $attempt -le 2; $attempt++) {
-            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
-              Remove-Item -LiteralPath "${{ matrix.log_file }}" -Force
-            }
-
-            Write-Host "Starting Unity build attempt $attempt for ${{ matrix.name }}"
-            $buildArgs = @(
-              "-batchmode",
-              "-nographics",
-              "-quit",
-              "-projectPath",
-              "$env:GITHUB_WORKSPACE",
-              "-executeMethod",
-              "${{ matrix.method }}",
-              "-logFile",
-              "${{ matrix.log_file }}"
-            )
-
-            $buildProcess = Start-Process -FilePath "${{ steps.unity.outputs.path }}" -ArgumentList $buildArgs -Wait -PassThru
-            $unityExitCode = $buildProcess.ExitCode
-            $logText = ""
-            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
-              $logText = Get-Content -Path "${{ matrix.log_file }}" -Raw -ErrorAction SilentlyContinue
-            }
-
-            if ($unityExitCode -ne 0) {
-              if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
-                Get-Content -Path "${{ matrix.log_file }}" -Tail 200
-              }
-              exit $unityExitCode
-            }
-
-            if ((Test-Path -LiteralPath $expectedPath) -or $logText.Contains($methodMarker)) {
-              break
-            }
-
-            if ($attempt -lt 2) {
-              Write-Warning "Unity exited before running ${{ matrix.method }}. This can happen on a fresh checkout while Library is imported. Retrying once."
-              Start-Sleep -Seconds 10
-            }
-          }
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          unityVersion: 6000.3.10f1
+          targetPlatform: ${{ matrix.target_platform }}
+          buildMethod: ${{ matrix.method }}
 
       - name: Validate build output
-        shell: powershell
+        shell: bash
         run: |
-          $ErrorActionPreference = "Stop"
-          $expectedPath = Join-Path "${{ matrix.build_dir }}" "${{ matrix.expected_file }}"
-          if (-not (Test-Path -LiteralPath $expectedPath)) {
-            Write-Host "Workspace root:"
-            Get-ChildItem -Force | Select-Object Name, Mode, Length, LastWriteTime | Format-Table -AutoSize
+          set -euo pipefail
 
-            Write-Host "Builds tree:"
-            if (Test-Path -LiteralPath "Builds") {
-              Get-ChildItem -Path "Builds" -Recurse -Force | Select-Object FullName, Mode, Length, LastWriteTime | Format-Table -AutoSize
-            } else {
-              Write-Host "Builds directory does not exist."
-            }
+          expected_path="${{ matrix.build_dir }}/${{ matrix.expected_file }}"
+          if [ ! -e "$expected_path" ]; then
+            echo "Workspace root:"
+            find . -maxdepth 2 -mindepth 1 -printf '%p\n' | sort
 
-            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
-              Write-Host "Last 200 lines from ${{ matrix.log_file }}:"
-              Get-Content -Path "${{ matrix.log_file }}" -Tail 200
-            } else {
-              Write-Host "${{ matrix.log_file }} does not exist."
-            }
+            echo "Builds tree:"
+            if [ -d Builds ]; then
+              find Builds -maxdepth 4 -printf '%p\n' | sort
+            else
+              echo "Builds directory does not exist."
+            fi
 
-            Write-Error "Expected build output not found: $expectedPath"
-          }
+            echo "::error::Expected build output not found: $expected_path"
+            exit 1
+          fi
 
       - name: Package artifact
         id: package
-        shell: powershell
+        shell: bash
         run: |
-          $ErrorActionPreference = "Stop"
-          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          set -euo pipefail
 
-          $archive = "${{ matrix.archive_prefix }}-$($env:GITHUB_SHA).tar.gz"
-          tar -czf $archive -C "${{ matrix.build_dir }}" .
+          archive="${{ matrix.archive_prefix }}-${GITHUB_SHA}.tar.gz"
+          tar -czf "$archive" -C "${{ matrix.build_dir }}" .
+          gcs_uri="gs://${ARTIFACT_BUCKET}/${{ matrix.gcs_prefix }}/${GITHUB_SHA}/$archive"
 
-          $gcsUri = "gs://$env:ARTIFACT_BUCKET/${{ matrix.gcs_prefix }}/$($env:GITHUB_SHA)/$archive"
-          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "archive=$archive`n", $utf8NoBom)
-          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "gcs_uri=$gcsUri`n", $utf8NoBom)
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "gcs_uri=$gcs_uri" >> "$GITHUB_OUTPUT"
 
       - name: Upload GitHub artifact
         uses: actions/upload-artifact@v4
@@ -229,15 +112,6 @@ jobs:
           name: ${{ matrix.archive_prefix }}-${{ github.sha }}
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.archive_prefix }}-${{ github.sha }}-log
-          path: ${{ matrix.log_file }}
-          if-no-files-found: ignore
           retention-days: 14
 
       - name: Authenticate to Google Cloud
@@ -253,14 +127,14 @@ jobs:
 
       - name: Upload artifact to GCS
         if: ${{ (github.event_name == 'push' || inputs.upload_to_gcs == 'true') && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_ARTIFACT_BUCKET != '' }}
-        shell: powershell
+        shell: bash
         run: |
-          $ErrorActionPreference = "Stop"
+          set -euo pipefail
           gcloud storage cp "${{ steps.package.outputs.archive }}" "${{ steps.package.outputs.gcs_uri }}"
-          Write-Host "Uploaded ${{ steps.package.outputs.gcs_uri }}"
+          echo "Uploaded ${{ steps.package.outputs.gcs_uri }}"
 
       - name: Warn when GCS upload is skipped
         if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || vars.GCP_DEPLOY_SERVICE_ACCOUNT == '' || vars.GCP_ARTIFACT_BUCKET == '' }}
-        shell: powershell
+        shell: bash
         run: |
-          Write-Warning "GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
+          echo "::warning::GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
