@@ -58,6 +58,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Resolve Unity executable
         id: unity
@@ -94,6 +96,33 @@ jobs:
           }
 
           Write-Error "Unity executable was not found. Set repository variable UNITY_EXECUTABLE or install Unity 6000.3.10f1 at D:\Unity\6000.3.10f1\Editor\Unity.exe."
+
+      - name: Warm up Unity project import
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $importLog = "unity-import-${{ matrix.gcs_prefix }}.log"
+          $hasScriptAssemblies = Test-Path -LiteralPath "Library\ScriptAssemblies"
+
+          if ($hasScriptAssemblies) {
+            Write-Host "Unity Library already contains ScriptAssemblies; skipping import warm-up."
+            exit 0
+          }
+
+          Write-Host "Unity Library is missing ScriptAssemblies. Running import warm-up before build."
+          & "${{ steps.unity.outputs.path }}" `
+            -batchmode `
+            -nographics `
+            -quit `
+            -projectPath "$env:GITHUB_WORKSPACE" `
+            -logFile $importLog
+
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path -LiteralPath $importLog) {
+              Get-Content -Path $importLog -Tail 200
+            }
+            exit $LASTEXITCODE
+          }
 
       - name: Build ${{ matrix.name }}
         shell: powershell
