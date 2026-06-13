@@ -1,0 +1,70 @@
+name: CI Validate
+
+on:
+  pull_request:
+    branches:
+      - networking-gcp
+  push:
+    branches:
+      - networking-gcp
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate repository safety and syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Check sensitive files are not tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          blocked="$(
+            git ls-files \
+              'infra/gcp/*.tfstate' \
+              'infra/gcp/*.tfstate.*' \
+              'infra/gcp/*.tfplan' \
+              'infra/gcp/*.tfvars' \
+              'infra/gcp/*.auto.tfvars' \
+              'services/invite-registry/*.log' \
+              'services/invite-registry/data/sessions.json'
+          )"
+
+          if [ -n "$blocked" ]; then
+            echo "Tracked sensitive or local runtime files were found:"
+            echo "$blocked"
+            exit 1
+          fi
+
+      - name: Terraform format check
+        shell: bash
+        run: terraform -chdir=infra/gcp fmt -check -recursive
+
+      - name: Python registry syntax check
+        shell: bash
+        run: python -m py_compile services/invite-registry/app.py
+
+      - name: Shell script syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n infra/gcp/scripts/deploy-release.sh
+          bash -n infra/gcp/scripts/deploy-web.sh
+          bash -n infra/gcp/scripts/startup.sh
+

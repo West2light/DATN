@@ -1,0 +1,174 @@
+name: Unity Build
+
+on:
+  push:
+    branches:
+      - networking-gcp
+    paths:
+      - Assets/**
+      - Packages/**
+      - ProjectSettings/**
+      - .github/workflows/unity-build.yml
+  workflow_dispatch:
+    inputs:
+      upload_to_gcs:
+        description: Upload artifacts to the configured GCS artifact bucket.
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: unity-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARTIFACT_BUCKET: ${{ vars.GCP_ARTIFACT_BUCKET }}
+  UNITY_EXECUTABLE: ${{ vars.UNITY_EXECUTABLE }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ vars.UNITY_RUNNER_LABEL || 'self-hosted' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux Dedicated Server
+            method: BuildServer.BuildLinuxServer
+            build_dir: Builds/LinuxServer
+            archive_prefix: tank-mapf-server
+            gcs_prefix: server
+            expected_file: TankMapfServer.x86_64
+            log_file: build-server.log
+          - name: WebGL Client
+            method: BuildWebClient.BuildWebGL
+            build_dir: Builds/WebGL
+            archive_prefix: tank-mapf-web
+            gcs_prefix: web
+            expected_file: index.html
+            log_file: build-webgl.log
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve Unity executable
+        id: unity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${UNITY_EXECUTABLE:-}" ] && [ -x "$UNITY_EXECUTABLE" ]; then
+            echo "path=$UNITY_EXECUTABLE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          for candidate in \
+            "/opt/unity/Editor/Unity" \
+            "/opt/Unity/Editor/Unity" \
+            "/Applications/Unity/Hub/Editor/6000.3.10f1/Unity.app/Contents/MacOS/Unity" \
+            "/c/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Unity.exe"
+          do
+            if [ -x "$candidate" ]; then
+              echo "path=$candidate" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          if command -v unity-editor >/dev/null 2>&1; then
+            echo "path=$(command -v unity-editor)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if command -v Unity >/dev/null 2>&1; then
+            echo "path=$(command -v Unity)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::error::Unity executable was not found. Configure a self-hosted runner with Unity 6000.3.10f1 or set repository variable UNITY_EXECUTABLE."
+          exit 1
+
+      - name: Build ${{ matrix.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "${{ matrix.build_dir }}"
+
+          "${{ steps.unity.outputs.path }}" \
+            -batchmode \
+            -nographics \
+            -quit \
+            -projectPath "$GITHUB_WORKSPACE" \
+            -executeMethod "${{ matrix.method }}" \
+            -logFile "${{ matrix.log_file }}"
+
+      - name: Validate build output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -e "${{ matrix.build_dir }}/${{ matrix.expected_file }}" ]; then
+            echo "::error::Expected build output not found: ${{ matrix.build_dir }}/${{ matrix.expected_file }}"
+            exit 1
+          fi
+
+      - name: Package artifact
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="${{ matrix.archive_prefix }}-${GITHUB_SHA}.tar.gz"
+          tar -czf "$archive" -C "${{ matrix.build_dir }}" .
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "gcs_uri=gs://${ARTIFACT_BUCKET}/${{ matrix.gcs_prefix }}/${GITHUB_SHA}/$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_prefix }}-${{ github.sha }}
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_prefix }}-${{ github.sha }}-log
+          path: ${{ matrix.log_file }}
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Authenticate to Google Cloud
+        if: ${{ (github.event_name == 'push' || inputs.upload_to_gcs == 'true') && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_ARTIFACT_BUCKET != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        if: ${{ (github.event_name == 'push' || inputs.upload_to_gcs == 'true') && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_ARTIFACT_BUCKET != '' }}
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload artifact to GCS
+        if: ${{ (github.event_name == 'push' || inputs.upload_to_gcs == 'true') && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_ARTIFACT_BUCKET != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud storage cp "${{ steps.package.outputs.archive }}" "${{ steps.package.outputs.gcs_uri }}"
+          echo "Uploaded ${{ steps.package.outputs.gcs_uri }}"
+
+      - name: Warn when GCS upload is skipped
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || vars.GCP_DEPLOY_SERVICE_ACCOUNT == '' || vars.GCP_ARTIFACT_BUCKET == '' }}
+        shell: bash
+        run: |
+          echo "::warning::GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
+

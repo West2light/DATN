@@ -1,0 +1,111 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - networking-gcp
+    paths:
+      - infra/gcp/**
+      - services/invite-registry/**
+      - .github/workflows/terraform-plan.yml
+  push:
+    branches:
+      - networking-gcp
+    paths:
+      - infra/gcp/**
+      - services/invite-registry/**
+      - .github/workflows/terraform-plan.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_ZONE: ${{ vars.GCP_ZONE }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+  REQUIRED_SERVER_SESSION_CODE: ${{ secrets.TF_VAR_SERVER_SESSION_CODE }}
+  REQUIRED_REGISTRY_ADMIN_TOKEN: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_zone: ${{ vars.GCP_ZONE }}
+  TF_VAR_artifact_bucket_name: ${{ vars.GCP_ARTIFACT_BUCKET }}
+  TF_VAR_server_session_code: ${{ secrets.TF_VAR_SERVER_SESSION_CODE }}
+  TF_VAR_registry_admin_token: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
+
+jobs:
+  plan:
+    name: Terraform validate and plan
+    runs-on: ubuntu-latest
+    environment: gcp-preview
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required GitHub variables and secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in \
+            GCP_PROJECT_ID \
+            GCP_REGION \
+            GCP_ZONE \
+            GCP_WORKLOAD_IDENTITY_PROVIDER \
+            GCP_DEPLOY_SERVICE_ACCOUNT \
+            TF_VAR_SERVER_SESSION_CODE \
+            TF_VAR_REGISTRY_ADMIN_TOKEN
+          do
+            case "$name" in
+              TF_VAR_SERVER_SESSION_CODE) value="${REQUIRED_SERVER_SESSION_CODE:-}" ;;
+              TF_VAR_REGISTRY_ADMIN_TOKEN) value="${REQUIRED_REGISTRY_ADMIN_TOKEN:-}" ;;
+              *) value="${!name:-}" ;;
+            esac
+
+            if [ -z "$value" ]; then
+              echo "::error::$name is not configured in GitHub variables/secrets."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform init
+        shell: bash
+        run: terraform -chdir=infra/gcp init
+
+      - name: Terraform format check
+        shell: bash
+        run: terraform -chdir=infra/gcp fmt -check -recursive
+
+      - name: Terraform validate
+        shell: bash
+        run: terraform -chdir=infra/gcp validate
+
+      - name: Terraform plan
+        shell: bash
+        run: terraform -chdir=infra/gcp plan -no-color -out=tfplan
