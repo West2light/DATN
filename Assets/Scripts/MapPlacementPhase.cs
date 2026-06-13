@@ -551,7 +551,7 @@ public class MapPlacementPhase : MonoBehaviour
         rt.anchorMin = anchorMin; rt.anchorMax = anchorMax; rt.pivot = pivot;
         rt.anchoredPosition = anchoredPos; rt.sizeDelta = sizeDelta;
         Text txt = obj.AddComponent<Text>();
-        txt.text = content; txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.text = content; txt.font = UiFontProvider.GetDefaultFont();
         txt.fontSize = fontSize; txt.fontStyle = style;
         txt.alignment = TextAnchor.MiddleCenter; txt.color = color;
         return txt;

@@ -8,6 +8,8 @@ using UnityEngine;
 public static class BuildWebClient
 {
     private const string OutputDirectory = "Builds/WebGL";
+    private const int DesktopCanvasWidth = 1366;
+    private const int DesktopCanvasHeight = 768;
 
     private static readonly string[] BuildScenes =
     {
@@ -49,6 +51,7 @@ public static class BuildWebClient
                 throw new BuildFailedException($"WebGL build failed: {summary.result}");
             }
 
+            RewriteDesktopCanvasSize();
             Debug.Log($"[BuildWebClient] Build succeeded: {OutputDirectory} ({summary.totalSize} bytes)");
         }
         finally
@@ -56,6 +59,22 @@ public static class BuildWebClient
             PlayerSettings.WebGL.compressionFormat = originalCompression;
             PlayerSettings.WebGL.decompressionFallback = originalDecompressionFallback;
         }
+    }
+
+    private static void RewriteDesktopCanvasSize()
+    {
+        string indexPath = Path.Combine(OutputDirectory, "index.html");
+        if (!File.Exists(indexPath))
+        {
+            Debug.LogWarning($"[BuildWebClient] Could not find {indexPath} to rewrite desktop canvas size.");
+            return;
+        }
+
+        string html = File.ReadAllText(indexPath);
+        html = html.Replace("width=960 height=600", $"width={DesktopCanvasWidth} height={DesktopCanvasHeight}");
+        html = html.Replace("canvas.style.width = \"960px\";", $"canvas.style.width = \"{DesktopCanvasWidth}px\";");
+        html = html.Replace("canvas.style.height = \"600px\";", $"canvas.style.height = \"{DesktopCanvasHeight}px\";");
+        File.WriteAllText(indexPath, html);
     }
 }
 #endif

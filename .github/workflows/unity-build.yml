@@ -275,6 +275,9 @@ jobs:
 
           curl -fsS "${{ steps.targets.outputs.registry_base_url }}/healthz"
           curl -fsSI "${{ steps.targets.outputs.web_url }}"
+          curl -fsS "${{ steps.targets.outputs.web_url }}/StreamingAssets/MapData/random-32-32-10.map" | grep -q '^type'
+          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.wasm"
+          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.data"
 
       - name: Print service diagnostics on failure
         if: failure()

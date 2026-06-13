@@ -798,7 +798,7 @@ public class LanLobbyController : MonoBehaviour
 
     // ── UI builder micro-helpers ──────────────────────────────────────────────
 
-    private static Font F() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font F() => UiFontProvider.GetDefaultFont();
 
     private static GameObject Mk(GameObject p, string name, int L)
     {

@@ -249,7 +249,7 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
         Text label = labelObject.AddComponent<Text>();
         label.text = "BASE";
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.font = UiFontProvider.GetDefaultFont();
         label.fontSize = 14;
         label.alignment = TextAnchor.MiddleLeft;
         label.color = Color.white;
@@ -480,7 +480,7 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
         textRect.sizeDelta = new Vector2(172f, 18f);
 
         Text text = textObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UiFontProvider.GetDefaultFont();
         text.fontSize = 14;
         text.alignment = TextAnchor.MiddleLeft;
         text.color = Color.white;

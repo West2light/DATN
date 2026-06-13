@@ -510,7 +510,7 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         Text label = labelObject.AddComponent<Text>();
         label.text = "HP";
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.font = UiFontProvider.GetDefaultFont();
         label.fontSize = 14;
         label.alignment = TextAnchor.MiddleLeft;
         label.color = Color.white;

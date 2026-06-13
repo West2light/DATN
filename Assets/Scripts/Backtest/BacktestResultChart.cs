@@ -406,7 +406,7 @@ public class BacktestResultChart : MonoBehaviour
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
-    private static Font Fnt() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font Fnt() => UiFontProvider.GetDefaultFont();
 
     private GameObject Mk(string name, GameObject parent)
     {

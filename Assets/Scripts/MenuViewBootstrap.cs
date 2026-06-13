@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -519,7 +520,7 @@ public class MenuViewBootstrap : MonoBehaviour
 
         if (map.available && !string.IsNullOrEmpty(map.mapFile))
         {
-            BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+            BeginMiniMapPreview(preview.transform, map.mapFile, map.previewTint);
         }
         else
         {
@@ -603,11 +604,25 @@ public class MenuViewBootstrap : MonoBehaviour
 
     // ── Mini-map helpers ───────────────────────────────────────────────────
 
-    private static void BuildMiniMapRawImage(Transform previewParent, string mapFilePath, Color tint)
+    private void BeginMiniMapPreview(Transform previewParent, string mapFilePath, Color tint)
     {
-        char[][] grid = LoadMapGrid(mapFilePath);
-        if (grid == null || grid.Length == 0) return;
+        StartCoroutine(BuildMiniMapRawImageAsync(previewParent, mapFilePath, tint));
+    }
 
+    private System.Collections.IEnumerator BuildMiniMapRawImageAsync(Transform previewParent, string mapFilePath, Color tint)
+    {
+        char[][] grid = null;
+        yield return LoadMapGridAsync(mapFilePath, loadedGrid => grid = loadedGrid);
+        if (grid == null || grid.Length == 0)
+        {
+            ShowMiniMapPlaceholder(previewParent);
+            yield break;
+        }
+        BuildMiniMapRawImage(previewParent, grid, tint);
+    }
+
+    private static void BuildMiniMapRawImage(Transform previewParent, char[][] grid, Color tint)
+    {
         int rows = grid.Length;
         int cols = grid[0].Length;
 
@@ -651,7 +666,37 @@ public class MenuViewBootstrap : MonoBehaviour
         raw.color   = Color.white;
     }
 
-    private static char[][] LoadMapGrid(string assetPath)
+    private static void ShowMiniMapPlaceholder(Transform previewParent)
+    {
+        if (previewParent == null || previewParent.Find("Placeholder") != null)
+            return;
+
+        MakeText(previewParent, "Placeholder", "?",
+            42, FontStyle.Bold, new Color(1f, 1f, 1f, 0.12f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(122f, 60f));
+    }
+
+    private System.Collections.IEnumerator LoadMapGridAsync(string assetPath, Action<char[][]> onLoaded)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        using UnityWebRequest request = UnityWebRequest.Get(BuildWebGlMapUrl(assetPath));
+        yield return request.SendWebRequest();
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            onLoaded?.Invoke(ParseMapGridText(request.downloadHandler.text));
+        }
+        else
+        {
+            Debug.LogWarning($"[MenuViewBootstrap] Could not load minimap map data for '{assetPath}': {request.error}");
+            onLoaded?.Invoke(null);
+        }
+#else
+        onLoaded?.Invoke(LoadMapGridSync(assetPath));
+        yield break;
+#endif
+    }
+
+    private static char[][] LoadMapGridSync(string assetPath)
     {
         string fileName = Path.GetFileName(assetPath);
         string fullPath = Path.Combine(Application.streamingAssetsPath, "MapData", fileName);
@@ -663,7 +708,11 @@ public class MenuViewBootstrap : MonoBehaviour
             fullPath = Path.Combine(Application.dataPath, relativePart);
         }
         if (!File.Exists(fullPath)) return null;
-        string text = File.ReadAllText(fullPath);
+        return ParseMapGridText(File.ReadAllText(fullPath));
+    }
+
+    private static char[][] ParseMapGridText(string text)
+    {
         if (string.IsNullOrEmpty(text)) return null;
 
         var gridLines = new List<string>();
@@ -680,6 +729,16 @@ public class MenuViewBootstrap : MonoBehaviour
         for (int i = 0; i < gridLines.Count; i++)
             grid[i] = gridLines[i].ToCharArray();
         return grid;
+    }
+
+    private static string BuildWebGlMapUrl(string assetPath)
+    {
+        string fileName = Path.GetFileName(assetPath);
+        string escapedFileName = UnityWebRequest.EscapeURL(fileName);
+        if (Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out Uri pageUri))
+            return new Uri(pageUri, $"StreamingAssets/MapData/{escapedFileName}").ToString();
+
+        return $"StreamingAssets/MapData/{escapedFileName}";
     }
 
     // ── Screen transition ──────────────────────────────────────────────────
@@ -736,7 +795,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Color previewBg = Color.Lerp(map.previewTint, Color.black, 0.72f);
         GameObject preview = MakePanel(card.transform, "MapPreview",
             new Vector2(0f, previewCentreY), new Vector2(PreviewSize, PreviewSize), previewBg);
-        BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+        BeginMiniMapPreview(preview.transform, map.mapFile, map.previewTint);
         MakeText(preview.transform, "Badge", "#" + (idx + 1),
             11, FontStyle.Bold, new Color(1f, 1f, 1f, 0.55f),
             new Vector2(1f, 0f), new Vector2(-6f, 6f), new Vector2(30f, 18f));
@@ -914,7 +973,7 @@ public class MenuViewBootstrap : MonoBehaviour
 
         var text = go.AddComponent<Text>();
         text.text      = value;
-        text.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font      = UiFontProvider.GetDefaultFont();
         text.fontSize  = fontSize;
         text.fontStyle = style;
         text.alignment = TextAnchor.MiddleCenter;
