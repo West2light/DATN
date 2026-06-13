@@ -110,7 +110,7 @@ public class MapTankTestBootstrap : MonoBehaviour
                 gameObject.AddComponent<LanClientView>();
                 Debug.Log("[LAN Client] LanClientView created. Waiting for server state...");
             }
-            return;
+            yield break;
         }
         // ── End LAN multiplayer ──────────────────────────────────────────────
 
