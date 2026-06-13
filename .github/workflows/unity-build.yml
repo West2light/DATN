@@ -138,3 +138,156 @@ jobs:
         shell: bash
         run: |
           echo "::warning::GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
+
+  auto-deploy:
+    name: Auto deploy server and WebGL
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/networking-gcp' }}
+    environment: gcp-production
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      GCP_ARTIFACT_BUCKET: ${{ vars.GCP_ARTIFACT_BUCKET }}
+      GCP_VM_NAME: ${{ vars.GCP_VM_NAME || 'tank-mapf-server' }}
+      GCP_STATIC_IP_NAME: ${{ vars.GCP_STATIC_IP_NAME || 'tank-mapf-ip' }}
+      REGISTRY_ADMIN_TOKEN: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
+      SESSION_CODE: ${{ secrets.TF_VAR_SERVER_SESSION_CODE }}
+      MAP_FILE: ${{ vars.AUTO_DEPLOY_MAP_FILE || 'random-32-32-10.map' }}
+      ALGORITHM: ${{ vars.AUTO_DEPLOY_ALGORITHM || 'AStar' }}
+      MAX_PLAYERS: ${{ vars.AUTO_DEPLOY_MAX_PLAYERS || '8' }}
+
+    steps:
+      - name: Check required deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in \
+            GCP_PROJECT_ID \
+            GCP_REGION \
+            GCP_ZONE \
+            GCP_WORKLOAD_IDENTITY_PROVIDER \
+            GCP_DEPLOY_SERVICE_ACCOUNT \
+            GCP_ARTIFACT_BUCKET \
+            REGISTRY_ADMIN_TOKEN \
+            SESSION_CODE
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured for auto deploy."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve deployment targets
+        id: targets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_sha="$GITHUB_SHA"
+          server_ip="$(
+            gcloud compute addresses describe "$GCP_STATIC_IP_NAME" \
+              --region "$GCP_REGION" \
+              --format='value(address)'
+          )"
+
+          if [ -z "$server_ip" ]; then
+            echo "::error::Could not resolve static IP address $GCP_STATIC_IP_NAME in $GCP_REGION."
+            exit 1
+          fi
+
+          server_artifact="gs://${GCP_ARTIFACT_BUCKET}/server/${release_sha}/tank-mapf-server-${release_sha}.tar.gz"
+          web_artifact="gs://${GCP_ARTIFACT_BUCKET}/web/${release_sha}/tank-mapf-web-${release_sha}.tar.gz"
+
+          gcloud storage ls "$server_artifact" >/dev/null
+          gcloud storage ls "$web_artifact" >/dev/null
+
+          {
+            echo "server_ip=$server_ip"
+            echo "registry_base_url=http://${server_ip}:8080"
+            echo "web_url=http://${server_ip}"
+            echo "server_artifact=$server_artifact"
+            echo "web_artifact=$web_artifact"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Linux dedicated server
+        shell: bash
+        env:
+          SERVER_IP: ${{ steps.targets.outputs.server_ip }}
+          SERVER_ARTIFACT: ${{ steps.targets.outputs.server_artifact }}
+        run: |
+          set -euo pipefail
+
+          server_cmd="$(
+            printf "sudo ARTIFACT_URI=%q RELEASE_SHA=%q PUBLIC_IP=%q SESSION_CODE=%q REGISTRY_ADMIN_TOKEN=%q MAP_FILE=%q ALGORITHM=%q MAX_PLAYERS=%q /opt/tank-mapf/scripts/deploy-release.sh" \
+              "$SERVER_ARTIFACT" \
+              "$GITHUB_SHA" \
+              "$SERVER_IP" \
+              "$SESSION_CODE" \
+              "$REGISTRY_ADMIN_TOKEN" \
+              "$MAP_FILE" \
+              "$ALGORITHM" \
+              "$MAX_PLAYERS"
+          )"
+
+          gcloud compute ssh "$GCP_VM_NAME" \
+            --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
+            --command "$server_cmd"
+
+      - name: Deploy WebGL client
+        shell: bash
+        env:
+          WEB_ARTIFACT: ${{ steps.targets.outputs.web_artifact }}
+        run: |
+          set -euo pipefail
+
+          web_cmd="$(
+            printf "sudo WEB_ARTIFACT_URI=%q WEB_RELEASE_SHA=%q /opt/tank-mapf/scripts/deploy-web.sh" \
+              "$WEB_ARTIFACT" \
+              "$GITHUB_SHA"
+          )"
+
+          gcloud compute ssh "$GCP_VM_NAME" \
+            --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
+            --command "$web_cmd"
+
+      - name: Smoke test registry and web
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl -fsS "${{ steps.targets.outputs.registry_base_url }}/healthz"
+          curl -fsSI "${{ steps.targets.outputs.web_url }}"
+
+      - name: Print service diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-server.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-server-web.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-registry.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-server.service -n 100 --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-server-web.service -n 100 --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-registry.service -n 100 --no-pager"
