@@ -141,11 +141,11 @@ public class MenuViewBootstrap : MonoBehaviour
 
         string sessionFromQuery = GetQueryValue(uri, "session");
         if (!string.IsNullOrWhiteSpace(sessionFromQuery))
-            return $"{uri.Scheme}://{uri.Authority}/s/{sessionFromQuery.Trim()}";
+            return $"{uri.Scheme}://{uri.Authority}/play?session={UnityWebRequest.EscapeURL(sessionFromQuery.Trim())}";
 
         string[] segments = uri.AbsolutePath.Trim('/').Split(new[] { '/' }, System.StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length >= 2 && segments[0].Equals("s", System.StringComparison.OrdinalIgnoreCase))
-            return $"{uri.Scheme}://{uri.Authority}/s/{segments[1]}";
+            return $"{uri.Scheme}://{uri.Authority}/play?session={UnityWebRequest.EscapeURL(segments[1])}";
 
         return string.Empty;
     }
@@ -218,9 +218,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetImageRounded(card, PanelDark);
 
         // Title
-        MakeText(card.transform, "Title", "TANK MAPF",
+        Text title = MakeText(card.transform, "Title", "TANK MAPF",
             54, FontStyle.Bold, AccentGold,
             new Vector2(0.5f, 0.5f), new Vector2(0f, 170f), new Vector2(380f, 72f));
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.fontStyle = FontStyle.Bold;
+        title.transform.SetAsLastSibling();
 
         // Subtitle
         MakeText(card.transform, "Subtitle", "Multi-Agent Pathfinding",
@@ -351,8 +354,8 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildVariantSwatches(selectCard.transform, lockOverlay);
 
         // ── Navigation ─────────────────────────────────────────────────────
-        Button btnBack = MakeButton(_screenOutfit.transform, "BtnBack",
-            "← BACK", new Vector2(-500f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenOutfit.transform, "BtnBack",
+            new Vector2(-500f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
@@ -482,8 +485,8 @@ public class MenuViewBootstrap : MonoBehaviour
         for (int i = 0; i < Maps.Length; i++)
             BuildMapCard(_screenMap.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
 
-        Button btnBack = MakeButton(_screenMap.transform, "BtnBack",
-            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenMap.transform, "BtnBack",
+            new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
@@ -771,8 +774,8 @@ public class MenuViewBootstrap : MonoBehaviour
         for (int i = 0; i < Maps.Length; i++)
             BuildLanMapCard(_screenLan.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
 
-        Button btnBack = MakeButton(_screenLan.transform, "BtnBack",
-            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenLan.transform, "BtnBack",
+            new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
@@ -951,6 +954,20 @@ public class MenuViewBootstrap : MonoBehaviour
             MakeText(go.transform, "Label", label,
                 19, FontStyle.Bold, new Color(0.10f, 0.09f, 0.09f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, size);
+        }
+        return btn;
+    }
+
+    private static Button MakeBackButton(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
+    {
+        Button btn = MakeButton(parent, name, "← BACK", pos, size, color);
+
+        Text label = btn.GetComponentInChildren<Text>(true);
+        if (label != null)
+        {
+            label.color = TextLight;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
         }
         return btn;
     }

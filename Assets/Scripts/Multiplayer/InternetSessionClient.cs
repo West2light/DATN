@@ -182,9 +182,14 @@ public static class InternetSessionClient
         }
 
         string normalizedBaseUrl = registryBaseUrl.Trim().TrimEnd('/');
-        string joinTarget = !string.IsNullOrWhiteSpace(response?.code)
-            ? $"{normalizedBaseUrl}/s/{response.code.Trim()}"
-            : (!string.IsNullOrWhiteSpace(response?.joinUrl) ? response.joinUrl : string.Empty);
+        string normalizedCode = response?.code != null ? response.code.Trim() : string.Empty;
+        string joinTarget = !string.IsNullOrWhiteSpace(response?.webUrl)
+            ? response.webUrl.Trim()
+            : (!string.IsNullOrWhiteSpace(response?.joinUrl) && !response.joinUrl.Trim().EndsWith($"/s/{normalizedCode}", StringComparison.OrdinalIgnoreCase)
+                ? response.joinUrl.Trim()
+                : (!string.IsNullOrWhiteSpace(normalizedCode)
+                    ? $"{normalizedBaseUrl}/play?session={UnityWebRequest.EscapeURL(normalizedCode)}"
+                    : string.Empty));
         if (string.IsNullOrWhiteSpace(joinTarget))
         {
             onError?.Invoke("Create room returned an invalid response.");

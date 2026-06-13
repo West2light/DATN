@@ -164,6 +164,14 @@ public static class InternetJoinParser
             isDedicatedServer = false,
         };
 
+        string sessionFromQuery = GetQueryValue(uri, "session");
+        if (!string.IsNullOrWhiteSpace(sessionFromQuery))
+        {
+            config.sessionCode = sessionFromQuery.Trim();
+            config.registryUrl = $"{uri.Scheme}://{uri.Authority}";
+            return true;
+        }
+
         string[] segments = uri.AbsolutePath.Trim('/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length != 2 || !segments[0].Equals("s", StringComparison.OrdinalIgnoreCase))
             return false;
@@ -171,5 +179,28 @@ public static class InternetJoinParser
         config.sessionCode = segments[1];
         config.registryUrl = $"{uri.Scheme}://{uri.Authority}";
         return true;
+    }
+
+    private static string GetQueryValue(Uri uri, string key)
+    {
+        string query = uri.Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+            return string.Empty;
+
+        string[] pairs = query.Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (string pair in pairs)
+        {
+            string[] keyValue = pair.Split(new[] { '=' }, 2);
+            if (keyValue.Length == 0)
+                continue;
+
+            string currentKey = Uri.UnescapeDataString(keyValue[0]);
+            if (!currentKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return keyValue.Length > 1 ? Uri.UnescapeDataString(keyValue[1]) : string.Empty;
+        }
+
+        return string.Empty;
     }
 }

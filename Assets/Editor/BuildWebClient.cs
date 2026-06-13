@@ -1,15 +1,21 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using Process = System.Diagnostics.Process;
+using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 
 public static class BuildWebClient
 {
     private const string OutputDirectory = "Builds/WebGL";
     private const int DesktopCanvasWidth = 1366;
     private const int DesktopCanvasHeight = 768;
+    private const string ManifestFileName = "build-manifest.json";
 
     private static readonly string[] BuildScenes =
     {
@@ -52,6 +58,7 @@ public static class BuildWebClient
             }
 
             RewriteDesktopCanvasSize();
+            WriteBuildManifest();
             Debug.Log($"[BuildWebClient] Build succeeded: {OutputDirectory} ({summary.totalSize} bytes)");
         }
         finally
@@ -75,6 +82,93 @@ public static class BuildWebClient
         html = html.Replace("canvas.style.width = \"960px\";", $"canvas.style.width = \"{DesktopCanvasWidth}px\";");
         html = html.Replace("canvas.style.height = \"600px\";", $"canvas.style.height = \"{DesktopCanvasHeight}px\";");
         File.WriteAllText(indexPath, html);
+    }
+
+    [Serializable]
+    private class WebBuildManifest
+    {
+        public string gitCommit;
+        public string builtAtUtc;
+        public string unityVersion;
+        public int desktopCanvasWidth;
+        public int desktopCanvasHeight;
+        public string indexHtmlSha256;
+        public string loaderJsSha256;
+        public string frameworkJsSha256;
+        public string wasmSha256;
+        public string dataSha256;
+    }
+
+    private static void WriteBuildManifest()
+    {
+        string rootPath = Path.GetFullPath(OutputDirectory);
+        string buildPath = Path.Combine(rootPath, "Build");
+
+        var manifest = new WebBuildManifest
+        {
+            gitCommit = ResolveGitCommit(),
+            builtAtUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            unityVersion = Application.unityVersion,
+            desktopCanvasWidth = DesktopCanvasWidth,
+            desktopCanvasHeight = DesktopCanvasHeight,
+            indexHtmlSha256 = ComputeSha256(Path.Combine(rootPath, "index.html")),
+            loaderJsSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.loader.js")),
+            frameworkJsSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.framework.js")),
+            wasmSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.wasm")),
+            dataSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.data")),
+        };
+
+        string manifestPath = Path.Combine(rootPath, ManifestFileName);
+        File.WriteAllText(manifestPath, JsonUtility.ToJson(manifest, true));
+        Debug.Log($"[BuildWebClient] Wrote artifact manifest: {manifestPath}");
+    }
+
+    private static string ResolveGitCommit()
+    {
+        string githubSha = Environment.GetEnvironmentVariable("GITHUB_SHA");
+        if (!string.IsNullOrWhiteSpace(githubSha))
+            return githubSha.Trim();
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = "rev-parse HEAD",
+                WorkingDirectory = Directory.GetCurrentDirectory(),
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return "unknown";
+
+            string stdout = proc.StandardOutput.ReadToEnd().Trim();
+            proc.WaitForExit(3000);
+            return string.IsNullOrWhiteSpace(stdout) ? "unknown" : stdout;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[BuildWebClient] Could not resolve git commit: {ex.Message}");
+            return "unknown";
+        }
+    }
+
+    private static string ComputeSha256(string path)
+    {
+        if (!File.Exists(path))
+            return string.Empty;
+
+        using var stream = File.OpenRead(path);
+        using var sha = SHA256.Create();
+        byte[] hash = sha.ComputeHash(stream);
+        var sb = new StringBuilder(hash.Length * 2);
+        foreach (byte value in hash)
+            sb.Append(value.ToString("x2"));
+        return sb.ToString();
     }
 }
 #endif

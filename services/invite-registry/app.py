@@ -1,6 +1,7 @@
 import json
 import os
 import secrets
+import html as html_module
 import time
 import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -211,9 +212,13 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
             self.write_html(404, "<h1>Session not found</h1>")
             return
 
+        web_url = session.get("webUrl", "").strip()
+        if web_url:
+            self.write_redirect(302, web_url)
+            return
+
         endpoint = f"{session['host']}:{session['gamePort']}"
-        web_url = session.get("webUrl")
-        html = (
+        html_body = (
             "<!doctype html><html><head><meta charset=\"utf-8\">"
             f"<title>Tank MAPF Session {session['code']}</title></head><body>"
             f"<h1>Tank MAPF Session {session['code']}</h1>"
@@ -221,9 +226,10 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
             f"<p>Session code: {session['code']}</p>"
         )
         if web_url:
-            html += f"<p>Browser link: {web_url}</p>"
-        html += "<p>Open the game and paste this code or link.</p></body></html>"
-        self.write_html(200, html)
+            safe_url = html_module.escape(web_url, quote=True)
+            html_body += f"<p><a href=\"{safe_url}\">Play in browser</a></p>"
+        html_body += "<p>Open the game and paste this code or link.</p></body></html>"
+        self.write_html(200, html_body)
 
     def handle_create_room_page(self):
         html = """<!doctype html><html><head><meta charset="utf-8"><title>Tank MAPF Create Room</title>
@@ -421,6 +427,12 @@ document.getElementById('submit').onclick = async () => {
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
+
+    def write_redirect(self, status_code, location):
+        self.send_response(status_code)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         print(f"[Registry] {self.address_string()} - {fmt % args}")

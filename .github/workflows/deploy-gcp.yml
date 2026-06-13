@@ -225,6 +225,8 @@ jobs:
           curl -fsS "${{ steps.targets.outputs.web_url }}/StreamingAssets/MapData/random-32-32-10.map" | grep -q '^type'
           curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.wasm"
           curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.data"
+          curl -fsS "${{ steps.targets.outputs.web_url }}/build-manifest.json" | tee /tmp/web-build-manifest.json >/dev/null
+          grep -q "${{ inputs.release_sha }}" /tmp/web-build-manifest.json
 
       - name: Print service diagnostics on failure
         if: failure()
