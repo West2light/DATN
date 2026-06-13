@@ -110,18 +110,23 @@ jobs:
           }
 
           Write-Host "Unity Library is missing ScriptAssemblies. Running import warm-up before build."
-          & "${{ steps.unity.outputs.path }}" `
-            -batchmode `
-            -nographics `
-            -quit `
-            -projectPath "$env:GITHUB_WORKSPACE" `
-            -logFile $importLog
+          $importArgs = @(
+            "-batchmode",
+            "-nographics",
+            "-quit",
+            "-projectPath",
+            "$env:GITHUB_WORKSPACE",
+            "-logFile",
+            "$importLog"
+          )
 
-          if ($LASTEXITCODE -ne 0) {
+          $importProcess = Start-Process -FilePath "${{ steps.unity.outputs.path }}" -ArgumentList $importArgs -Wait -PassThru
+
+          if ($importProcess.ExitCode -ne 0) {
             if (Test-Path -LiteralPath $importLog) {
               Get-Content -Path $importLog -Tail 200
             }
-            exit $LASTEXITCODE
+            exit $importProcess.ExitCode
           }
 
       - name: Build ${{ matrix.name }}
@@ -142,15 +147,20 @@ jobs:
             }
 
             Write-Host "Starting Unity build attempt $attempt for ${{ matrix.name }}"
-            & "${{ steps.unity.outputs.path }}" `
-              -batchmode `
-              -nographics `
-              -quit `
-              -projectPath "$env:GITHUB_WORKSPACE" `
-              -executeMethod "${{ matrix.method }}" `
-              -logFile "${{ matrix.log_file }}"
+            $buildArgs = @(
+              "-batchmode",
+              "-nographics",
+              "-quit",
+              "-projectPath",
+              "$env:GITHUB_WORKSPACE",
+              "-executeMethod",
+              "${{ matrix.method }}",
+              "-logFile",
+              "${{ matrix.log_file }}"
+            )
 
-            $unityExitCode = $LASTEXITCODE
+            $buildProcess = Start-Process -FilePath "${{ steps.unity.outputs.path }}" -ArgumentList $buildArgs -Wait -PassThru
+            $unityExitCode = $buildProcess.ExitCode
             $logText = ""
             if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
               $logText = Get-Content -Path "${{ matrix.log_file }}" -Raw -ErrorAction SilentlyContinue
