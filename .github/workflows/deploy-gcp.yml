@@ -181,12 +181,11 @@ jobs:
           set -euo pipefail
 
           server_cmd="$(
-            printf "sudo ARTIFACT_URI=%q RELEASE_SHA=%q PUBLIC_IP=%q SESSION_CODE=%q REGISTRY_ADMIN_TOKEN=%q MAP_FILE=%q ALGORITHM=%q MAX_PLAYERS=%q /opt/tank-mapf/scripts/deploy-release.sh" \
+            printf "sudo ARTIFACT_URI=%q RELEASE_SHA=%q PUBLIC_IP=%q SESSION_CODE=%q MAP_FILE=%q ALGORITHM=%q MAX_PLAYERS=%q /opt/tank-mapf/scripts/deploy-release.sh" \
               "$SERVER_ARTIFACT" \
               "$RELEASE_SHA" \
               "$SERVER_IP" \
               "$SESSION_CODE" \
-              "$REGISTRY_ADMIN_TOKEN" \
               "$MAP_FILE" \
               "$ALGORITHM" \
               "$MAX_PLAYERS"

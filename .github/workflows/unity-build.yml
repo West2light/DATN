@@ -154,7 +154,6 @@ jobs:
       GCP_ARTIFACT_BUCKET: ${{ vars.GCP_ARTIFACT_BUCKET }}
       GCP_VM_NAME: ${{ vars.GCP_VM_NAME || 'tank-mapf-server' }}
       GCP_STATIC_IP_NAME: ${{ vars.GCP_STATIC_IP_NAME || 'tank-mapf-ip' }}
-      REGISTRY_ADMIN_TOKEN: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
       SESSION_CODE: ${{ secrets.TF_VAR_SERVER_SESSION_CODE }}
       MAP_FILE: ${{ vars.AUTO_DEPLOY_MAP_FILE || 'random-32-32-10.map' }}
       ALGORITHM: ${{ vars.AUTO_DEPLOY_ALGORITHM || 'AStar' }}
@@ -174,7 +173,6 @@ jobs:
             GCP_WORKLOAD_IDENTITY_PROVIDER \
             GCP_DEPLOY_SERVICE_ACCOUNT \
             GCP_ARTIFACT_BUCKET \
-            REGISTRY_ADMIN_TOKEN \
             SESSION_CODE
           do
             if [ -z "${!name:-}" ]; then
@@ -237,12 +235,11 @@ jobs:
           set -euo pipefail
 
           server_cmd="$(
-            printf "sudo ARTIFACT_URI=%q RELEASE_SHA=%q PUBLIC_IP=%q SESSION_CODE=%q REGISTRY_ADMIN_TOKEN=%q MAP_FILE=%q ALGORITHM=%q MAX_PLAYERS=%q /opt/tank-mapf/scripts/deploy-release.sh" \
+            printf "sudo ARTIFACT_URI=%q RELEASE_SHA=%q PUBLIC_IP=%q SESSION_CODE=%q MAP_FILE=%q ALGORITHM=%q MAX_PLAYERS=%q /opt/tank-mapf/scripts/deploy-release.sh" \
               "$SERVER_ARTIFACT" \
               "$GITHUB_SHA" \
               "$SERVER_IP" \
               "$SESSION_CODE" \
-              "$REGISTRY_ADMIN_TOKEN" \
               "$MAP_FILE" \
               "$ALGORITHM" \
               "$MAX_PLAYERS"
