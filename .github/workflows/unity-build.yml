@@ -61,74 +61,86 @@ jobs:
 
       - name: Resolve Unity executable
         id: unity
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = "Stop"
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
-          if [ -n "${UNITY_EXECUTABLE:-}" ] && [ -x "$UNITY_EXECUTABLE" ]; then
-            echo "path=$UNITY_EXECUTABLE" >> "$GITHUB_OUTPUT"
+          if ($env:UNITY_EXECUTABLE -and (Test-Path -LiteralPath $env:UNITY_EXECUTABLE)) {
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$env:UNITY_EXECUTABLE`n", $utf8NoBom)
             exit 0
-          fi
+          }
 
-          for candidate in \
-            "/opt/unity/Editor/Unity" \
-            "/opt/Unity/Editor/Unity" \
-            "/Applications/Unity/Hub/Editor/6000.3.10f1/Unity.app/Contents/MacOS/Unity" \
-            "/c/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Unity.exe"
-          do
-            if [ -x "$candidate" ]; then
-              echo "path=$candidate" >> "$GITHUB_OUTPUT"
+          $candidates = @(
+            "D:\Unity\6000.3.10f1\Editor\Unity.exe",
+            "D:\Unity\6000.3.10f1\Unity.exe",
+            "C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Unity.exe",
+            "/opt/unity/Editor/Unity",
+            "/opt/Unity/Editor/Unity",
+            "/Applications/Unity/Hub/Editor/6000.3.10f1/Unity.app/Contents/MacOS/Unity"
+          )
+
+          foreach ($candidate in $candidates) {
+            if (Test-Path -LiteralPath $candidate) {
+              [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$candidate`n", $utf8NoBom)
               exit 0
-            fi
-          done
+            }
+          }
 
-          if command -v unity-editor >/dev/null 2>&1; then
-            echo "path=$(command -v unity-editor)" >> "$GITHUB_OUTPUT"
+          $command = Get-Command unity-editor, Unity, Unity.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($command) {
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "path=$($command.Source)`n", $utf8NoBom)
             exit 0
-          fi
+          }
 
-          if command -v Unity >/dev/null 2>&1; then
-            echo "path=$(command -v Unity)" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "::error::Unity executable was not found. Configure a self-hosted runner with Unity 6000.3.10f1 or set repository variable UNITY_EXECUTABLE."
-          exit 1
+          Write-Error "Unity executable was not found. Set repository variable UNITY_EXECUTABLE or install Unity 6000.3.10f1 at D:\Unity\6000.3.10f1\Editor\Unity.exe."
 
       - name: Build ${{ matrix.name }}
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
-          rm -rf "${{ matrix.build_dir }}"
+          $ErrorActionPreference = "Stop"
 
-          "${{ steps.unity.outputs.path }}" \
-            -batchmode \
-            -nographics \
-            -quit \
-            -projectPath "$GITHUB_WORKSPACE" \
-            -executeMethod "${{ matrix.method }}" \
+          if (Test-Path -LiteralPath "${{ matrix.build_dir }}") {
+            Remove-Item -LiteralPath "${{ matrix.build_dir }}" -Recurse -Force
+          }
+
+          & "${{ steps.unity.outputs.path }}" `
+            -batchmode `
+            -nographics `
+            -quit `
+            -projectPath "$env:GITHUB_WORKSPACE" `
+            -executeMethod "${{ matrix.method }}" `
             -logFile "${{ matrix.log_file }}"
 
-      - name: Validate build output
-        shell: bash
-        run: |
-          set -euo pipefail
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path -LiteralPath "${{ matrix.log_file }}") {
+              Get-Content -Path "${{ matrix.log_file }}" -Tail 200
+            }
+            exit $LASTEXITCODE
+          }
 
-          if [ ! -e "${{ matrix.build_dir }}/${{ matrix.expected_file }}" ]; then
-            echo "::error::Expected build output not found: ${{ matrix.build_dir }}/${{ matrix.expected_file }}"
-            exit 1
-          fi
+      - name: Validate build output
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $expectedPath = Join-Path "${{ matrix.build_dir }}" "${{ matrix.expected_file }}"
+          if (-not (Test-Path -LiteralPath $expectedPath)) {
+            Write-Error "Expected build output not found: $expectedPath"
+          }
 
       - name: Package artifact
         id: package
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = "Stop"
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
-          archive="${{ matrix.archive_prefix }}-${GITHUB_SHA}.tar.gz"
-          tar -czf "$archive" -C "${{ matrix.build_dir }}" .
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
-          echo "gcs_uri=gs://${ARTIFACT_BUCKET}/${{ matrix.gcs_prefix }}/${GITHUB_SHA}/$archive" >> "$GITHUB_OUTPUT"
+          $archive = "${{ matrix.archive_prefix }}-$($env:GITHUB_SHA).tar.gz"
+          tar -czf $archive -C "${{ matrix.build_dir }}" .
+
+          $gcsUri = "gs://$env:ARTIFACT_BUCKET/${{ matrix.gcs_prefix }}/$($env:GITHUB_SHA)/$archive"
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "archive=$archive`n", $utf8NoBom)
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "gcs_uri=$gcsUri`n", $utf8NoBom)
 
       - name: Upload GitHub artifact
         uses: actions/upload-artifact@v4
@@ -160,15 +172,14 @@ jobs:
 
       - name: Upload artifact to GCS
         if: ${{ (github.event_name == 'push' || inputs.upload_to_gcs == 'true') && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_ARTIFACT_BUCKET != '' }}
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = "Stop"
           gcloud storage cp "${{ steps.package.outputs.archive }}" "${{ steps.package.outputs.gcs_uri }}"
-          echo "Uploaded ${{ steps.package.outputs.gcs_uri }}"
+          Write-Host "Uploaded ${{ steps.package.outputs.gcs_uri }}"
 
       - name: Warn when GCS upload is skipped
         if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || vars.GCP_DEPLOY_SERVICE_ACCOUNT == '' || vars.GCP_ARTIFACT_BUCKET == '' }}
-        shell: bash
+        shell: powershell
         run: |
-          echo "::warning::GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
-
+          Write-Warning "GCS upload skipped. Configure GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT, and GCP_ARTIFACT_BUCKET to enable deploy by release SHA."
