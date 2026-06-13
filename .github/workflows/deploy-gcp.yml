@@ -194,6 +194,7 @@ jobs:
 
           gcloud compute ssh "$GCP_VM_NAME" \
             --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
             --command "$server_cmd"
 
       - name: Deploy WebGL client
@@ -212,6 +213,7 @@ jobs:
 
           gcloud compute ssh "$GCP_VM_NAME" \
             --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
             --command "$web_cmd"
 
       - name: Smoke test registry and web
@@ -228,9 +230,9 @@ jobs:
         run: |
           set +e
 
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "systemctl status tank-mapf-server.service --no-pager"
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "systemctl status tank-mapf-server-web.service --no-pager"
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "systemctl status tank-mapf-registry.service --no-pager"
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "journalctl -u tank-mapf-server.service -n 100 --no-pager"
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "journalctl -u tank-mapf-server-web.service -n 100 --no-pager"
-          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --command "journalctl -u tank-mapf-registry.service -n 100 --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-server.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-server-web.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "systemctl status tank-mapf-registry.service --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-server.service -n 100 --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-server-web.service -n 100 --no-pager"
+          gcloud compute ssh "$GCP_VM_NAME" --zone "$GCP_ZONE" --tunnel-through-iap --command "journalctl -u tank-mapf-registry.service -n 100 --no-pager"
