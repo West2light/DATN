@@ -6,12 +6,24 @@ using UnityEngine.SceneManagement;
 public class DedicatedServerBootstrap : MonoBehaviour
 {
     private static bool _bootRequested;
-    private const float SceneStartDelaySeconds = 3f;
+
+    // Once enough players have joined, wait this brief settle window before loading the
+    // gameplay scene so every connected client is stable when the scene sync fires.
+    private const float SettleDelaySeconds = 2f;
+    // Fallback so a lone tester is never stuck waiting for a second player. The old code
+    // loaded the scene 3s after the FIRST client connected — that locked out a second tab
+    // because it arrived after the scene had already loaded. We now wait for a second
+    // player (see MinPlayersToStart) and only fall back to a solo start after this grace.
+    private const float SoloGraceSeconds = 25f;
 
     private NetworkLaunchArgs _launchArgs;
     private bool _started;
-    private bool _sceneLoadScheduled;
+    private bool _graceScheduled;
     private bool _sceneLoaded;
+
+    // Minimum connected players before the room starts on its own. Clamped to MaxPlayers
+    // so a maxPlayers=1 room still starts. Internet rooms default to waiting for 2.
+    private int MinPlayersToStart => Mathf.Min(2, Mathf.Max(1, LanSessionManager.MaxPlayers));
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoStart()
@@ -103,6 +115,8 @@ public class DedicatedServerBootstrap : MonoBehaviour
             return;
 
         int connectedPlayers = Mathf.Max(0, networkManager.ConnectedClients.Count);
+
+        // Room full → start immediately, no need to wait.
         if (connectedPlayers >= LanSessionManager.MaxPlayers)
         {
             CancelInvoke(nameof(BeginGameplayScene));
@@ -110,11 +124,22 @@ public class DedicatedServerBootstrap : MonoBehaviour
             return;
         }
 
-        if (_sceneLoadScheduled)
+        // Enough players have joined → start after a short settle delay. CancelInvoke first
+        // so the solo-grace timer (if armed) is replaced by this sooner, intentional start.
+        if (connectedPlayers >= MinPlayersToStart)
+        {
+            CancelInvoke(nameof(BeginGameplayScene));
+            Invoke(nameof(BeginGameplayScene), SettleDelaySeconds);
             return;
+        }
 
-        _sceneLoadScheduled = true;
-        Invoke(nameof(BeginGameplayScene), SceneStartDelaySeconds);
+        // Only one player so far → arm a one-shot grace timer so a solo tester is not stuck,
+        // but keep waiting for a second player rather than starting right away.
+        if (!_graceScheduled)
+        {
+            _graceScheduled = true;
+            Invoke(nameof(BeginGameplayScene), SoloGraceSeconds);
+        }
     }
 
     private void OnClientDisconnected(ulong clientId)
