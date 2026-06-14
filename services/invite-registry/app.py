@@ -397,7 +397,16 @@ document.getElementById('submit').onclick = async () => {
                 check=True,
                 capture_output=True,
                 text=True,
+                # The helper now blocks until the WebSocket server is ready (~6-10s),
+                # with its own 45s internal cap. Bound the wait so a crash-looping
+                # server cannot hang the HTTP request indefinitely.
+                timeout=75,
             )
+        except subprocess.TimeoutExpired as exc:
+            output = (exc.stderr or exc.stdout or "").strip()
+            raise ValueError(
+                f"Create room timed out waiting for the WebSocket server: {output}"
+            ) from exc
         except subprocess.CalledProcessError as exc:
             output = (exc.stderr or exc.stdout or str(exc)).strip()
             raise ValueError(f"Create room failed: {output}") from exc

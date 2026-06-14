@@ -126,8 +126,37 @@ MAX_PLAYERS=$${MAX_PLAYERS}
 EOF
 chmod 0640 "$RUNTIME_ENV_FILE"
 
+# Capture current log size so the readiness check only inspects output from THIS restart.
+WEB_LOG_FILE=/var/log/tank-mapf/server-web.log
+LOG_START_LINE=0
+if [ -f "$WEB_LOG_FILE" ]; then
+  LOG_START_LINE=$(wc -l < "$WEB_LOG_FILE" 2>/dev/null || echo 0)
+fi
+
 systemctl restart tank-mapf-server.service
 systemctl restart tank-mapf-server-web.service
+
+# Readiness gate: do not publish the session until the WebSocket dedicated server is
+# actually accepting Netcode clients. The Unity server needs ~6s to boot; without this
+# wait the WebGL client races that window and fails with a generic "Mat ket noi voi host".
+# Require all three: service active, TCP port listening, and the Netcode "StartServer ok"
+# marker emitted after this restart.
+READY_TIMEOUT=45
+READY=0
+for i in $(seq 1 "$READY_TIMEOUT"); do
+  if systemctl is-active --quiet tank-mapf-server-web.service \
+     && ss -lnt 2>/dev/null | grep -q ":$WEB_GAME_PORT " \
+     && tail -n +$((LOG_START_LINE + 1)) "$WEB_LOG_FILE" 2>/dev/null | grep -q "StartServer ok"; then
+    READY=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$READY" -ne 1 ]; then
+  echo "WebSocket server not ready after $READY_TIMEOUT s (port $WEB_GAME_PORT / StartServer ok marker missing)" >&2
+  exit 1
+fi
 
 python3 - <<PY
 import json
