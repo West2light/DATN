@@ -219,6 +219,10 @@ public class LanGameCoordinator : MonoBehaviour
         var mgr = nm.CustomMessagingManager;
         if (mgr == null) return;
 
+        // Nobody connected → skip. Avoids burning CPU and spamming the log with
+        // "clientIds is empty!" at 30 Hz when every client has left the game scene.
+        if (nm.ConnectedClientsIds.Count == 0) return;
+
         int pc = _serverTanks.Count;
         int ec = _serverEnemies.Count;
 

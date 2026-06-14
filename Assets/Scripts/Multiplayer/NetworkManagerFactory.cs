@@ -63,6 +63,12 @@ public static class NetworkManagerFactory
 
         transport.SetConnectionData(bindAddress, port);
         transport.UseWebSockets = transportMode == NetworkTransportMode.WebSocket;
+
+        // The default receive/send packet queue (128) overflows over Internet WebSocket
+        // during the scene-load burst + 30 Hz world-state broadcast, which tears the
+        // connection down ("Receive queue is full" → client disconnect → "Mất kết nối").
+        // Give 8x headroom on both client and server so bursts are absorbed.
+        transport.MaxPacketQueueSize = 1024;
     }
 
     public static void ConfigureConnectionApproval(NetworkManager networkManager, bool isServer)

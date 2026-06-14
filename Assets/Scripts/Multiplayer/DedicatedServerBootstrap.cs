@@ -60,6 +60,12 @@ public class DedicatedServerBootstrap : MonoBehaviour
 
         _started = true;
 
+        // Cap the headless server's frame rate. Without this the dedicated build spins
+        // uncapped at ~100% CPU on the 2-core VM, starving the registry/nginx and the
+        // transport's packet processing. 60 fps is plenty for a 30 Hz world-state sync.
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 60;
+
         NetworkEndpointConfig cfg = _launchArgs.ToEndpointConfig();
         LanSessionManager.ActivateDedicatedServer(cfg);
 

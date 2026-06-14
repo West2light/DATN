@@ -93,6 +93,13 @@ public class LanNetworkBridge : NetworkBehaviour
     // ── Owner-side: sample input every frame ─────────────────────────────────
     private Camera _ownerCamera;
 
+    // Input is sampled every frame for local prediction but only SENT to the server
+    // at this fixed rate. Sending every render frame (up to 144 fps) floods the
+    // server's transport receive queue over WebSocket and breaks the connection.
+    private const float InputSendInterval = 1f / 30f;
+    private float _inputSendTimer;
+    private bool  _pendingShoot;   // latches a shoot press between throttled sends
+
     public override void OnNetworkSpawn()
     {
         enabled = true;
@@ -162,22 +169,33 @@ public class LanNetworkBridge : NetworkBehaviour
         if (IsServer)
         {
             // Host: route qua Coordinator để CHẮC CHẮN chỉ Tank[0] (slot host) nhận input.
+            // Host input is applied locally (no network), so no throttling is needed.
             LanGameCoordinator.Instance?.ApplyHostInput(move, mouseWorld, shoot);
             return;
         }
+
+        // Body prediction runs every frame for responsive local movement (no network cost).
+        // Turret prediction is deferred to LateUpdate so it always wins over any
+        // body-rotation side-effects that happen later in this same Update phase.
+        LanClientView.Instance?.PredictOwnMovement(move);
+
+        // Latch the shoot press so a tap landing between throttled sends is not lost.
+        _pendingShoot |= shoot;
+
+        // Throttle the input RPC to ~30 Hz. See InputSendInterval — sending every frame
+        // overflows the server's receive queue over WebSocket and drops the connection.
+        _inputSendTimer += Time.deltaTime;
+        if (_inputSendTimer < InputSendInterval) return;
+        _inputSendTimer = 0f;
 
         // Client: compute turret angle from OwnGhost's turret position (not raw world pos).
         // This decouples the angle from camera position — two machines with similar camera
         // views would otherwise compute the same world-pos and therefore the same angle.
         float turretAngle = ComputeTurretAngle(mouseWorld);
 
-        // Client từ xa: gửi input qua RPC.
-        SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = shoot });
-
-        // Body prediction runs here (Update) for responsive movement.
-        // Turret prediction is deferred to LateUpdate so it always wins over any
-        // body-rotation side-effects that happen later in this same Update phase.
-        LanClientView.Instance?.PredictOwnMovement(move);
+        // Client từ xa: gửi input qua RPC (đã throttle).
+        SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = _pendingShoot });
+        _pendingShoot = false;
     }
 
     private void LateUpdate()
