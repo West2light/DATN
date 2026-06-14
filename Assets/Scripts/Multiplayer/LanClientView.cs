@@ -142,7 +142,11 @@ public class LanClientView : MonoBehaviour
         ulong myClientId = NetworkManager.Singleton != null
             ? NetworkManager.Singleton.LocalClientId
             : ulong.MaxValue;
-        int ownSlot = Mathf.Min(1, playerCount - 1); // safe default (slot 1 for 2-player)
+        // Start at -1 — only set when the packet's ownerClientId matches this machine.
+        // Do NOT use a numeric default: even slot 0 is a real, valid slot that belongs to
+        // whichever client the server placed there, and guessing wrong causes two clients
+        // to control the same ghost.
+        int ownSlot = -1;
         int[] variantIndices = new int[playerCount];
         for (int i = 0; i < playerCount; i++)
         {
@@ -150,16 +154,7 @@ public class LanClientView : MonoBehaviour
             reader.ReadValueSafe(out variantIndices[i]);
             if (ownerClientId == myClientId) ownSlot = i;
         }
-
-        // In host mode, slot 0 belongs to the host. If LocalClientId was not yet assigned
-        // when the init message arrived, the loop above can incorrectly resolve a remote
-        // client to slot 0. Dedicated server mode has no local host player, so slot 0 is valid.
-        if (!LanSessionManager.IsDedicatedServer && ownSlot == 0 && playerCount > 1)
-        {
-            ownSlot = Mathf.Min(1, playerCount - 1);
-            Debug.LogWarning($"[LanClientView] ownSlot resolved to 0 (LocalClientId race?) — forced to {ownSlot}");
-        }
-        Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} ownSlot={ownSlot}");
+        Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} myClientId={myClientId} ownSlot={ownSlot}");
 
         // Skip ghost recreate if counts and own-slot are already correct, but still
         // re-apply variants — ghosts may have been created via the world-state fallback
@@ -417,13 +412,15 @@ public class LanClientView : MonoBehaviour
         }
         else
         {
+            // Bridge fallback: used when InitGhosts is called from OnReceiveWorldState
+            // before the init message arrives. Reads the Slot NetworkVariable which NGO
+            // syncs automatically — more reliable than any numeric guess.
             var bridges = FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
             foreach (var b in bridges)
                 if (b.IsOwner && b.Slot.Value >= 0) { _ownSlot = b.Slot.Value; break; }
-            if (_ownSlot < 0)
-                _ownSlot = LanSessionManager.IsDedicatedServer
-                    ? 0
-                    : Mathf.Min(1, playerCount - 1);
+            // _ownSlot stays -1 if the bridge hasn't synced its Slot yet; the next
+            // OnReceiveInitWorld (which carries the authoritative ownerClientId map) will
+            // call InitGhosts again with the correct forcedOwnSlot.
         }
 
         // Spawn player ghosts with the correct tank body sprite per slot ──────

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -264,7 +265,21 @@ public class MapTankTestBootstrap : MonoBehaviour
     private List<TankController> SpawnAllLanPlayers()
     {
         var tanks = new List<TankController>();
+        // Read live connected-client count from NGO rather than the cached
+        // LanSessionManager.PlayerCount, which can be stale if a client joins
+        // during the scene-load transition.
         int n = LanSessionManager.PlayerCount;
+        if (LanSessionManager.IsDedicatedServer
+            && NetworkManager.Singleton != null
+            && NetworkManager.Singleton.IsServer)
+        {
+            n = Mathf.Clamp(
+                NetworkManager.Singleton.ConnectedClients.Count,
+                1,
+                LanSessionManager.MaxPlayers);
+            LanSessionManager.PlayerCount = n; // keep EnemyCount = 6*n in sync
+        }
+        Debug.Log($"[MapTankTestBootstrap] SpawnAllLanPlayers n={n} (ConnectedClients={NetworkManager.Singleton?.ConnectedClients.Count})");
 
         for (int i = 0; i < n; i++)
         {
