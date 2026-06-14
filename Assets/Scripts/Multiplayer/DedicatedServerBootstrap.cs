@@ -145,6 +145,21 @@ public class DedicatedServerBootstrap : MonoBehaviour
     private void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"[DedicatedServer] Client disconnected: {clientId}");
+        if (_sceneLoaded) return;
+
+        NetworkManager networkManager = NetworkManager.Singleton;
+        if (networkManager == null) return;
+
+        // If every client has left before the scene started, cancel all pending timers
+        // and reset the grace flag so the next client to connect re-arms them fresh.
+        // Without this, a solo-grace timer fired after a brief connection would load
+        // the game scene with 0 connected players.
+        if (networkManager.ConnectedClients.Count == 0)
+        {
+            CancelInvoke(nameof(BeginGameplayScene));
+            _graceScheduled = false;
+            Debug.Log("[DedicatedServer] All clients disconnected — timers reset, waiting for fresh connections.");
+        }
     }
 
     private void BeginGameplayScene()
