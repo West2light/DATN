@@ -40,8 +40,11 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     private FactionMember _selfFaction;
 
     // ── Backtest metrics ───────────────────────────────────────────────────
+    [System.NonSerialized] public int   btReplanCount;
+    [System.NonSerialized] public int   btRecoveryCount;
     [System.NonSerialized] public int   btShotCount;
     [System.NonSerialized] public int   btCellsVisited;
+    [System.NonSerialized] public int   btInitialPathLength;
     [System.NonSerialized] public float btSpawnTime;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -87,6 +90,7 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     /// <summary>Set the next grid cell this agent should move to.</summary>
     public void SetNextTarget(Vector2Int cell)
     {
+        btReplanCount++;
         if (cell != _currentTarget)
         {
             btCellsVisited++;

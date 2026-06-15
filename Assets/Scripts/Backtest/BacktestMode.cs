@@ -1,7 +1,7 @@
 public static class BacktestMode
 {
     public static bool   IsActive             { get; private set; }
-    public static string Algorithm            { get; private set; } // "AStar" | "PIBT"
+    public static string Algorithm            { get; private set; } // "AStar" | "PIBT" | "PIBT_TCP"
     public static string MapLabel             { get; private set; }
     public static bool   DynamicObstacleMode  { get; private set; }
 

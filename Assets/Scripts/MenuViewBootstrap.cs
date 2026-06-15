@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Sockets;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -20,8 +19,6 @@ public class MenuViewBootstrap : MonoBehaviour
     private const string PrefKeyVariant     = "MenuTankVariant";
     private const string PrefKeyMapFile     = "SelectedMapFile";
     private const string SpritesRoot        = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
-    private const string PibtServerHost     = "127.0.0.1";
-    private const int    PibtServerPort     = 9999;
 
     // Palette
     private static readonly Color BgDark      = new Color(0.07f, 0.12f, 0.18f, 1f);
@@ -897,27 +894,10 @@ public class MenuViewBootstrap : MonoBehaviour
 #endif
     }
 
-    // ── PIBT-TCP: server check before entering game ────────────────────────
+    // ── PIBT-TCP: enter game; the scene sends hello immediately.
 
     private void CheckAndLoadPibtTcp(string mapFile, string scene)
     {
-        bool reachable = false;
-        try
-        {
-            using var tc = new TcpClient();
-            tc.Connect(PibtServerHost, PibtServerPort);
-            reachable = true;
-        }
-        catch { }
-
-        if (!reachable)
-        {
-            ShowMenuToast(
-                $"Không thể kết nối PIBT server\n({PibtServerHost}:{PibtServerPort})\nHãy chạy  pibt_server  trước khi vào game.",
-                4f);
-            return;
-        }
-
         PlayerPrefs.SetString(PrefKeyMapFile, mapFile);
         PlayerPrefs.SetString(PrefKeyAlgorithm, "PIBT_TCP");
         PlayerPrefs.Save();

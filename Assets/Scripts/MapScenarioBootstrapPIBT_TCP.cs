@@ -10,13 +10,13 @@ using UnityEditor;
 /// <summary>
 /// Bootstrap cho Mode 3: PIBT TCP.
 /// Spawn enemies giống MapScenarioBootstrapPIBT, nhưng mọi pathfinding được
-/// giao cho C++ PIBT server qua PIBTTcpClient (TCP localhost).
+/// giao cho C++ PIBT server qua PIBTTcpClient.
 ///
 /// Flow:
 ///   1. SpawnScenario() được gọi sau khi map đã load.
-///   2. Start() kết nối TCP server, gửi "init" với toàn bộ map + vị trí enemy.
-///   3. Mỗi tcpTickInterval giây: gửi "step" với vị trí + goal hiện tại,
-///      nhận next cell cho từng enemy, truyền vào GridEnemyAgentPIBT_TCP.
+///   2. Kết nối server, gửi "hello" với toàn bộ map.
+///   3. Mỗi tcpTickInterval giây: gửi "plan_step" với vị trí + hướng + goal,
+///      nhận action cho từng enemy, truyền target kế tiếp vào GridEnemyAgentPIBT_TCP.
 /// </summary>
 public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 {
@@ -28,8 +28,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     public MapLoader mapLoader;
 
     [Header("TCP Server")]
-    public string serverHost          = "127.0.0.1";
-    public int    serverPort          = 9999;
+    public string serverHost          = "192.168.2.242";
+    public int    serverPort          = 7777;
     [Min(0.05f)]
     [Tooltip("Khoảng thời gian (giây) giữa các lần gọi server. 0.5s ≈ 2 tick/s.")]
     public float  tcpTickInterval     = 0.5f;
@@ -76,6 +76,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private PIBTTcpClient              _client;
     private readonly List<GridEnemyAgentPIBT_TCP> _agents = new();
+    private readonly List<int> _agentOrientations = new();
+    private string _sessionId;
     private int   _frame;
     private float _nextTickTime;
     private bool  _serverReady;
@@ -92,6 +94,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     public void SpawnScenario()
     {
         ResolveReferences();
+        Debug.Log($"[PIBT_TCP] SpawnScenario requested. backtest={BacktestMode.IsActive}, algorithm='{BacktestMode.Algorithm}', endpoint={serverHost}:{serverPort}");
         if (mapLoader == null || mapLoader.BuildWidth <= 0 || mapLoader.BuildHeight <= 0)
         {
             Debug.LogError("[PIBT_TCP] Map must be loaded before spawning.");
@@ -104,60 +107,47 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         eagleBase = SpawnEagleBase();
         SpawnEnemies();
+        Debug.Log($"[PIBT_TCP] Spawned TCP scenario objects. eagle={eagleBase != null}, agents={_agents.Count}, enemies={_enemyGOs.Count}");
 
-        // Connect to TCP server and send init
-        ConnectAndInit();
+        ConnectAndHello();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     // TCP
     // ═══════════════════════════════════════════════════════════════════════
 
-    private void ConnectAndInit()
+    private void ConnectAndHello()
     {
         _client = GetComponent<PIBTTcpClient>() ?? gameObject.AddComponent<PIBTTcpClient>();
         _client.host = serverHost;
         _client.port = serverPort;
+        Debug.Log($"[PIBT_TCP] ConnectAndHello start. endpoint={_client.host}:{_client.port}, agents={_agents.Count}, map={mapLoader.BuildWidth}x{mapLoader.BuildHeight}");
 
         if (!_client.Connect())
         {
             Debug.LogError("[PIBT_TCP] Could not connect to PIBT server at " +
                            serverHost + ":" + serverPort +
-                           ". Make sure pibt_server is running.");
-            ShowToast($"Không thể kết nối PIBT server\n({serverHost}:{serverPort})\nHãy chạy pibt_server trước khi vào game.", 4f);
+                           $". Reason: {_client.LastError}");
+            ShowToast($"Không thể kết nối PIBT server\n({serverHost}:{serverPort})\nHãy kiểm tra server/domain trước khi vào game.", 4f);
             return;
         }
 
-        // Build flat map array (0 = walkable, 1 = obstacle)
-        int rows = mapLoader.BuildHeight;
-        int cols = mapLoader.BuildWidth;
-        int[] mapFlat = new int[rows * cols];
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                Vector2Int cell = new Vector2Int(
-                    mapLoader.BuildStartX + c,
-                    mapLoader.BuildStartY + r);
-                mapFlat[r * cols + c] = mapLoader.IsWalkable(cell) ? 0 : 1;
-            }
+        int height = mapLoader.BuildHeight;
+        int width  = mapLoader.BuildWidth;
+        string symbols = BuildMapSymbols(width, height);
+        _sessionId = $"unity-{System.Guid.NewGuid():N}";
+        ResetAgentOrientations();
 
-        // Build agent init list: pos = current flat, goal = eagle flat
-        int goalFlat = EagleFlat(rows, cols);
-        var agents = new (int pos, int goal)[_agents.Count];
-        for (int i = 0; i < _agents.Count; i++)
+        if (!_client.Hello(_sessionId, width, height, symbols, _agents.Count))
         {
-            agents[i] = (AgentFlat(i, rows, cols), goalFlat);
-        }
-
-        if (!_client.Init(rows, cols, mapFlat, agents))
-        {
-            Debug.LogError("[PIBT_TCP] Server init failed.");
+            Debug.LogError($"[PIBT_TCP] Server hello failed. Reason: {_client.LastError}");
+            _client.Disconnect();
             return;
         }
 
         _serverReady   = true;
         _nextTickTime  = Time.time + tcpTickInterval;
-        Debug.Log($"[PIBT_TCP] Connected and initialized. {_agents.Count} agents, map {cols}×{rows}.");
+        Debug.Log($"[PIBT_TCP] Connected and initialized. {_agents.Count} agents, map {width}×{height}.");
     }
 
     private void Update()
@@ -174,14 +164,18 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int cols    = mapLoader.BuildWidth;
         int goalFlat = EagleFlat(rows, cols);
 
-        var data = new (int id, int pos, int goal)[_agents.Count];
+        var data = new (int id, int loc, int orientation, int goalLoc)[_agents.Count];
         for (int i = 0; i < _agents.Count; i++)
-            data[i] = (i, AgentFlat(i, rows, cols), goalFlat);
+            data[i] = (i, AgentFlat(i, rows, cols), AgentOrientation(i), goalFlat);
 
-        int[] next = _client.Step(_frame++, data);
-        if (next == null)
+        string[] actions = _client.PlanStep(_frame, _frame, data);
+        _frame++;
+        if (actions == null)
         {
-            Debug.LogWarning("[PIBT_TCP] Server connection lost — stopping agents.");
+            string reason = _client != null && !string.IsNullOrEmpty(_client.LastError)
+                ? _client.LastError
+                : "Unknown plan_step failure.";
+            Debug.LogWarning($"[PIBT_TCP] Server plan_step failed — stopping agents. {reason}");
             _serverReady = false;
             foreach (var a in _agents)
                 if (a != null) a.StopMovement();
@@ -189,12 +183,97 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < _agents.Count && i < next.Length; i++)
+        for (int i = 0; i < _agents.Count && i < actions.Length; i++)
         {
             if (_agents[i] == null) continue;
-            Vector2Int nextCell = FlatToCell(next[i], cols);
+            Vector2Int nextCell = ApplyAction(i, actions[i], rows, cols);
             _agents[i].SetNextTarget(nextCell);
         }
+    }
+
+    private string BuildMapSymbols(int cols, int rows)
+    {
+        var sb = new System.Text.StringBuilder(cols * rows);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Vector2Int cell = new Vector2Int(
+                    mapLoader.BuildStartX + c,
+                    mapLoader.BuildStartY + r);
+                sb.Append(mapLoader.IsWalkable(cell) ? '.' : '@');
+            }
+        }
+        return sb.ToString();
+    }
+
+    private void ResetAgentOrientations()
+    {
+        _agentOrientations.Clear();
+        for (int i = 0; i < _agents.Count; i++)
+            _agentOrientations.Add(ReadAgentOrientation(_agents[i]));
+    }
+
+    private int AgentOrientation(int agentIdx)
+    {
+        while (_agentOrientations.Count <= agentIdx) _agentOrientations.Add(0);
+        return _agentOrientations[agentIdx];
+    }
+
+    private Vector2Int ApplyAction(int agentIdx, string action, int rows, int cols)
+    {
+        int orientation = AgentOrientation(agentIdx);
+        Vector2Int cell = _agents[agentIdx].CurrentCell;
+
+        switch (action)
+        {
+            case "FW":
+                Vector2Int delta = OrientationToDelta(orientation);
+                Vector2Int next = cell + delta;
+                if (IsInsideBuild(next, rows, cols) && mapLoader.IsWalkable(next))
+                    return next;
+                return cell;
+            case "CR":
+                _agentOrientations[agentIdx] = (orientation + 1) & 3;
+                return cell;
+            case "CCR":
+                _agentOrientations[agentIdx] = (orientation + 3) & 3;
+                return cell;
+            case "W":
+                return cell;
+            default:
+                Debug.LogWarning($"[PIBT_TCP] Unknown action '{action}' for agent {agentIdx}; waiting.");
+                return cell;
+        }
+    }
+
+    private bool IsInsideBuild(Vector2Int cell, int rows, int cols)
+    {
+        int localR = cell.y - mapLoader.BuildStartY;
+        int localC = cell.x - mapLoader.BuildStartX;
+        return localR >= 0 && localR < rows && localC >= 0 && localC < cols;
+    }
+
+    private static Vector2Int OrientationToDelta(int orientation)
+    {
+        switch (orientation & 3)
+        {
+            case 0: return Vector2Int.right;
+            case 1: return Vector2Int.up;
+            case 2: return Vector2Int.left;
+            default: return Vector2Int.down;
+        }
+    }
+
+    private static int ReadAgentOrientation(GridEnemyAgentPIBT_TCP agent)
+    {
+        if (agent == null || agent.tankController == null || agent.tankController.tankMover == null)
+            return 0;
+
+        Vector2 forward = agent.tankController.tankMover.transform.up;
+        if (Mathf.Abs(forward.x) >= Mathf.Abs(forward.y))
+            return forward.x >= 0f ? 0 : 2;
+        return forward.y >= 0f ? 3 : 1;
     }
 
     // ── Flat index helpers ─────────────────────────────────────────────────

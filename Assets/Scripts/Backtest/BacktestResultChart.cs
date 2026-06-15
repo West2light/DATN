@@ -4,8 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Biểu đồ cột so sánh A* vs PIBT hiển thị sau khi backtest hoàn thành.
-/// Mỗi metric có 1 section riêng; thanh A* màu xanh, PIBT màu cam.
+/// Biểu đồ cột so sánh A*, PIBT và PIBT-C++ hiển thị sau khi backtest hoàn thành.
 /// ESC hoặc nút [✕] để đóng.
 /// </summary>
 public class BacktestResultChart : MonoBehaviour
@@ -27,12 +26,15 @@ public class BacktestResultChart : MonoBehaviour
     private static readonly Color C_Grid    = new Color(1.00f, 1.00f, 1.00f, 0.05f);
     private static readonly Color C_AStar   = new Color(0.28f, 0.60f, 1.00f, 1.00f);
     private static readonly Color C_PIBT    = new Color(1.00f, 0.55f, 0.15f, 1.00f);
+    private static readonly Color C_TCP     = new Color(0.40f, 0.85f, 0.55f, 1.00f);
     private static readonly Color C_Gold    = new Color(1.00f, 0.82f, 0.22f, 1.00f);
     private static readonly Color C_White   = new Color(0.93f, 0.95f, 1.00f, 1.00f);
     private static readonly Color C_Muted   = new Color(0.50f, 0.55f, 0.62f, 1.00f);
     private static readonly Color C_WinA    = new Color(0.18f, 0.70f, 0.35f, 0.22f); // A* wins tint
     private static readonly Color C_WinP    = new Color(0.80f, 0.45f, 0.10f, 0.18f); // PIBT wins tint
+    private static readonly Color C_WinT    = new Color(0.15f, 0.65f, 0.30f, 0.18f); // PIBT-C++ wins tint
     private static readonly Color C_Close   = new Color(0.50f, 0.10f, 0.10f, 1.00f);
+    private static readonly string[] AlgoKeys = { "AStar", "PIBT", "PIBT_TCP" };
 
     // ── Layout ─────────────────────────────────────────────────────────────
     private const float PanelW      = 940f;
@@ -147,7 +149,7 @@ public class BacktestResultChart : MonoBehaviour
 
         // Title — anchor top-left + pos (30,-18) so rect spans [30, PanelW-30], text centered within
         Lbl("Title", panel, new Vector2(0f,1f), new Vector2(30f,-18f),
-            new Vector2(PanelW-60f, 26f), "KẾT QUẢ BACKTEST — SO SÁNH A* vs PIBT",
+            new Vector2(PanelW-60f, 26f), "KẾT QUẢ BACKTEST — A* vs PIBT vs PIBT-C++",
             18, FontStyle.Bold, C_Gold, TextAnchor.MiddleCenter);
 
         // Legend
@@ -242,7 +244,7 @@ public class BacktestResultChart : MonoBehaviour
         if (maxVal <= 0f)
         {
             foreach (var map in maps)
-                foreach (var algo in new[]{"AStar","PIBT"})
+                foreach (var algo in AlgoKeys)
                     maxVal = Mathf.Max(maxVal, avg(map, algo, mi));
             maxVal = maxVal > 0 ? maxVal * 1.2f : 1f;
         }
@@ -269,7 +271,7 @@ public class BacktestResultChart : MonoBehaviour
 
         // Bars
         int nMaps = maps.Count;
-        float totalBarW  = (BarW * 2 + BarGap);
+        float totalBarW  = (BarW * AlgoKeys.Length + BarGap * (AlgoKeys.Length - 1));
         float totalGroupW = totalBarW + GroupGap;
         float chartW     = PanelW - PadX * 2f;
         float groupSpacing = nMaps > 1 ? chartW / nMaps : chartW;
@@ -280,29 +282,41 @@ public class BacktestResultChart : MonoBehaviour
         {
             string map   = maps[i];
             float  gCenterX = PadX + groupSpacing * i + groupSpacing * 0.5f;
-            float  aX = gCenterX - BarW - BarGap * 0.5f;
-            float  pX = gCenterX + BarGap * 0.5f;
+            float  startX = gCenterX - totalBarW * 0.5f;
 
             float aVal = avg(map, "AStar", mi);
             float pVal = avg(map, "PIBT",  mi);
+            float tVal = avg(map, "PIBT_TCP", mi);
 
             // Win tint background behind the pair
             Color tint = Color.clear;
-            if (aVal > 0 && pVal > 0)
+            float bestVal = 0f;
+            string bestAlgo = null;
+            foreach (string algo in AlgoKeys)
             {
-                bool aWins = met.lowerBetter ? aVal < pVal : aVal > pVal;
-                tint = aWins ? C_WinA : C_WinP;
+                float v = avg(map, algo, mi);
+                if (v <= 0f) continue;
+                if (bestAlgo == null || (met.lowerBetter ? v < bestVal : v > bestVal))
+                {
+                    bestVal = v;
+                    bestAlgo = algo;
+                }
+            }
+            if (bestAlgo != null)
+            {
+                tint = bestAlgo == "AStar" ? C_WinA : bestAlgo == "PIBT" ? C_WinP : C_WinT;
             }
             if (tint != Color.clear)
             {
                 var bg = Mk($"Bg{mi}_{i}", panel);
                 SetRT(bg, new Vector2(0f,1f), new Vector2(0f,1f), new Vector2(0f,1f),
-                      new Vector2(aX - 4f, chartTop), new Vector2(totalBarW + 8f, ChartAreaH));
+                      new Vector2(startX - 4f, chartTop), new Vector2(totalBarW + 8f, ChartAreaH));
                 bg.AddComponent<Image>().color = tint;
             }
 
-            DrawBar($"BA{mi}_{i}", panel, aX, baseline, aVal, maxVal, C_AStar, chartTop, TextAnchor.LowerRight);
-            DrawBar($"BP{mi}_{i}", panel, pX, baseline, pVal, maxVal, C_PIBT,  chartTop, TextAnchor.LowerLeft);
+            DrawBar($"BA{mi}_{i}", panel, startX, baseline, aVal, maxVal, C_AStar, chartTop, TextAnchor.LowerCenter);
+            DrawBar($"BP{mi}_{i}", panel, startX + BarW + BarGap, baseline, pVal, maxVal, C_PIBT, chartTop, TextAnchor.LowerCenter);
+            DrawBar($"BT{mi}_{i}", panel, startX + (BarW + BarGap) * 2f, baseline, tVal, maxVal, C_TCP, chartTop, TextAnchor.LowerCenter);
 
             // Map label
             Lbl($"MapL{mi}_{i}", panel, new Vector2(0f,1f),
@@ -333,7 +347,11 @@ public class BacktestResultChart : MonoBehaviour
         {
             string txt = val >= 10f ? val.ToString("F0") : val.ToString("F1");
             const float labelW = 54f;
-            float labelX = valueAlign == TextAnchor.LowerRight ? x + BarW - labelW : x;
+            float labelX = valueAlign == TextAnchor.LowerRight
+                ? x + BarW - labelW
+                : valueAlign == TextAnchor.LowerCenter
+                    ? x + BarW * 0.5f - labelW * 0.5f
+                    : x;
             Lbl(name + "V", panel, new Vector2(0f,1f),
                 new Vector2(labelX, baseline + h + 13f),
                 new Vector2(labelW, 13f),
@@ -377,9 +395,9 @@ public class BacktestResultChart : MonoBehaviour
             {
                 float a = avg(map, "AStar", mi);
                 float p = avg(map, "PIBT", mi);
-                bool aWins = Metrics[mi].lowerBetter ? a < p : a > p;
-                string cell = $"A:{a:F0}  P:{p:F0}";
-                Color txtCol = (a == 0 && p == 0) ? C_Muted : (aWins ? C_AStar : C_PIBT);
+                float t = avg(map, "PIBT_TCP", mi);
+                string cell = $"A:{a:F0} P:{p:F0} T:{t:F0}";
+                Color txtCol = BestColor(a, p, t, Metrics[mi].lowerBetter);
 
                 Lbl($"Sr{mi}_{map}", panel, new Vector2(0f,1f),
                     new Vector2(PadX + colW*(mi+1), rowY),
@@ -394,6 +412,27 @@ public class BacktestResultChart : MonoBehaviour
     {
         LegDot("LA", panel, anchor, pos,                    C_AStar, "A* (xanh)");
         LegDot("LP", panel, anchor, new Vector2(pos.x+120f, pos.y), C_PIBT,  "PIBT (cam)");
+        LegDot("LT", panel, anchor, new Vector2(pos.x+245f, pos.y), C_TCP,   "PIBT-C++");
+    }
+
+    private static Color BestColor(float a, float p, float t, bool lowerBetter)
+    {
+        if (a <= 0f && p <= 0f && t <= 0f) return C_Muted;
+        float best = 0f;
+        Color color = C_Muted;
+        void Check(float value, Color c)
+        {
+            if (value <= 0f) return;
+            if (color == C_Muted || (lowerBetter ? value < best : value > best))
+            {
+                best = value;
+                color = c;
+            }
+        }
+        Check(a, C_AStar);
+        Check(p, C_PIBT);
+        Check(t, C_TCP);
+        return color;
     }
 
     private void LegDot(string id, GameObject panel, Vector2 anchor, Vector2 pos, Color col, string lbl)

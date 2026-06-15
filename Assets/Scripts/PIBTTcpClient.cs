@@ -1,40 +1,67 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// TCP client that talks to the C++ PIBT server.
-/// Attach to a GameObject in the PIBT game scene.
-/// Call Init() once after the map is loaded, then Step() each AI tick.
+/// JSON-lines TCP client for the external PIBT server.
+/// Flow: hello -> plan_step* -> shutdown.
 /// </summary>
 public class PIBTTcpClient : MonoBehaviour
 {
     [Header("Server")]
-    public string host = "127.0.0.1";
-    public int    port = 9999;
+    [Tooltip("Raw TCP host name/IP or URL. Example: 192.168.2.242 or http://192.168.2.242:7777/")]
+    public string host = "192.168.2.242";
+    public int port = 7777;
+    [Min(1)] public int timeoutMs = 5000;
 
-    // -- state --
-    private TcpClient   _client;
-    private NetworkStream _stream;
-    private readonly object _lock = new();
+    private TcpClient _client;
+    private Stream _stream;
+    private string _sessionId;
+    private bool _helloAccepted;
 
     public bool IsConnected => _client != null && _client.Connected;
-
-    // ── Connect / Disconnect ─────────────────────────────────────────────────
+    public string LastError { get; private set; }
 
     public bool Connect()
     {
-        try {
+        try
+        {
+            LastError = null;
+            ResolveEndpoint(host, port, out string connectHost, out int connectPort, out bool useTls);
+            Debug.Log($"[PIBTTcpClient] Connecting raw TCP endpoint host='{host}', port={port} -> {connectHost}:{connectPort}, tls={useTls}, timeoutMs={timeoutMs}");
+
             _client = new TcpClient();
-            _client.Connect(host, port);
-            _stream = _client.GetStream();
+            _client.SendTimeout = timeoutMs;
+            _client.ReceiveTimeout = timeoutMs;
+            IAsyncResult connectResult = _client.BeginConnect(connectHost, connectPort, null, null);
+            if (!connectResult.AsyncWaitHandle.WaitOne(timeoutMs))
+            {
+                throw new TimeoutException($"Timed out connecting to {connectHost}:{connectPort}");
+            }
+            _client.EndConnect(connectResult);
+
+            Stream stream = _client.GetStream();
+            if (useTls)
+            {
+                var ssl = new SslStream(stream, false, (sender, certificate, chain, errors) => true);
+                ssl.AuthenticateAsClient(connectHost);
+                stream = ssl;
+            }
+
+            _stream = stream;
+            Debug.Log($"[PIBTTcpClient] Connected to {connectHost}:{connectPort}" + (useTls ? " over TLS" : ""));
             return true;
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
+            LastError = $"Connect failed: {e.Message}";
             Debug.LogError($"[PIBTTcpClient] Connect failed: {e.Message}");
-            _client = null;
+            Disconnect();
             return false;
         }
     }
@@ -43,197 +70,297 @@ public class PIBTTcpClient : MonoBehaviour
     {
         _stream?.Close();
         _client?.Close();
-        _client = null;
         _stream = null;
+        _client = null;
+        _helloAccepted = false;
+        _sessionId = null;
     }
 
-    private void OnDestroy() => Disconnect();
+    public bool Shutdown()
+    {
+        if (!_helloAccepted || string.IsNullOrEmpty(_sessionId))
+        {
+            Disconnect();
+            return true;
+        }
 
-    // ── Protocol helpers ────────────────────────────────────────────────────
+        bool sent = SendLine($"{{\"type\":\"shutdown\",\"sessionId\":\"{Escape(_sessionId)}\"}}");
+        string resp = sent ? RecvLine() : null;
+        Disconnect();
+
+        if (resp == null) return false;
+        if (resp.Contains("\"shutdown_ack\"")) return true;
+
+        Debug.LogWarning($"[PIBTTcpClient] Unexpected shutdown response: {resp}");
+        return false;
+    }
+
+    private void OnDestroy() => Shutdown();
+
+    public bool Hello(string sessionId, int width, int height, string symbols, int teamSize)
+    {
+        _sessionId = sessionId;
+        LastError = null;
+
+        string json =
+            "{\"type\":\"hello\"" +
+            $",\"sessionId\":\"{Escape(sessionId)}\"" +
+            $",\"teamSize\":{teamSize}" +
+            ",\"map\":{" +
+            $"\"width\":{width},\"height\":{height},\"symbols\":\"{Escape(symbols)}\"" +
+            "}}";
+
+        Debug.Log($"[PIBTTcpClient] Sending hello session={sessionId}, teamSize={teamSize}, map={width}x{height}, symbolsLength={symbols?.Length ?? 0}, payloadBytes={Encoding.UTF8.GetByteCount(json) + 1}");
+        if (!SendLine(json)) return false;
+
+        string resp = RecvLine();
+        if (resp == null)
+        {
+            LastError = "No hello_ack received; server closed connection or timed out.";
+            Debug.LogError($"[PIBTTcpClient] {LastError}");
+            return false;
+        }
+
+        Debug.Log($"[PIBTTcpClient] hello response raw: {resp}");
+
+        bool ok = resp.Contains("\"hello_ack\"") &&
+                  (!resp.Contains("\"error\"") || resp.Contains("\"status\":\"ok\""));
+        if (ok)
+        {
+            _helloAccepted = true;
+            Debug.Log("[PIBTTcpClient] Hello OK");
+            return true;
+        }
+
+        Debug.LogError($"[PIBTTcpClient] Hello failed: {resp}");
+        LastError = $"Hello failed: {resp}";
+        return false;
+    }
+
+    public string[] PlanStep(int requestId, int timestep, (int id, int loc, int orientation, int goalLoc)[] agents)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{\"type\":\"plan_step\"");
+        sb.Append(",\"sessionId\":\"").Append(Escape(_sessionId)).Append('"');
+        sb.Append(",\"requestId\":").Append(requestId);
+        sb.Append(",\"timestep\":").Append(timestep);
+        sb.Append(",\"agents\":[");
+
+        for (int i = 0; i < agents.Length; i++)
+        {
+            if (i > 0) sb.Append(',');
+            sb.Append('{');
+            sb.Append("\"id\":").Append(agents[i].id);
+            sb.Append(",\"loc\":").Append(agents[i].loc);
+            sb.Append(",\"orientation\":").Append(agents[i].orientation);
+            sb.Append(",\"goalLoc\":").Append(agents[i].goalLoc);
+            sb.Append('}');
+        }
+
+        sb.Append("]}");
+
+        if (!SendLine(sb.ToString()))
+        {
+            LastError = "Failed to send plan_step.";
+            return null;
+        }
+
+        string resp = RecvLine();
+        if (resp == null)
+        {
+            LastError = "No plan_result received; server closed connection or timed out.";
+            return null;
+        }
+        if (resp.Contains("\"errors\"") && !resp.Contains("\"errors\":[]"))
+        {
+            Debug.LogWarning($"[PIBTTcpClient] plan_step returned errors: {resp}");
+        }
+        if (!resp.Contains("\"plan_result\""))
+        {
+            Debug.LogError($"[PIBTTcpClient] Unexpected plan_step response: {resp}");
+            LastError = $"Unexpected plan_step response: {resp}";
+            return null;
+        }
+
+        string[] actions = ParseActions(resp, agents.Length);
+        if (actions == null)
+        {
+            Debug.LogError($"[PIBTTcpClient] Could not parse actions from plan_result: {resp}");
+            LastError = $"Could not parse actions from plan_result: {resp}";
+            return null;
+        }
+
+        LastError = null;
+        return actions;
+    }
 
     private bool SendLine(string json)
     {
         if (_stream == null) return false;
-        try {
+
+        try
+        {
             byte[] data = Encoding.UTF8.GetBytes(json + "\n");
             _stream.Write(data, 0, data.Length);
+            _stream.Flush();
             return true;
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
+            LastError = $"Send error: {e.Message}";
             Debug.LogError($"[PIBTTcpClient] Send error: {e.Message}");
             return false;
         }
     }
 
-    // Read exactly one newline-terminated line.
     private string RecvLine()
     {
         if (_stream == null) return null;
+
         var sb = new StringBuilder();
-        try {
+        try
+        {
             int b;
-            while ((b = _stream.ReadByte()) != -1) {
-                if ((char)b == '\n') return sb.ToString();
+            while ((b = _stream.ReadByte()) != -1)
+            {
+                if ((char)b == '\n') return sb.ToString().TrimEnd('\r');
                 sb.Append((char)b);
             }
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
+            LastError = $"Recv error: {e.Message}";
             Debug.LogError($"[PIBTTcpClient] Recv error: {e.Message}");
         }
+
         return null;
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Send map + initial agent positions to the PIBT server.
-    /// mapData: flat array [0=walkable, 1=obstacle], row-major (top-left origin).
-    /// agents: list of (flatPos, flatGoal).
-    /// </summary>
-    public bool Init(int rows, int cols, int[] mapData, (int pos, int goal)[] agents)
+    private static void ResolveEndpoint(string configuredHost, int configuredPort, out string connectHost, out int connectPort, out bool useTls)
     {
-        var agentArr = new List<object>();
-        for (int i = 0; i < agents.Length; i++)
-            agentArr.Add(new { id = i, pos = agents[i].pos, goal = agents[i].goal });
+        useTls = false;
+        connectHost = configuredHost;
+        connectPort = configuredPort;
 
-        string json = SimpleJson(new {
-            type   = "init",
-            rows,
-            cols,
-            map    = mapData,
-            agents = agentArr
-        });
-
-        if (!SendLine(json)) return false;
-
-        string resp = RecvLine();
-        if (resp == null) return false;
-
-        if (resp.Contains("\"init_ack\"")) {
-            Debug.Log("[PIBTTcpClient] Init OK");
-            return true;
+        if (Uri.TryCreate(configuredHost, UriKind.Absolute, out Uri uri) && !string.IsNullOrEmpty(uri.Host))
+        {
+            connectHost = uri.Host;
+            useTls = string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(uri.Scheme, "tls", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(uri.Scheme, "ssl", StringComparison.OrdinalIgnoreCase);
+            connectPort = uri.IsDefaultPort
+                ? (useTls ? 443 : 80)
+                : uri.Port;
+            return;
         }
-        Debug.LogError($"[PIBTTcpClient] Init failed: {resp}");
-        return false;
+
+        int colon = configuredHost.LastIndexOf(':');
+        if (colon > 0 && colon < configuredHost.Length - 1 &&
+            int.TryParse(configuredHost.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort))
+        {
+            connectHost = configuredHost.Substring(0, colon);
+            connectPort = parsedPort;
+        }
     }
 
-    /// <summary>
-    /// Run one PIBT step. Returns next flat cell index per agent, or null on error.
-    /// </summary>
-    public int[] Step(int frame, (int id, int pos, int goal)[] agents)
+    [Serializable]
+    private class PlanResultDto
     {
-        var agentArr = new List<object>();
-        foreach (var a in agents)
-            agentArr.Add(new { a.id, a.pos, a.goal });
-
-        string json = SimpleJson(new {
-            type   = "step",
-            frame,
-            agents = agentArr
-        });
-
-        if (!SendLine(json)) return null;
-
-        string resp = RecvLine();
-        if (resp == null) return null;
-
-        return ParseStepAck(resp, agents.Length);
+        public string type;
+        public PlanActionDto[] actions;
     }
 
-    // ── JSON helpers (no dependency on Newtonsoft) ───────────────────────────
-
-    private static int[] ParseStepAck(string json, int n)
+    [Serializable]
+    private class PlanActionDto
     {
-        int[] result = new int[n];
-        // Extract "agents":[{"id":0,"next":1},...] using simple string scanning.
-        int arrStart = json.IndexOf("\"agents\"", StringComparison.Ordinal);
-        if (arrStart < 0) return null;
-        int bracket = json.IndexOf('[', arrStart);
-        if (bracket < 0) return null;
-        int depth = 0;
-        int i = bracket;
-        while (i < json.Length) {
-            char c = json[i];
-            if (c == '{') {
-                depth++;
-                // parse one entry
-                int id   = ExtractInt(json, i, "\"id\"");
-                int next = ExtractInt(json, i, "\"next\"");
-                if (id >= 0 && id < n) result[id] = next;
-            } else if (c == ']' && depth == 0) break;
-            if (c == '}') depth--;
+        public int id;
+        public string action;
+        public int nextLoc;
+    }
+
+    private static string[] ParseActions(string json, int expectedLength)
+    {
+        try
+        {
+            PlanResultDto dto = JsonUtility.FromJson<PlanResultDto>(json);
+            if (dto?.actions != null && dto.actions.Length > 0)
+            {
+                int n = expectedLength > 0 ? expectedLength : dto.actions.Length;
+                string[] result = new string[n];
+
+                for (int i = 0; i < dto.actions.Length; i++)
+                {
+                    PlanActionDto entry = dto.actions[i];
+                    if (entry == null || string.IsNullOrEmpty(entry.action)) continue;
+
+                    int idx = entry.id >= 0 && entry.id < n ? entry.id : i;
+                    if (idx >= 0 && idx < n)
+                        result[idx] = entry.action;
+                }
+
+                for (int i = 0; i < result.Length; i++)
+                    if (string.IsNullOrEmpty(result[i])) result[i] = "W";
+
+                return result;
+            }
+        }
+        catch (Exception)
+        {
+            // Fall through to the legacy string-array parser.
+        }
+
+        return ParseStringArray(json, "actions", expectedLength);
+    }
+
+    private static string[] ParseStringArray(string json, string property, int expectedLength)
+    {
+        int key = json.IndexOf($"\"{property}\"", StringComparison.Ordinal);
+        if (key < 0) return null;
+
+        int start = json.IndexOf('[', key);
+        if (start < 0) return null;
+
+        var values = new List<string>();
+        int i = start + 1;
+        while (i < json.Length)
+        {
+            while (i < json.Length && (char.IsWhiteSpace(json[i]) || json[i] == ',')) i++;
+            if (i >= json.Length || json[i] == ']') break;
+            if (json[i] != '"') return null;
+
             i++;
+            var sb = new StringBuilder();
+            while (i < json.Length)
+            {
+                char c = json[i++];
+                if (c == '\\' && i < json.Length)
+                {
+                    sb.Append(json[i++]);
+                    continue;
+                }
+                if (c == '"') break;
+                sb.Append(c);
+            }
+            values.Add(sb.ToString());
         }
-        return result;
-    }
 
-    private static int ExtractInt(string s, int start, string key)
-    {
-        int k = s.IndexOf(key, start, StringComparison.Ordinal);
-        if (k < 0) return -1;
-        int colon = s.IndexOf(':', k + key.Length);
-        if (colon < 0) return -1;
-        int numStart = colon + 1;
-        while (numStart < s.Length && (s[numStart] == ' ')) numStart++;
-        int numEnd = numStart;
-        while (numEnd < s.Length && (char.IsDigit(s[numEnd]) || s[numEnd] == '-')) numEnd++;
-        if (numEnd == numStart) return -1;
-        return int.Parse(s.Substring(numStart, numEnd - numStart));
-    }
-
-    // Minimal serializer for anonymous objects (no reflection needed at runtime).
-    private static string SimpleJson(object obj)
-    {
-        // We leverage C# anonymous type toString patterns manually.
-        // For reliability in IL2CPP/AOT builds, build JSON strings directly.
-        // This method is only called with known shapes, so we use a typed helper.
-        return Newtonsoft_Fallback(obj);
-    }
-
-    private static string Newtonsoft_Fallback(object obj)
-    {
-        // Build JSON manually from known anonymous type shapes.
-        // Avoids requiring Newtonsoft.Json in the project.
-        var sb = new StringBuilder("{");
-        bool first = true;
-        foreach (var prop in obj.GetType().GetProperties()) {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append('"').Append(prop.Name).Append("\":");
-            AppendValue(sb, prop.GetValue(obj));
+        if (expectedLength >= 0 && values.Count < expectedLength)
+        {
+            Debug.LogWarning($"[PIBTTcpClient] Expected {expectedLength} actions, got {values.Count}.");
         }
-        sb.Append('}');
-        return sb.ToString();
+
+        return values.ToArray();
     }
 
-    private static void AppendValue(StringBuilder sb, object val)
+    private static string Escape(string value)
     {
-        if (val == null)            { sb.Append("null"); return; }
-        if (val is bool b)          { sb.Append(b ? "true" : "false"); return; }
-        if (val is string s)        { sb.Append('"').Append(s).Append('"'); return; }
-        if (val is int i)           { sb.Append(i); return; }
-        if (val is float f)         { sb.Append(f); return; }
-        if (val is int[] arr)       { AppendIntArray(sb, arr); return; }
-        if (val is List<object> lst){ AppendList(sb, lst); return; }
-        // Nested anonymous object — recurse
-        sb.Append(Newtonsoft_Fallback(val));
-    }
+        if (string.IsNullOrEmpty(value)) return string.Empty;
 
-    private static void AppendIntArray(StringBuilder sb, int[] arr)
-    {
-        sb.Append('[');
-        for (int i = 0; i < arr.Length; i++) {
-            if (i > 0) sb.Append(',');
-            sb.Append(arr[i]);
-        }
-        sb.Append(']');
-    }
-
-    private static void AppendList(StringBuilder sb, List<object> lst)
-    {
-        sb.Append('[');
-        for (int i = 0; i < lst.Count; i++) {
-            if (i > 0) sb.Append(',');
-            AppendValue(sb, lst[i]);
-        }
-        sb.Append(']');
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
     }
 }

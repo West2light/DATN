@@ -24,6 +24,12 @@ METRICS = [
     ("TotalCells", "Cells da di", False),
 ]
 
+ALGOS = [
+    ("AStar", "A*", "#4a96ff"),
+    ("PIBT", "PIBT", "#ff8c24"),
+    ("PIBT_TCP", "PIBT-C++", "#66d98c"),
+]
+
 
 def parse_float(value):
     try:
@@ -73,20 +79,23 @@ def plot_png(maps, sums, counts, png_path):
     axes = axes.flatten()
 
     x = list(range(len(maps)))
-    bar_width = 0.36
-    colors = {"AStar": "#4a96ff", "PIBT": "#ff8c24"}
+    bar_width = 0.24
 
     for metric_idx, (_, label, _) in enumerate(METRICS):
         ax = axes[metric_idx]
         ax.set_facecolor("#161820")
 
-        astar_vals = [avg(sums, counts, m, "AStar", metric_idx) for m in maps]
-        pibt_vals = [avg(sums, counts, m, "PIBT", metric_idx) for m in maps]
+        values_by_algo = [
+            [avg(sums, counts, m, algo, metric_idx) for m in maps]
+            for algo, _, _ in ALGOS
+        ]
 
-        ax.bar([i - bar_width / 2 for i in x], astar_vals, bar_width, label="A*", color=colors["AStar"])
-        ax.bar([i + bar_width / 2 for i in x], pibt_vals, bar_width, label="PIBT", color=colors["PIBT"])
+        offsets = [-(bar_width + 0.02), 0.0, bar_width + 0.02]
+        for (algo, display, color), values, offset in zip(ALGOS, values_by_algo, offsets):
+            ax.bar([i + offset for i in x], values, bar_width, label=display, color=color)
 
-        max_val = max(astar_vals + pibt_vals + [1.0])
+        all_values = [v for values in values_by_algo for v in values]
+        max_val = max(all_values + [1.0])
         ax.set_ylim(0, max_val * 1.22)
         ax.set_title(label, color="#d0d8e8", fontsize=12, fontweight="bold")
         ax.set_xticks(x)
@@ -96,7 +105,7 @@ def plot_png(maps, sums, counts, png_path):
         for spine in ax.spines.values():
             spine.set_color("#2a2d38")
 
-        for offset, values in [(-bar_width / 2, astar_vals), (bar_width / 2, pibt_vals)]:
+        for offset, values in zip(offsets, values_by_algo):
             for i, value in enumerate(values):
                 if value <= 0:
                     continue
@@ -111,8 +120,8 @@ def plot_png(maps, sums, counts, png_path):
                 )
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False, labelcolor="#d0d8e8")
-    fig.suptitle("Backtest Report - A* vs PIBT", color="#f5d050", fontsize=18, fontweight="bold")
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, labelcolor="#d0d8e8")
+    fig.suptitle("Backtest Report - A* vs PIBT vs PIBT-C++", color="#f5d050", fontsize=18, fontweight="bold")
     fig.savefig(png_path, dpi=160, facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -124,14 +133,14 @@ def build_html(maps, sums, counts, csv_path, png_path):
     metric_headers = "".join(f"<th>{html.escape(label)}</th>" for _, label, _ in METRICS)
     rows = []
     for map_name in maps:
-        for algo in ("AStar", "PIBT"):
+        for algo, display, _ in ALGOS:
             cells = []
             for metric_idx, (_, _, _) in enumerate(METRICS):
                 cells.append(f"<td>{fmt_value(avg(sums, counts, map_name, algo, metric_idx))}</td>")
             rows.append(
                 "<tr>"
                 f"<td>{html.escape(map_name)}</td>"
-                f"<td>{html.escape(algo)}</td>"
+                f"<td>{html.escape(display)}</td>"
                 + "".join(cells)
                 + "</tr>"
             )
@@ -140,7 +149,7 @@ def build_html(maps, sums, counts, csv_path, png_path):
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Backtest Report - A* vs PIBT</title>
+  <title>Backtest Report - A* vs PIBT vs PIBT-C++</title>
   <style>
     *{{box-sizing:border-box}}
     body{{margin:0;background:#0e1014;color:#d0d8e8;font-family:Segoe UI,Arial,sans-serif;padding:32px}}
@@ -155,7 +164,7 @@ def build_html(maps, sums, counts, csv_path, png_path):
   </style>
 </head>
 <body>
-  <h1>Backtest Report - A* vs PIBT</h1>
+  <h1>Backtest Report - A* vs PIBT vs PIBT-C++</h1>
   <p class="subtitle">Ngay chay: {generated_at} &bull; CSV: {html.escape(Path(csv_path).name)} &bull; {len(maps)} map(s)</p>
   <div class="panel"><img alt="Backtest chart" src="data:image/png;base64,{image_data}"></div>
   <div class="panel">
