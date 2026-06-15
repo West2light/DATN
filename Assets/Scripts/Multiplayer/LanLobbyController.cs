@@ -48,7 +48,7 @@ public class LanLobbyController : MonoBehaviour
     private float       FullW => PW - PadX * 2f;
 
     // ── State ─────────────────────────────────────────────────────────────────
-    private enum Screen { Choose, Hosting, Joining }
+    private enum Screen { Choose, Hosting, Joining, Lobby }
 
     private string     _mapFile, _algorithm;
     private LanDiscovery _discovery;
@@ -67,6 +67,25 @@ public class LanLobbyController : MonoBehaviour
     private Button     _btnJoin;       // Choose screen
     private GameObject _joinRow;       // Joining screen (same Y as _btnJoin): input+connect
     private InputField _ipInput;
+
+    // Waiting-lobby refs (internet client flow)
+    private GameObject _lobbyBox;       // content container with slot list + tank picker + code
+    private Text       _lobbySlotsTxt;  // multi-line player/slot list
+    private Text       _lobbyCodeTxt;   // room code + invite hint
+    private Button     _btnReadyLobby;  // y2: toggle local Ready
+    private Button     _btnStartLobby;  // y1: owner-only START (RequestStartServerRpc)
+    private Text       _btnReadyLabel, _btnStartLabel;
+    private readonly List<Image> _variantSwatches = new List<Image>();
+    private bool       _localReady;
+    private bool       _refreshingLobby;
+
+    // Display colors approximating the 5 unlocked tank body variants (blue/red/green/dark/sand)
+    private static readonly Color[] VariantColors =
+    {
+        new Color(0.22f, 0.48f, 0.90f), new Color(0.85f, 0.27f, 0.27f),
+        new Color(0.26f, 0.70f, 0.36f), new Color(0.40f, 0.42f, 0.48f),
+        new Color(0.82f, 0.71f, 0.42f),
+    };
 
     private readonly List<string> _clients = new List<string>();
     private string _pendingIp;
@@ -178,6 +197,7 @@ public class LanLobbyController : MonoBehaviour
         BuildHeader(L);
         BuildContent(L);
         BuildFooter(L);
+        BuildLobby(L);
     }
 
     // ── Header ────────────────────────────────────────────────────────────────
@@ -302,6 +322,97 @@ public class LanLobbyController : MonoBehaviour
 
         // JOIN ROW — Joining screen (same Y, replaces _btnJoin)
         _joinRow = BuildJoinRow(L, y2, PH2);
+
+        // START GAME (owner, Lobby screen) — same Y as host/start, toggled by screen.
+        _btnStartLobby = BtnFull("BtnStartLobby", "▶  START GAME", Green, White,
+            y1, PH1, DoLobbyStart);
+        _btnStartLabel = _btnStartLobby.GetComponentInChildren<Text>();
+        SetVis(_btnStartLobby, false);
+
+        // READY toggle (Lobby screen) — same Y as join.
+        _btnReadyLobby = BtnFull("BtnReadyLobby", "✔  SẴN SÀNG", Blue, White,
+            y2, PH2, DoToggleReady);
+        _btnReadyLabel = _btnReadyLobby.GetComponentInChildren<Text>();
+        SetVis(_btnReadyLobby, false);
+    }
+
+    // ── Waiting lobby (internet client flow) ───────────────────────────────────
+
+    private void BuildLobby(int L)
+    {
+        _lobbyBox = Mk(_panel, "LobbyBox", L);
+        var rt = _lobbyBox.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, -84f);
+        rt.sizeDelta = new Vector2(-PadX * 2f, 200f);
+        _lobbyBox.SetActive(false);
+
+        // Slot / player list (multi-line text), top of the box.
+        var slots = Mk(_lobbyBox, "Slots", L);
+        var sRt = slots.GetComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(0f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
+        sRt.pivot = new Vector2(0.5f, 1f);
+        sRt.anchoredPosition = new Vector2(0f, 0f);
+        sRt.sizeDelta = new Vector2(0f, 112f);
+        _lobbySlotsTxt = slots.AddComponent<Text>();
+        _lobbySlotsTxt.font = F(); _lobbySlotsTxt.fontSize = 13;
+        _lobbySlotsTxt.color = BlueTint; _lobbySlotsTxt.alignment = TextAnchor.UpperLeft;
+        _lobbySlotsTxt.text = "Đang tải danh sách người chơi…";
+
+        // Tank-color picker label.
+        var pickLbl = Mk(_lobbyBox, "PickLbl", L);
+        var plRt = pickLbl.GetComponent<RectTransform>();
+        plRt.anchorMin = new Vector2(0f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
+        plRt.pivot = new Vector2(0f, 1f);
+        plRt.anchoredPosition = new Vector2(0f, -116f);
+        plRt.sizeDelta = new Vector2(FullW, 16f);
+        var plTxt = pickLbl.AddComponent<Text>();
+        plTxt.font = F(); plTxt.fontSize = 11; plTxt.color = Muted;
+        plTxt.alignment = TextAnchor.MiddleLeft; plTxt.text = "Chọn màu tank:";
+
+        // Swatch row (5 unlocked variants).
+        var picker = Mk(_lobbyBox, "Picker", L);
+        var pkRt = picker.GetComponent<RectTransform>();
+        pkRt.anchorMin = new Vector2(0f, 1f); pkRt.anchorMax = new Vector2(1f, 1f);
+        pkRt.pivot = new Vector2(0.5f, 1f);
+        pkRt.anchoredPosition = new Vector2(0f, -134f);
+        pkRt.sizeDelta = new Vector2(0f, 28f);
+        for (int i = 0; i < VariantColors.Length; i++)
+        {
+            int idx = i;
+            var sw = Mk(picker, $"Sw{i}", L);
+            var swRt = sw.GetComponent<RectTransform>();
+            swRt.anchorMin = new Vector2(i * 0.2f, 0f);
+            swRt.anchorMax = new Vector2(i * 0.2f + 0.17f, 1f);
+            swRt.offsetMin = swRt.offsetMax = Vector2.zero;
+            var img = sw.AddComponent<Image>(); img.color = VariantColors[i];
+            var btn = sw.AddComponent<Button>(); btn.targetGraphic = img;
+            btn.onClick.AddListener(() => PickVariant(idx));
+            _variantSwatches.Add(img);
+        }
+
+        // Room code (left) + COPY LINK button (right).
+        var code = Mk(_lobbyBox, "Code", L);
+        var cRt = code.GetComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0f, 1f); cRt.anchorMax = new Vector2(0.66f, 1f);
+        cRt.pivot = new Vector2(0f, 1f);
+        cRt.anchoredPosition = new Vector2(0f, -170f);
+        cRt.sizeDelta = new Vector2(0f, 30f);
+        _lobbyCodeTxt = code.AddComponent<Text>();
+        _lobbyCodeTxt.font = F(); _lobbyCodeTxt.fontSize = 13; _lobbyCodeTxt.fontStyle = FontStyle.Bold;
+        _lobbyCodeTxt.color = Gold; _lobbyCodeTxt.alignment = TextAnchor.MiddleLeft;
+
+        var copy = Mk(_lobbyBox, "Copy", L);
+        var cpRt = copy.GetComponent<RectTransform>();
+        cpRt.anchorMin = new Vector2(0.68f, 1f); cpRt.anchorMax = new Vector2(1f, 1f);
+        cpRt.pivot = new Vector2(1f, 1f);
+        cpRt.anchoredPosition = new Vector2(0f, -168f);
+        cpRt.sizeDelta = new Vector2(0f, 26f);
+        copy.AddComponent<Image>().color = Slate;
+        var copyBtn = copy.AddComponent<Button>(); copyBtn.targetGraphic = copy.GetComponent<Image>();
+        copyBtn.onClick.AddListener(CopyInvite);
+        LblFill(copy, "COPY LINK", 11, FontStyle.Bold, White, L);
     }
 
     private GameObject BuildJoinRow(int L, float yFromBottom, float rowH)
@@ -368,6 +479,19 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Screen transitions ────────────────────────────────────────────────────
 
+    // Turn every screen-specific widget off; each SwitchTo case re-enables its own.
+    // CANCEL is intentionally not touched (always visible).
+    private void HideAllScreenWidgets()
+    {
+        SetVis(_btnHost, false);  SetVis(_btnStart, false);  SetVis(_btnStartLobby, false);
+        SetVis(_btnJoin, false);  SetVis(_btnReadyLobby, false);
+        _joinRow?.SetActive(false);
+        _ipBox?.SetActive(false);
+        _playersTxt?.gameObject.SetActive(false);
+        _lobbyBox?.SetActive(false);
+        CancelInvoke(nameof(RefreshLobby));
+    }
+
     private void SwitchTo(Screen s)
     {
         switch (s)
@@ -376,19 +500,26 @@ public class LanLobbyController : MonoBehaviour
                 SwitchToChoose();
                 break;
             case Screen.Hosting:
+                HideAllScreenWidgets();
                 SetStatus($"Đang chờ người chơi kết nối…", Gold);
-                SetVis(_btnHost,   false);  SetVis(_btnStart, true);
-                SetVis(_btnJoin,   true);   _joinRow.SetActive(false);
+                SetVis(_btnStart, true);
+                SetVis(_btnJoin,  true);
                 _ipBox?.SetActive(true);
                 _playersTxt?.gameObject.SetActive(true);
                 RefreshPlayers();
                 break;
             case Screen.Joining:
+                HideAllScreenWidgets();
                 SetStatus("Nhập IP, IP:port, invite link, hoặc session code:", Muted);
-                SetVis(_btnHost,  false);  SetVis(_btnStart, false);
-                SetVis(_btnJoin,  false);  _joinRow.SetActive(true);
-                _ipBox?.SetActive(false);
-                _playersTxt?.gameObject.SetActive(false);
+                _joinRow.SetActive(true);
+                break;
+            case Screen.Lobby:
+                HideAllScreenWidgets();
+                SetStatus("Phòng chờ — chọn tank, bấm SẴN SÀNG.", Green);
+                _lobbyBox?.SetActive(true);
+                SetVis(_btnReadyLobby, true);
+                // START (owner-only) visibility is managed each tick by RefreshLobby.
+                InvokeRepeating(nameof(RefreshLobby), 0f, 0.3f);
                 break;
         }
     }
@@ -397,11 +528,125 @@ public class LanLobbyController : MonoBehaviour
     {
         // Stop auto-discovery if user goes back from Joining screen
         if (_discovery != null) { _discovery.StopListening(); }
+        HideAllScreenWidgets();
         SetStatus("Chọn vai trò của bạn:", Muted);
-        SetVis(_btnHost,  true);  SetVis(_btnStart, false);
-        SetVis(_btnJoin,  true);  _joinRow.SetActive(false);
-        _ipBox?.SetActive(false);
-        _playersTxt?.gameObject.SetActive(false);
+        SetVis(_btnHost,  true);
+        SetVis(_btnJoin,  true);
+    }
+
+    // ── Lobby refresh + actions ────────────────────────────────────────────────
+
+    private void RefreshLobby()
+    {
+        if (_lobbySlotsTxt == null) return;
+
+        var bridges = new List<LanNetworkBridge>(
+            FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None));
+        bridges.RemoveAll(b => b == null || !b.IsSpawned);
+        bridges.Sort((a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
+
+        ulong ownerId = LanNetworkBridge.ResolveOwnerClientId();
+        var   local   = LanNetworkBridge.Local;
+        ulong localId = local != null ? local.OwnerClientId : ulong.MaxValue;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Người chơi  ({bridges.Count}/{MaxPlayers})");
+        int slot = 0, readyCount = 0;
+        foreach (var b in bridges)
+        {
+            bool isOwner = b.OwnerClientId == ownerId;
+            bool isLocal = b.OwnerClientId == localId;
+            bool ready   = b.Ready.Value;
+            if (ready) readyCount++;
+            string star = isOwner ? "★" : "  ";
+            string st   = ready ? "✓ sẵn sàng" : "… chưa";
+            string tag  = isOwner ? " [chủ phòng]" : "";
+            string you  = isLocal ? " (bạn)" : "";
+            sb.AppendLine($"{star} #{slot}  {VariantName(b.VariantIndex.Value)}   {st}{tag}{you}");
+            slot++;
+        }
+        _lobbySlotsTxt.text = sb.ToString();
+
+        string code = LanSessionManager.SessionCode;
+        if (_lobbyCodeTxt != null)
+            _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Mã phòng: {code}";
+
+        if (local != null && _btnReadyLabel != null)
+        {
+            _localReady = local.Ready.Value;
+            _btnReadyLabel.text = _localReady ? "✖  HỦY SẴN SÀNG" : "✔  SẴN SÀNG";
+        }
+
+        // START: only the room owner sees it; enabled when everyone is ready.
+        bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
+        SetVis(_btnStartLobby, isRoomOwner);
+        if (isRoomOwner && _btnStartLobby != null)
+        {
+            bool allReady = bridges.Count >= 1 && readyCount == bridges.Count;
+            _btnStartLobby.interactable = allReady;
+            if (_btnStartLabel != null)
+                _btnStartLabel.text = allReady
+                    ? "▶  START GAME"
+                    : $"START  ({readyCount}/{bridges.Count} sẵn sàng)";
+        }
+    }
+
+    private void PickVariant(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantColors.Length - 1);
+        LanSessionManager.LocalVariantIndex = idx;
+        PlayerPrefs.SetInt("MenuTankVariant", idx); PlayerPrefs.Save();
+        LanNetworkBridge.Local?.SubmitVariant(idx);
+    }
+
+    private void DoToggleReady()
+    {
+        var local = LanNetworkBridge.Local;
+        if (local == null) { SetStatus("Đang vào phòng… thử lại sau giây lát.", Muted); return; }
+        local.SubmitReady(!local.Ready.Value);
+    }
+
+    private void DoLobbyStart()
+    {
+        LanNetworkBridge.Local?.RequestStartServerRpc();
+    }
+
+    private void CopyInvite()
+    {
+        string link = BuildInviteLink();
+        if (string.IsNullOrEmpty(link)) return;
+        GUIUtility.systemCopyBuffer = link;
+        SetStatus("Đã copy link mời!", Green);
+    }
+
+    private static string BuildInviteLink()
+    {
+        string code = LanSessionManager.SessionCode;
+        if (string.IsNullOrWhiteSpace(code)) return "";
+        string reg = LanSessionManager.RegistryUrl ?? "";
+        // Web base = registry host without the registry port (the WebGL site is on port 80).
+        string webBase = reg;
+        int scheme = reg.IndexOf("://", StringComparison.Ordinal);
+        if (scheme >= 0)
+        {
+            int hostStart = scheme + 3;
+            int portColon = reg.IndexOf(':', hostStart);
+            if (portColon >= 0) webBase = reg.Substring(0, portColon);
+        }
+        if (string.IsNullOrWhiteSpace(webBase)) return code;
+        return $"{webBase}/play?session={code}";
+    }
+
+    private static string VariantName(int i)
+    {
+        switch (Mathf.Clamp(i, 0, 4))
+        {
+            case 0:  return "[xanh]";
+            case 1:  return "[đỏ]";
+            case 2:  return "[lục]";
+            case 3:  return "[xám]";
+            default: return "[cát]";
+        }
     }
 
     private void ShowJoinRow()
@@ -578,6 +823,8 @@ public class LanLobbyController : MonoBehaviour
         // Register so we can close the lobby overlay once the game scene is live.
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
         SceneManager.sceneLoaded += OnGameSceneLoaded;
+        // Show the waiting lobby: slot list, tank picker, READY, and (owner-only) START.
+        SwitchTo(Screen.Lobby);
     }
 
     private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)

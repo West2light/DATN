@@ -189,6 +189,30 @@ public class LanNetworkBridge : NetworkBehaviour
         Ready.Value = ready;
     }
 
+    // Called by the lobby UI on the LOCAL (owned) bridge to toggle ready / change tank color.
+    public void SubmitReady(bool ready)
+    {
+        if (IsServer) Ready.Value = ready;
+        else SetReadyServerRpc(ready);
+    }
+
+    public void SubmitVariant(int variantIndex)
+    {
+        if (IsServer) VariantIndex.Value = variantIndex;
+        else SendVariantServerRpc(variantIndex);
+    }
+
+    // The local client's own bridge (the one it owns), or null if not spawned yet.
+    public static LanNetworkBridge Local
+    {
+        get
+        {
+            foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null && b.IsSpawned && b.IsOwner) return b;
+            return null;
+        }
+    }
+
     // Owner asks the server to start the game. RequireOwnership=false because this bridge
     // is owned by the calling client (its own player object), and we validate the room-owner
     // identity by clientId rather than NetworkObject ownership.
@@ -201,8 +225,8 @@ public class LanNetworkBridge : NetworkBehaviour
         // Only the room owner (smallest connected clientId) may start.
         if (p.Receive.SenderClientId != ResolveOwnerClientId()) return;
 
-        // Need at least two players, and every connected player's bridge must be Ready.
-        if (nm.ConnectedClients.Count < 2) return;
+        // Need at least the owner connected, and every connected player's bridge must be Ready.
+        if (nm.ConnectedClients.Count < 1) return;
         foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
             if (b != null && b.IsSpawned && !b.Ready.Value) return;
 
