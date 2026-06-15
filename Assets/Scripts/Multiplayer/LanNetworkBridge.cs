@@ -87,6 +87,16 @@ public class LanNetworkBridge : NetworkBehaviour
     public NetworkVariable<int> VariantIndex = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+    // Ready state toggled by each player in the WaitingLobby screen.
+    public NetworkVariable<bool> IsReady = new NetworkVariable<bool>(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    [ServerRpc]
+    public void SetReadyServerRpc(bool ready)
+    {
+        IsReady.Value = ready;
+    }
+
     // ── Server-side references ────────────────────────────────────────────────
     private TankController _serverTank;
 
@@ -140,7 +150,7 @@ public class LanNetworkBridge : NetworkBehaviour
     }
 
     [ServerRpc]
-    private void SendVariantServerRpc(int variantIndex)
+    public void SendVariantServerRpc(int variantIndex)
     {
         VariantIndex.Value = variantIndex;
     }
