@@ -71,6 +71,7 @@ public class LanLobbyController : MonoBehaviour
     private readonly List<string> _clients = new List<string>();
     private string _pendingIp;
     private string _autoJoinTarget;
+    private bool   _connected;   // true between OnClientConnected and OnClientDisconnected
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -416,6 +417,11 @@ public class LanLobbyController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(_autoJoinTarget))
             return;
 
+        // Don't restart a join that is already connected or in progress — re-entry would
+        // shut down the live connection and feed the reconnect loop.
+        if (_connected || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient))
+            return;
+
         if (!EnsureNetworkManager())
             return;
 
@@ -559,6 +565,13 @@ public class LanLobbyController : MonoBehaviour
     private void OnClientConnected(ulong _)
     {
         CancelInvoke(nameof(OnConnectionTimeout));
+        // Cancel any pending reconnect and clear the retry token. Otherwise a RetryConnect
+        // scheduled by an earlier attempt fires AFTER we are connected, calls Shutdown on the
+        // live session, and tears down a perfectly good connection (the recurring
+        // "Connected → Disconnected" loop seen in the browser console).
+        CancelInvoke(nameof(RetryConnect));
+        _pendingIp = null;
+        _connected = true;
         SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
         Debug.Log("[LAN] Connected to host.");
         // When the host loads the game scene, NGO will trigger a scene load on this client.
@@ -592,6 +605,7 @@ public class LanLobbyController : MonoBehaviour
     private void OnClientDisconnected(ulong _)
     {
         CancelInvoke(nameof(OnConnectionTimeout));
+        _connected = false;
         string reason = NetworkManager.Singleton != null ? NetworkManager.Singleton.DisconnectReason : string.Empty;
         if (!string.IsNullOrWhiteSpace(reason))
         {
@@ -680,6 +694,10 @@ public class LanLobbyController : MonoBehaviour
 
     private void BeginClientConnection(NetworkEndpointConfig endpoint, string retryToken)
     {
+        // Already connected → never tear down a live session for a duplicate/auto-join call.
+        if (_connected || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient))
+            return;
+
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
             NetworkManager.Singleton.Shutdown();
@@ -698,7 +716,14 @@ public class LanLobbyController : MonoBehaviour
 
         LanSessionManager.ActivateInternetClient(endpoint);
         t.SetConnectionData(endpoint.host, endpoint.port);
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // WebGL can only use WebSocket. The retry path re-parses a raw "host:port" string
+        // whose transportMode defaults to UDP — forcing WebSocket here prevents the doomed
+        // UDP attempts seen alternating in the browser console.
+        t.UseWebSockets = true;
+#else
         t.UseWebSockets = endpoint.transportMode == NetworkTransportMode.WebSocket;
+#endif
         NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: false);
         Debug.Log($"[LAN] Connecting to {endpoint.host}:{endpoint.port} via {endpoint.transportMode.ToArgumentValue()}");
 
