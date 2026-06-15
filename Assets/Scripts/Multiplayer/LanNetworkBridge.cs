@@ -87,6 +87,11 @@ public class LanNetworkBridge : NetworkBehaviour
     public NetworkVariable<int> VariantIndex = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+    // Lobby "ready" flag for this player. Server-authoritative; client toggles via RPC.
+    // The owner can only start the game once every connected player's Ready is true.
+    public NetworkVariable<bool> Ready = new NetworkVariable<bool>(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
     // ── Server-side references ────────────────────────────────────────────────
     private TankController _serverTank;
 
@@ -150,6 +155,60 @@ public class LanNetworkBridge : NetworkBehaviour
     private void SendVariantServerRpc(int variantIndex)
     {
         VariantIndex.Value = variantIndex;
+    }
+
+    // ── Lobby: ready toggle + owner-driven start ───────────────────────────────
+
+    // The room owner is the connected client with the smallest clientId. Computed on
+    // demand (no extra synced state) — used both to gate the START action and to label
+    // the owner in the lobby UI.
+    public static ulong ResolveOwnerClientId()
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null) return ulong.MaxValue;
+        ulong owner = ulong.MaxValue;
+        if (nm.IsServer)
+        {
+            foreach (ulong id in nm.ConnectedClientsIds)
+                if (id < owner) owner = id;
+        }
+        else
+        {
+            // On a pure client, derive from the bridges it can see.
+            foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null && b.IsSpawned && b.OwnerClientId < owner) owner = b.OwnerClientId;
+        }
+        return owner;
+    }
+
+    public bool IsRoomOwner => OwnerClientId == ResolveOwnerClientId();
+
+    [ServerRpc]
+    public void SetReadyServerRpc(bool ready)
+    {
+        Ready.Value = ready;
+    }
+
+    // Owner asks the server to start the game. RequireOwnership=false because this bridge
+    // is owned by the calling client (its own player object), and we validate the room-owner
+    // identity by clientId rather than NetworkObject ownership.
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestStartServerRpc(ServerRpcParams p = default)
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsServer) return;
+
+        // Only the room owner (smallest connected clientId) may start.
+        if (p.Receive.SenderClientId != ResolveOwnerClientId()) return;
+
+        // Need at least two players, and every connected player's bridge must be Ready.
+        if (nm.ConnectedClients.Count < 2) return;
+        foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+            if (b != null && b.IsSpawned && !b.Ready.Value) return;
+
+        // Dedicated server: load through the bootstrap's guarded path (sets PlayerCount,
+        // dedupes against the grace timer). Host mode uses LanLobbyController.DoStartGame.
+        DedicatedServerBootstrap.Instance?.BeginGameplayScene();
     }
 
     private void Update()

@@ -5,6 +5,10 @@ using UnityEngine.SceneManagement;
 
 public class DedicatedServerBootstrap : MonoBehaviour
 {
+    // Live instance on the dedicated server, so the owner-start RPC (LanNetworkBridge)
+    // can trigger the scene load through the same guarded path the grace timer uses.
+    public static DedicatedServerBootstrap Instance { get; private set; }
+
     private static bool _bootRequested;
 
     // Once enough players have joined, wait this brief settle window before loading the
@@ -46,6 +50,7 @@ public class DedicatedServerBootstrap : MonoBehaviour
     public void StartWith(NetworkLaunchArgs launchArgs)
     {
         _launchArgs = launchArgs;
+        Instance = this;
     }
 
     private void Start()
@@ -102,6 +107,8 @@ public class DedicatedServerBootstrap : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this) Instance = null;
+
         NetworkManager networkManager = NetworkManager.Singleton;
         if (networkManager == null)
             return;
@@ -168,7 +175,7 @@ public class DedicatedServerBootstrap : MonoBehaviour
         }
     }
 
-    private void BeginGameplayScene()
+    public void BeginGameplayScene()
     {
         if (_sceneLoaded)
             return;
