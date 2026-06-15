@@ -182,6 +182,22 @@ public class MapTankTestBootstrap : MonoBehaviour
     {
         List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
 
+        // Mode 3: PIBT-TCP — flagged via PlayerPrefs by the menu, or component already present
+        bool isTcpMode = PlayerPrefs.GetString("SelectedAlgorithm", "") == "PIBT_TCP";
+        PlayerPrefs.DeleteKey("SelectedAlgorithm"); // consume so next load is clean
+
+        MapScenarioBootstrapPIBT_TCP tcpBootstrap = GetComponent<MapScenarioBootstrapPIBT_TCP>();
+        if (isTcpMode && tcpBootstrap == null)
+            tcpBootstrap = gameObject.AddComponent<MapScenarioBootstrapPIBT_TCP>();
+
+        if (tcpBootstrap != null)
+        {
+            tcpBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) tcpBootstrap.enemySpawnCells = spawnCells;
+            tcpBootstrap.SpawnScenario();
+            return;
+        }
+
         MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibtBootstrap != null)
         {
@@ -322,7 +338,9 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private List<GameObject> GetSpawnedEnemies()
     {
-        // MapScenarioBootstrapPIBT takes priority (matches SpawnScenario() dispatch order)
+        var tcp = GetComponent<MapScenarioBootstrapPIBT_TCP>();
+        if (tcp != null) return new List<GameObject>(tcp.Enemies);
+
         var pibt = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibt != null) return new List<GameObject>(pibt.Enemies);
 
