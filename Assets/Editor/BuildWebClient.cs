@@ -34,9 +34,9 @@ public static class BuildWebClient
 
         try
         {
-            // This VM currently serves the WebGL build over plain HTTP, so the build must remain
-            // browser-loadable even when Brotli response handling or HTTPS is unavailable.
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            // Build with Brotli pre-compression. Nginx serves .wasm.br/.data.br/.framework.js.br
+            // directly with Content-Encoding: br — no on-the-fly CPU cost on the server.
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = false;
 
             var options = new BuildPlayerOptions
@@ -104,6 +104,11 @@ public static class BuildWebClient
         string rootPath = Path.GetFullPath(OutputDirectory);
         string buildPath = Path.Combine(rootPath, "Build");
 
+        // Resolve actual file names — Brotli builds produce .br variants.
+        string frameworkJs = ResolveBuiltFile(buildPath, "WebGL.framework.js");
+        string wasm        = ResolveBuiltFile(buildPath, "WebGL.wasm");
+        string data        = ResolveBuiltFile(buildPath, "WebGL.data");
+
         var manifest = new WebBuildManifest
         {
             gitCommit = ResolveGitCommit(),
@@ -113,9 +118,9 @@ public static class BuildWebClient
             desktopCanvasHeight = DesktopCanvasHeight,
             indexHtmlSha256 = ComputeSha256(Path.Combine(rootPath, "index.html")),
             loaderJsSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.loader.js")),
-            frameworkJsSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.framework.js")),
-            wasmSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.wasm")),
-            dataSha256 = ComputeSha256(Path.Combine(buildPath, "WebGL.data")),
+            frameworkJsSha256 = ComputeSha256(frameworkJs),
+            wasmSha256 = ComputeSha256(wasm),
+            dataSha256 = ComputeSha256(data),
         };
 
         string manifestPath = Path.Combine(rootPath, ManifestFileName);
@@ -155,6 +160,13 @@ public static class BuildWebClient
             Debug.LogWarning($"[BuildWebClient] Could not resolve git commit: {ex.Message}");
             return "unknown";
         }
+    }
+
+    private static string ResolveBuiltFile(string buildPath, string baseName)
+    {
+        string br = Path.Combine(buildPath, baseName + ".br");
+        if (File.Exists(br)) return br;
+        return Path.Combine(buildPath, baseName);
     }
 
     private static string ComputeSha256(string path)
