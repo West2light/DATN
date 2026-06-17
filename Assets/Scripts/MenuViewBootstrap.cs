@@ -74,10 +74,10 @@ public class MenuViewBootstrap : MonoBehaviour
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
-    private enum Screen { Main, Outfit, MapSelect, LanMapSelect }
+    private enum Screen { Main, Outfit, MapSelect, LanMapSelect, InternetEntry }
 
     private Canvas     _canvas;
-    private GameObject _screenMain, _screenOutfit, _screenMap, _screenLan;
+    private GameObject _screenMain, _screenOutfit, _screenMap, _screenLan, _screenInternet;
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
@@ -115,6 +115,7 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildScreenOutfit();
         BuildScreenMapSelect();
         BuildScreenLanMapSelect();
+        BuildScreenInternetEntry();
         ShowScreen(Screen.Main);
         TryAutoJoinInternetSession();
     }
@@ -241,12 +242,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
         btnStart.onClick.AddListener(() => { _isLanMode = false; ShowScreen(Screen.Outfit); });
 
-        // MULTIPLAYER LAN — đi qua màn chọn tank giống Single Play
+        // MULTIPLAYER INTERNET — vào màn chọn HOST / JOIN, không qua màn chọn tank
         Button btnHost = MakeButton(card.transform, "BtnHost",
-            "MULTIPLAYER  LAN", new Vector2(0f, -58f), new Vector2(290f, 60f),
+            "MULTIPLAYER  INTERNET", new Vector2(0f, -58f), new Vector2(290f, 60f),
             new Color(0.12f, 0.32f, 0.58f, 1f));
         SetTextColor(btnHost.transform, new Color(0.75f, 0.90f, 1f));
-        btnHost.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.Outfit); });
+        btnHost.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.InternetEntry); });
 
         // SHOP — disabled
         Button btnShop = MakeButton(card.transform, "BtnShop",
@@ -363,7 +364,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Button btnNext = MakeButton(_screenOutfit.transform, "BtnNext",
             "NEXT →", new Vector2(500f, -320f), new Vector2(130f, 46f), AccentGold);
         SetTextColor(btnNext.transform, new Color(0.10f, 0.09f, 0.09f));
-        btnNext.onClick.AddListener(() => ShowScreen(_isLanMode ? Screen.LanMapSelect : Screen.MapSelect));
+        btnNext.onClick.AddListener(() => ShowScreen(Screen.MapSelect));
 
         // Apply initial selection
         SelectVariant(_selectedVariant, lockOverlay);
@@ -755,7 +756,7 @@ public class MenuViewBootstrap : MonoBehaviour
         _screenLan = MakePanel(_canvas.transform, "ScreenLanMapSelect",
             Vector2.zero, new Vector2(1280f, 720f), BgDark);
 
-        MakeText(_screenLan.transform, "Title", "LAN  —  SELECT MAP & MODE",
+        MakeText(_screenLan.transform, "Title", "INTERNET  —  SELECT MAP & MODE",
             30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
 
@@ -778,7 +779,7 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
-        btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.InternetEntry));
     }
 
     private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)
@@ -905,6 +906,46 @@ public class MenuViewBootstrap : MonoBehaviour
         _lanStatusText.color = color;
     }
 
+    // SCREEN: Internet Entry (HOST / JOIN)
+    private void BuildScreenInternetEntry()
+    {
+        _screenInternet = MakePanel(_canvas.transform, "ScreenInternetEntry",
+            Vector2.zero, new Vector2(1280f, 720f), BgDark);
+
+        MakeText(_screenInternet.transform, "Title", "MULTIPLAYER INTERNET",
+            34, FontStyle.Bold, TextLight,
+            new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(720f, 52f));
+
+        MakeText(_screenInternet.transform, "Hint",
+            "Tạo phòng mới, hoặc tham gia bằng mã phòng / link mời",
+            15, FontStyle.Italic, TextMuted,
+            new Vector2(0.5f, 1f), new Vector2(0f, -108f), new Vector2(760f, 24f));
+
+        Button btnHostGame = MakeButton(_screenInternet.transform, "BtnHostGame",
+            "●  HOST GAME  —  Tạo phòng", new Vector2(0f, 40f), new Vector2(440f, 72f),
+            new Color(0.18f, 0.48f, 0.90f, 1f));
+        SetTextColor(btnHostGame.transform, TextLight);
+        btnHostGame.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
+
+        Button btnJoinRoom = MakeButton(_screenInternet.transform, "BtnJoinRoom",
+            "→  JOIN ROOM  —  Nhập mã / link", new Vector2(0f, -52f), new Vector2(440f, 72f),
+            new Color(0.20f, 0.55f, 0.32f, 1f));
+        SetTextColor(btnJoinRoom.transform, TextLight);
+        btnJoinRoom.onClick.AddListener(OpenJoinPrompt);
+
+        Button btnBack = MakeBackButton(_screenInternet.transform, "BtnBack",
+            new Vector2(-500f, -300f), new Vector2(130f, 46f),
+            new Color(0.28f, 0.38f, 0.48f, 1f));
+        SetTextColor(btnBack.transform, TextLight);
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
+    }
+
+    private void OpenJoinPrompt()
+    {
+        string defaultMap = Maps.Length > 0 ? Maps[0].mapFile : "Assets/MapData/random-32-32-10.map";
+        LanLobbyController.ShowJoinPrompt(defaultMap, "AStar", GetRuntimeRegistryBaseUrl());
+    }
+
     // ── Screen transition ──────────────────────────────────────────────────
 
     private void ShowScreen(Screen screen)
@@ -913,6 +954,7 @@ public class MenuViewBootstrap : MonoBehaviour
         if (_screenOutfit != null) _screenOutfit.SetActive(screen == Screen.Outfit);
         if (_screenMap   != null) _screenMap.SetActive(screen == Screen.MapSelect);
         if (_screenLan   != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
+        if (_screenInternet != null) _screenInternet.SetActive(screen == Screen.InternetEntry);
     }
 
     // ── UI helpers ─────────────────────────────────────────────────────────

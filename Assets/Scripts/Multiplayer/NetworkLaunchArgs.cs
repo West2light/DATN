@@ -48,6 +48,8 @@ public class NetworkLaunchArgs
             registryUrl = registryUrl ?? string.Empty,
             maxPlayers = Mathf.Max(1, maxPlayers),
             isDedicatedServer = isDedicatedServer,
+            secureWebSocket = false,
+            secureWebSocketHost = string.Empty,
         };
     }
 

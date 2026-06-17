@@ -42,7 +42,7 @@ public class LanLobbyController : MonoBehaviour
     // Separator: 292
     // Footer   : bottom 188px (3 button rows + cancel)
     // Total height: 480
-    private const float PW    = 520f;   // panel width
+    private const float PW    = 680f;   // panel width (wider for the 2-column lobby)
     private const float PH    = 480f;   // panel height
     private const float PadX  = 22f;
     private float       FullW => PW - PadX * 2f;
@@ -76,8 +76,14 @@ public class LanLobbyController : MonoBehaviour
     private Button     _btnStartLobby;  // y1: owner-only START (RequestStartServerRpc)
     private Text       _btnReadyLabel, _btnStartLabel;
     private readonly List<Image> _variantSwatches = new List<Image>();
+    private readonly List<GameObject> _variantRings = new List<GameObject>();
+    private Image      _lobbyTankPreview;
+    private Text       _lobbyTankName;
+    private int        _shownVariant = -1;
+    private string     _joinRegistryUrl = string.Empty;
     private bool       _localReady;
     private bool       _refreshingLobby;
+    private static Sprite[] _variantSpriteCache;
 
     // Display colors approximating the 5 unlocked tank body variants (blue/red/green/dark/sand)
     private static readonly Color[] VariantColors =
@@ -146,6 +152,29 @@ public class LanLobbyController : MonoBehaviour
         ShowInternal(mapFile, algorithm, joinTarget);
     }
 
+    public static void ShowJoinPrompt(string mapFile, string algorithm, string registryUrl)
+    {
+        if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
+        CleanupSession();
+
+        var go = new GameObject("LanLobbyController");
+        DontDestroyOnLoad(go);
+        _instance                  = go.AddComponent<LanLobbyController>();
+        _instance._mapFile         = mapFile;
+        _instance._algorithm       = algorithm;
+        _instance._autoJoinTarget  = string.Empty;
+        _instance._joinRegistryUrl = registryUrl ?? string.Empty;
+        _instance.Build();
+        _instance.OpenJoinScreen();
+    }
+
+    private void OpenJoinScreen()
+    {
+        if (!EnsureNetworkManager()) return;
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+    }
+
     private static void ShowInternal(string mapFile, string algorithm, string joinTarget)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
@@ -158,7 +187,12 @@ public class LanLobbyController : MonoBehaviour
         _instance._algorithm     = algorithm;
         _instance._autoJoinTarget = joinTarget ?? string.Empty;
         _instance.Build();
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (string.IsNullOrWhiteSpace(_instance._autoJoinTarget))
+            _instance.SwitchTo(Screen.Joining);
+#else
         _instance.SwitchTo(Screen.Choose);
+#endif
         if (!string.IsNullOrWhiteSpace(_instance._autoJoinTarget))
             _instance.BeginAutoJoin();
     }
@@ -213,7 +247,13 @@ public class LanLobbyController : MonoBehaviour
         bar.AddComponent<Image>().color = Gold;
 
         // Title
-        TLbl(_panel, "Title", "MULTIPLAYER  LAN",
+        string title =
+#if UNITY_WEBGL && !UNITY_EDITOR
+            "MULTIPLAYER  INTERNET";
+#else
+            "MULTIPLAYER  LAN";
+#endif
+        TLbl(_panel, "Title", title,
             22, FontStyle.Bold, Gold, new Vector2(0f, -16f), new Vector2(FullW, 28f));
 
         // Map · algorithm line
@@ -344,47 +384,87 @@ public class LanLobbyController : MonoBehaviour
         var rt = _lobbyBox.GetComponent<RectTransform>();
         rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(0f, -84f);
-        rt.sizeDelta = new Vector2(-PadX * 2f, 200f);
+        rt.anchoredPosition = new Vector2(0f, -100f);
+        rt.sizeDelta = new Vector2(-PadX * 2f, 210f);
         _lobbyBox.SetActive(false);
 
-        // Slot / player list (multi-line text), top of the box.
+        // Left column: tank preview.
+        var prevLbl = Mk(_lobbyBox, "PrevLbl", L);
+        var prRt = prevLbl.GetComponent<RectTransform>();
+        prRt.anchorMin = new Vector2(0f, 1f); prRt.anchorMax = new Vector2(0.34f, 1f);
+        prRt.pivot = new Vector2(0.5f, 1f);
+        prRt.anchoredPosition = new Vector2(0f, 0f); prRt.sizeDelta = new Vector2(0f, 16f);
+        var prTxt = prevLbl.AddComponent<Text>();
+        prTxt.font = F(); prTxt.fontSize = 11; prTxt.color = Muted;
+        prTxt.alignment = TextAnchor.MiddleCenter; prTxt.text = "PREVIEW";
+
+        var holder = Mk(_lobbyBox, "Holder", L);
+        var hRt = holder.GetComponent<RectTransform>();
+        hRt.anchorMin = new Vector2(0.03f, 1f); hRt.anchorMax = new Vector2(0.31f, 1f);
+        hRt.pivot = new Vector2(0.5f, 1f);
+        hRt.anchoredPosition = new Vector2(0f, -20f); hRt.sizeDelta = new Vector2(0f, 120f);
+        holder.AddComponent<Image>().color = new Color(0.06f, 0.12f, 0.18f, 1f);
+
+        var imgGo = Mk(holder, "TankImg", L);
+        var imRt = imgGo.GetComponent<RectTransform>();
+        imRt.anchorMin = new Vector2(0.12f, 0.12f); imRt.anchorMax = new Vector2(0.88f, 0.88f);
+        imRt.offsetMin = imRt.offsetMax = Vector2.zero;
+        _lobbyTankPreview = imgGo.AddComponent<Image>();
+        _lobbyTankPreview.preserveAspect = true;
+
+        var nameGo = Mk(_lobbyBox, "TankName", L);
+        var nmRt = nameGo.GetComponent<RectTransform>();
+        nmRt.anchorMin = new Vector2(0f, 1f); nmRt.anchorMax = new Vector2(0.34f, 1f);
+        nmRt.pivot = new Vector2(0.5f, 1f);
+        nmRt.anchoredPosition = new Vector2(0f, -146f); nmRt.sizeDelta = new Vector2(0f, 22f);
+        _lobbyTankName = nameGo.AddComponent<Text>();
+        _lobbyTankName.font = F(); _lobbyTankName.fontSize = 16; _lobbyTankName.fontStyle = FontStyle.Bold;
+        _lobbyTankName.color = Gold; _lobbyTankName.alignment = TextAnchor.MiddleCenter;
+        _lobbyTankName.text = "Blue";
+
+        // Right column: slots, swatches, room code, and copy action.
         var slots = Mk(_lobbyBox, "Slots", L);
         var sRt = slots.GetComponent<RectTransform>();
-        sRt.anchorMin = new Vector2(0f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
+        sRt.anchorMin = new Vector2(0.38f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
         sRt.pivot = new Vector2(0.5f, 1f);
-        sRt.anchoredPosition = new Vector2(0f, 0f);
-        sRt.sizeDelta = new Vector2(0f, 112f);
+        sRt.anchoredPosition = new Vector2(0f, 0f); sRt.sizeDelta = new Vector2(0f, 96f);
         _lobbySlotsTxt = slots.AddComponent<Text>();
         _lobbySlotsTxt.font = F(); _lobbySlotsTxt.fontSize = 13;
         _lobbySlotsTxt.color = BlueTint; _lobbySlotsTxt.alignment = TextAnchor.UpperLeft;
         _lobbySlotsTxt.text = "Đang tải danh sách người chơi…";
 
-        // Tank-color picker label.
         var pickLbl = Mk(_lobbyBox, "PickLbl", L);
         var plRt = pickLbl.GetComponent<RectTransform>();
-        plRt.anchorMin = new Vector2(0f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
+        plRt.anchorMin = new Vector2(0.38f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
         plRt.pivot = new Vector2(0f, 1f);
-        plRt.anchoredPosition = new Vector2(0f, -116f);
-        plRt.sizeDelta = new Vector2(FullW, 16f);
+        plRt.anchoredPosition = new Vector2(0f, -100f); plRt.sizeDelta = new Vector2(0f, 16f);
         var plTxt = pickLbl.AddComponent<Text>();
         plTxt.font = F(); plTxt.fontSize = 11; plTxt.color = Muted;
         plTxt.alignment = TextAnchor.MiddleLeft; plTxt.text = "Chọn màu tank:";
 
-        // Swatch row (5 unlocked variants).
         var picker = Mk(_lobbyBox, "Picker", L);
         var pkRt = picker.GetComponent<RectTransform>();
-        pkRt.anchorMin = new Vector2(0f, 1f); pkRt.anchorMax = new Vector2(1f, 1f);
+        pkRt.anchorMin = new Vector2(0.38f, 1f); pkRt.anchorMax = new Vector2(1f, 1f);
         pkRt.pivot = new Vector2(0.5f, 1f);
-        pkRt.anchoredPosition = new Vector2(0f, -134f);
-        pkRt.sizeDelta = new Vector2(0f, 28f);
+        pkRt.anchoredPosition = new Vector2(0f, -120f); pkRt.sizeDelta = new Vector2(0f, 32f);
+        _variantRings.Clear();
+        _variantSwatches.Clear();
         for (int i = 0; i < VariantColors.Length; i++)
         {
             int idx = i;
+            float x0 = i * 0.2f, x1 = i * 0.2f + 0.17f;
+
+            var ring = Mk(picker, $"Ring{i}", L);
+            var rgRt = ring.GetComponent<RectTransform>();
+            rgRt.anchorMin = new Vector2(x0, 0f); rgRt.anchorMax = new Vector2(x1, 1f);
+            rgRt.offsetMin = new Vector2(-3f, -3f); rgRt.offsetMax = new Vector2(3f, 3f);
+            ring.AddComponent<Image>().color = new Color(1f, 0.82f, 0.15f, 0.95f);
+            ring.SetActive(false);
+            _variantRings.Add(ring);
+
             var sw = Mk(picker, $"Sw{i}", L);
             var swRt = sw.GetComponent<RectTransform>();
-            swRt.anchorMin = new Vector2(i * 0.2f, 0f);
-            swRt.anchorMax = new Vector2(i * 0.2f + 0.17f, 1f);
+            swRt.anchorMin = new Vector2(x0, 0f); swRt.anchorMax = new Vector2(x1, 1f);
             swRt.offsetMin = swRt.offsetMax = Vector2.zero;
             var img = sw.AddComponent<Image>(); img.color = VariantColors[i];
             var btn = sw.AddComponent<Button>(); btn.targetGraphic = img;
@@ -392,27 +472,93 @@ public class LanLobbyController : MonoBehaviour
             _variantSwatches.Add(img);
         }
 
-        // Room code (left) + COPY LINK button (right).
         var code = Mk(_lobbyBox, "Code", L);
         var cRt = code.GetComponent<RectTransform>();
-        cRt.anchorMin = new Vector2(0f, 1f); cRt.anchorMax = new Vector2(0.66f, 1f);
+        cRt.anchorMin = new Vector2(0.38f, 1f); cRt.anchorMax = new Vector2(0.72f, 1f);
         cRt.pivot = new Vector2(0f, 1f);
-        cRt.anchoredPosition = new Vector2(0f, -170f);
-        cRt.sizeDelta = new Vector2(0f, 30f);
+        cRt.anchoredPosition = new Vector2(0f, -160f); cRt.sizeDelta = new Vector2(0f, 26f);
         _lobbyCodeTxt = code.AddComponent<Text>();
         _lobbyCodeTxt.font = F(); _lobbyCodeTxt.fontSize = 13; _lobbyCodeTxt.fontStyle = FontStyle.Bold;
         _lobbyCodeTxt.color = Gold; _lobbyCodeTxt.alignment = TextAnchor.MiddleLeft;
 
         var copy = Mk(_lobbyBox, "Copy", L);
         var cpRt = copy.GetComponent<RectTransform>();
-        cpRt.anchorMin = new Vector2(0.68f, 1f); cpRt.anchorMax = new Vector2(1f, 1f);
+        cpRt.anchorMin = new Vector2(0.74f, 1f); cpRt.anchorMax = new Vector2(1f, 1f);
         cpRt.pivot = new Vector2(1f, 1f);
-        cpRt.anchoredPosition = new Vector2(0f, -168f);
-        cpRt.sizeDelta = new Vector2(0f, 26f);
+        cpRt.anchoredPosition = new Vector2(0f, -158f); cpRt.sizeDelta = new Vector2(0f, 28f);
         copy.AddComponent<Image>().color = Slate;
         var copyBtn = copy.AddComponent<Button>(); copyBtn.targetGraphic = copy.GetComponent<Image>();
         copyBtn.onClick.AddListener(CopyInvite);
         LblFill(copy, "COPY LINK", 11, FontStyle.Bold, White, L);
+
+        EnsureVariantSpritesLoaded();
+        UpdateLobbyPreview(LanSessionManager.LocalVariantIndex);
+    }
+
+    private static readonly string[] VariantBodyFiles =
+    { "tankBody_blue", "tankBody_red", "tankBody_green", "tankBody_dark", "tankBody_sand" };
+
+    private void UpdateLobbyPreview(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantColors.Length - 1);
+        if (idx == _shownVariant)
+            return;
+
+        _shownVariant = idx;
+        if (_lobbyTankPreview != null)
+        {
+            Sprite spr = _variantSpriteCache != null && idx < _variantSpriteCache.Length
+                ? _variantSpriteCache[idx]
+                : null;
+            _lobbyTankPreview.sprite = spr;
+            _lobbyTankPreview.color = spr != null ? Color.white : VariantColors[idx];
+        }
+        if (_lobbyTankName != null) _lobbyTankName.text = VariantDisplayName(idx);
+        for (int i = 0; i < _variantRings.Count; i++)
+            if (_variantRings[i] != null) _variantRings[i].SetActive(i == idx);
+    }
+
+    private static void EnsureVariantSpritesLoaded()
+    {
+        if (_variantSpriteCache != null)
+            return;
+
+        _variantSpriteCache = new Sprite[VariantBodyFiles.Length];
+        for (int i = 0; i < VariantBodyFiles.Length; i++)
+            _variantSpriteCache[i] = LoadVariantSprite(i);
+    }
+
+    private static string VariantDisplayName(int i)
+    {
+        switch (Mathf.Clamp(i, 0, 4))
+        {
+            case 0:  return "Blue";
+            case 1:  return "Red";
+            case 2:  return "Green";
+            case 3:  return "Dark";
+            default: return "Sand";
+        }
+    }
+
+    private static Sprite LoadVariantSprite(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantBodyFiles.Length - 1);
+        string file = VariantBodyFiles[idx];
+#if UNITY_EDITOR
+        string path = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/" + file + ".png";
+        var spr = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (spr != null) return spr;
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (tex != null)
+            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        return null;
+#else
+        Sprite spr = Resources.Load<Sprite>("TankSprites/" + file);
+        if (spr != null) return spr;
+        Texture2D rtex = Resources.Load<Texture2D>("TankSprites/" + file);
+        if (rtex == null) return null;
+        return Sprite.Create(rtex, new Rect(0, 0, rtex.width, rtex.height), new Vector2(0.5f, 0.5f), 128f);
+#endif
     }
 
     private GameObject BuildJoinRow(int L, float yFromBottom, float rowH)
@@ -477,12 +623,35 @@ public class LanLobbyController : MonoBehaviour
         return row;
     }
 
+    private void PositionJoinRowForJoinScreen()
+    {
+        if (_joinRow == null)
+            return;
+
+        var rt = _joinRow.GetComponent<RectTransform>();
+        if (rt == null)
+            return;
+
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 66f);
+        rt.sizeDelta = new Vector2(FullW, 56f);
+    }
+
     // ── Screen transitions ────────────────────────────────────────────────────
 
     // Turn every screen-specific widget off; each SwitchTo case re-enables its own.
     // CANCEL is intentionally not touched (always visible).
     private void HideAllScreenWidgets()
     {
+        if (_statusTxt != null)
+        {
+            _statusTxt.gameObject.SetActive(true);
+            var srt = _statusTxt.GetComponent<RectTransform>();
+            srt.anchoredPosition = new Vector2(0f, -88f);
+            srt.sizeDelta = new Vector2(-PadX * 2f, 56f);
+            _statusTxt.fontSize = 14;
+        }
         SetVis(_btnHost, false);  SetVis(_btnStart, false);  SetVis(_btnStartLobby, false);
         SetVis(_btnJoin, false);  SetVis(_btnReadyLobby, false);
         _joinRow?.SetActive(false);
@@ -511,11 +680,27 @@ public class LanLobbyController : MonoBehaviour
             case Screen.Joining:
                 HideAllScreenWidgets();
                 SetStatus("Nhập IP, IP:port, invite link, hoặc session code:", Muted);
+                if (_statusTxt != null)
+                {
+                    var srt = _statusTxt.GetComponent<RectTransform>();
+                    srt.anchoredPosition = new Vector2(0f, -132f);
+                    srt.sizeDelta = new Vector2(-PadX * 2f, 76f);
+                    _statusTxt.fontSize = 15;
+                }
+                PositionJoinRowForJoinScreen();
+                SetStatus("Dán link mời hoặc nhập mã phòng\nvd: 43E98F hoặc https://luminx.io.vn/play?session=...", Muted);
                 _joinRow.SetActive(true);
                 break;
             case Screen.Lobby:
                 HideAllScreenWidgets();
-                SetStatus("Phòng chờ — chọn tank, bấm SẴN SÀNG.", Green);
+                if (_statusTxt != null)
+                {
+                    var srt = _statusTxt.GetComponent<RectTransform>();
+                    srt.anchoredPosition = new Vector2(0f, -78f);
+                    srt.sizeDelta = new Vector2(-PadX * 2f, 18f);
+                    _statusTxt.fontSize = 12;
+                }
+                SetStatus("Phòng chờ — chọn tank & SẴN SÀNG", Green);
                 _lobbyBox?.SetActive(true);
                 SetVis(_btnReadyLobby, true);
                 // START (owner-only) visibility is managed each tick by RefreshLobby.
@@ -530,7 +715,11 @@ public class LanLobbyController : MonoBehaviour
         if (_discovery != null) { _discovery.StopListening(); }
         HideAllScreenWidgets();
         SetStatus("Chọn vai trò của bạn:", Muted);
+#if UNITY_WEBGL && !UNITY_EDITOR
+        SetVis(_btnHost,  false);
+#else
         SetVis(_btnHost,  true);
+#endif
         SetVis(_btnJoin,  true);
     }
 
@@ -577,17 +766,26 @@ public class LanLobbyController : MonoBehaviour
             _btnReadyLabel.text = _localReady ? "✖  HỦY SẴN SÀNG" : "✔  SẴN SÀNG";
         }
 
+        if (local != null && local.VariantIndex.Value != _shownVariant)
+            UpdateLobbyPreview(local.VariantIndex.Value);
+
         // START: only the room owner sees it; enabled when everyone is ready.
         bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
         SetVis(_btnStartLobby, isRoomOwner);
         if (isRoomOwner && _btnStartLobby != null)
         {
-            bool allReady = bridges.Count >= 1 && readyCount == bridges.Count;
+            int minStart =
+#if UNITY_EDITOR
+                1;
+#else
+                2;
+#endif
+            bool allReady = bridges.Count >= minStart && readyCount == bridges.Count;
             _btnStartLobby.interactable = allReady;
             if (_btnStartLabel != null)
                 _btnStartLabel.text = allReady
                     ? "▶  START GAME"
-                    : $"START  ({readyCount}/{bridges.Count} sẵn sàng)";
+                    : $"START  ({readyCount}/{bridges.Count} · cần ≥{minStart})";
         }
     }
 
@@ -597,6 +795,7 @@ public class LanLobbyController : MonoBehaviour
         LanSessionManager.LocalVariantIndex = idx;
         PlayerPrefs.SetInt("MenuTankVariant", idx); PlayerPrefs.Save();
         LanNetworkBridge.Local?.SubmitVariant(idx);
+        UpdateLobbyPreview(idx);
     }
 
     private void DoToggleReady()
@@ -615,7 +814,7 @@ public class LanLobbyController : MonoBehaviour
     {
         string link = BuildInviteLink();
         if (string.IsNullOrEmpty(link)) return;
-        GUIUtility.systemCopyBuffer = link;
+        WebClipboard.Copy(link);
         SetStatus("Đã copy link mời!", Green);
     }
 
@@ -695,6 +894,10 @@ public class LanLobbyController : MonoBehaviour
 
     private void DoHost()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        SetStatus("WebGL cannot host locally. Create an internet room from the menu.", new Color(1f, 0.6f, 0.3f));
+        return;
+#else
         if (!EnsureNetworkManager()) return;
         if (NetworkManager.Singleton.IsListening)
         {
@@ -737,6 +940,7 @@ public class LanLobbyController : MonoBehaviour
         _hostRetryCount = 0;   // reset only on genuine success
         LanSessionManager.PlayerCount = 1;
         SwitchTo(Screen.Hosting);
+#endif
     }
 
     private void OnHostTransportFailure()
@@ -876,7 +1080,10 @@ public class LanLobbyController : MonoBehaviour
 
     private void DoConnect(string ip)
     {
-        if (!InternetJoinParser.TryParse(ip, LanSessionManager.RegistryUrl, out NetworkEndpointConfig endpoint, out string parseError))
+        string fallbackRegistry = !string.IsNullOrWhiteSpace(LanSessionManager.RegistryUrl)
+            ? LanSessionManager.RegistryUrl
+            : _joinRegistryUrl;
+        if (!InternetJoinParser.TryParse(ip, fallbackRegistry, out NetworkEndpointConfig endpoint, out string parseError))
         {
             SetStatus(parseError, new Color(1f, 0.35f, 0.35f));
             return;
@@ -963,16 +1170,25 @@ public class LanLobbyController : MonoBehaviour
 
         LanSessionManager.ActivateInternetClient(endpoint);
         t.SetConnectionData(endpoint.host, endpoint.port);
+        t.UseEncryption = false;
 #if UNITY_WEBGL && !UNITY_EDITOR
         // WebGL can only use WebSocket. The retry path re-parses a raw "host:port" string
         // whose transportMode defaults to UDP — forcing WebSocket here prevents the doomed
         // UDP attempts seen alternating in the browser console.
         t.UseWebSockets = true;
+        t.UseEncryption = endpoint.secureWebSocket;
+        if (t.UseEncryption)
+        {
+            string secureHost = string.IsNullOrWhiteSpace(endpoint.secureWebSocketHost)
+                ? endpoint.host
+                : endpoint.secureWebSocketHost;
+            t.SetClientSecrets(secureHost, null);
+        }
 #else
         t.UseWebSockets = endpoint.transportMode == NetworkTransportMode.WebSocket;
 #endif
         NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: false);
-        Debug.Log($"[LAN] Connecting to {endpoint.host}:{endpoint.port} via {endpoint.transportMode.ToArgumentValue()}");
+        Debug.Log($"[LAN] Connecting to {endpoint.host}:{endpoint.port} via {(endpoint.secureWebSocket ? "wss" : endpoint.transportMode.ToArgumentValue())}");
 
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;

@@ -94,6 +94,10 @@ RUNTIME_ENV_FILE=/etc/tank-mapf/runtime.env
 source "$SERVER_ENV_FILE"
 
 WEB_PUBLIC_BASE_URL="$${WEB_PUBLIC_BASE_URL:-http://$${PUBLIC_IP}}"
+WEB_HOST="$${WEB_HOST:-$${PUBLIC_IP}}"
+WEB_GAME_PORT_PUBLIC="$${WEB_GAME_PORT_PUBLIC:-$${WEB_GAME_PORT}}"
+WEB_TRANSPORT="$${WEB_TRANSPORT:-websocket}"
+REGISTRY_INTERNAL_URL="$${REGISTRY_INTERNAL_URL:-http://127.0.0.1:$${REGISTRY_PORT}}"
 
 MAP_FILE=""
 ALGORITHM=""
@@ -115,7 +119,7 @@ if [ -z "$MAP_FILE" ] || [ -z "$ALGORITHM" ] || [ -z "$SESSION_CODE" ]; then
   exit 1
 fi
 
-export MAP_FILE ALGORITHM SESSION_CODE MAX_PLAYERS PUBLIC_IP GAME_PORT WEB_GAME_PORT WEB_PUBLIC_BASE_URL REGISTRY_ADMIN_TOKEN REGISTRY_PUBLIC_BASE_URL
+export MAP_FILE ALGORITHM SESSION_CODE MAX_PLAYERS PUBLIC_IP GAME_PORT WEB_GAME_PORT WEB_PUBLIC_BASE_URL WEB_HOST WEB_GAME_PORT_PUBLIC WEB_TRANSPORT REGISTRY_ADMIN_TOKEN REGISTRY_PUBLIC_BASE_URL REGISTRY_INTERNAL_URL
 
 cat >"$RUNTIME_ENV_FILE" <<EOF
 RELEASE_SHA=
@@ -168,9 +172,9 @@ payload = {
     "host": os.environ["PUBLIC_IP"],
     "gamePort": int(os.environ["GAME_PORT"]),
     "transport": "udp",
-    "webHost": os.environ["PUBLIC_IP"],
-    "webGamePort": int(os.environ["WEB_GAME_PORT"]),
-    "webTransport": "websocket",
+    "webHost": os.environ["WEB_HOST"],
+    "webGamePort": int(os.environ["WEB_GAME_PORT_PUBLIC"]),
+    "webTransport": os.environ["WEB_TRANSPORT"],
     "webUrl": f"{os.environ['WEB_PUBLIC_BASE_URL'].rstrip('/')}/play?session={os.environ['SESSION_CODE']}",
     "map": os.environ["MAP_FILE"],
     "algorithm": os.environ["ALGORITHM"],
@@ -183,7 +187,7 @@ subprocess.run([
     "-H", f"Authorization: Bearer {os.environ['REGISTRY_ADMIN_TOKEN']}",
     "-H", "Content-Type: application/json",
     "--data-binary", "@-",
-    f"{os.environ['REGISTRY_PUBLIC_BASE_URL'].rstrip('/')}/api/sessions",
+    f"{os.environ['REGISTRY_INTERNAL_URL'].rstrip('/')}/api/sessions",
 ], input=data, check=True)
 print(f"{os.environ['REGISTRY_PUBLIC_BASE_URL'].rstrip('/')}/s/{os.environ['SESSION_CODE']}")
 PY
@@ -202,6 +206,10 @@ WEB_GAME_PORT=${web_game_port}
 PUBLIC_IP=${public_ip}
 REGISTRY_PUBLIC_BASE_URL=${registry_base_url}
 WEB_PUBLIC_BASE_URL=http://${public_ip}
+WEB_HOST=${public_ip}
+WEB_GAME_PORT_PUBLIC=${web_game_port}
+WEB_TRANSPORT=websocket
+REGISTRY_INTERNAL_URL=http://127.0.0.1:${registry_port}
 MAP_FILE=${map_file}
 ALGORITHM=${algorithm}
 MAX_PLAYERS=${max_players}

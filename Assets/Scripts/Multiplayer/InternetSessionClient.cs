@@ -103,10 +103,18 @@ public static class InternetSessionClient
         string transportValue = preferWebEndpoint && !string.IsNullOrWhiteSpace(response.webTransport)
             ? response.webTransport
             : response.transport;
+        bool secureWebSocket = NetworkTransportModeUtility.IsSecureWebSocket(transportValue)
+            || (preferWebEndpoint && resolvedPort == 443);
+        string secureWebSocketHost = secureWebSocket
+            ? (!string.IsNullOrWhiteSpace(response.webHost) ? response.webHost : resolvedHost)
+            : string.Empty;
+        string connectionHost = secureWebSocket && !string.IsNullOrWhiteSpace(response.host)
+            ? response.host
+            : resolvedHost;
 
         NetworkEndpointConfig endpoint = new NetworkEndpointConfig
         {
-            host = resolvedHost,
+            host = connectionHost,
             port = resolvedPort,
             transportMode = NetworkTransportModeUtility.Parse(transportValue, defaultTransportMode),
             sessionCode = string.IsNullOrWhiteSpace(response.code) ? normalizedCode : response.code,
@@ -115,6 +123,8 @@ public static class InternetSessionClient
             registryUrl = baseUrl,
             maxPlayers = Mathf.Max(1, response.maxPlayers),
             isDedicatedServer = false,
+            secureWebSocket = secureWebSocket,
+            secureWebSocketHost = secureWebSocketHost,
         };
 
         onSuccess?.Invoke(endpoint);

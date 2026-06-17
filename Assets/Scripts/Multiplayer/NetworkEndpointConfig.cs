@@ -12,6 +12,8 @@ public struct NetworkEndpointConfig
     public string registryUrl;
     public int maxPlayers;
     public bool isDedicatedServer;
+    public bool secureWebSocket;
+    public string secureWebSocketHost;
 
     public static NetworkEndpointConfig DefaultLan(string mapFile, string algorithm)
     {
@@ -26,6 +28,8 @@ public struct NetworkEndpointConfig
             registryUrl = string.Empty,
             maxPlayers = 8,
             isDedicatedServer = false,
+            secureWebSocket = false,
+            secureWebSocketHost = string.Empty,
         };
     }
 }

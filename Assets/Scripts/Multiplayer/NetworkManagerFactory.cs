@@ -62,11 +62,15 @@ public static class NetworkManagerFactory
             return;
 
         transport.SetConnectionData(bindAddress, port);
+        transport.UseEncryption = false;
 #if UNITY_WEBGL && !UNITY_EDITOR
         // WebGL has no UDP — the browser can only open WebSocket connections. A retry/parse
         // path that resets transportMode to UDP would silently fail here ("WebSockets were
         // used even though they're not selected"). Force WebSocket on WebGL, always.
         transport.UseWebSockets = true;
+        transport.UseEncryption = LanSessionManager.UseSecureWebSocket;
+        if (transport.UseEncryption)
+            transport.SetClientSecrets(LanSessionManager.SecureWebSocketHost, null);
 #else
         transport.UseWebSockets = transportMode == NetworkTransportMode.WebSocket;
 #endif

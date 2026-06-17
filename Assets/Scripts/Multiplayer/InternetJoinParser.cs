@@ -19,6 +19,8 @@ public static class InternetJoinParser
             registryUrl = string.Empty,
             maxPlayers = 8,
             isDedicatedServer = false,
+            secureWebSocket = false,
+            secureWebSocketHost = string.Empty,
         };
         error = string.Empty;
 
@@ -114,6 +116,8 @@ public static class InternetJoinParser
             registryUrl = string.Empty,
             maxPlayers = 8,
             isDedicatedServer = false,
+            secureWebSocket = false,
+            secureWebSocketHost = string.Empty,
         };
         error = string.Empty;
 
@@ -130,7 +134,10 @@ public static class InternetJoinParser
             else if (key.Equals("port", StringComparison.OrdinalIgnoreCase) && ushort.TryParse(value, out ushort port))
                 config.port = port;
             else if (key.Equals("transport", StringComparison.OrdinalIgnoreCase))
+            {
                 config.transportMode = NetworkTransportModeUtility.Parse(value, config.transportMode);
+                config.secureWebSocket = NetworkTransportModeUtility.IsSecureWebSocket(value);
+            }
             else if (key.Equals("session", StringComparison.OrdinalIgnoreCase))
                 config.sessionCode = value;
             else if (key.Equals("map", StringComparison.OrdinalIgnoreCase))
@@ -145,6 +152,9 @@ public static class InternetJoinParser
             error = "Invite link is missing host.";
             return false;
         }
+
+        if (config.secureWebSocket)
+            config.secureWebSocketHost = config.host;
 
         return true;
     }
@@ -162,6 +172,8 @@ public static class InternetJoinParser
             registryUrl = string.Empty,
             maxPlayers = 8,
             isDedicatedServer = false,
+            secureWebSocket = false,
+            secureWebSocketHost = string.Empty,
         };
 
         string sessionFromQuery = GetQueryValue(uri, "session");

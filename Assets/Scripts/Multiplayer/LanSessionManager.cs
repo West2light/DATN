@@ -13,6 +13,8 @@ public static class LanSessionManager
     public static string RegistryUrl      { get; private set; } = "";
     public static ushort GamePort         { get; private set; } = 7777;
     public static NetworkTransportMode TransportMode { get; private set; } = NetworkTransportMode.Udp;
+    public static bool   UseSecureWebSocket { get; private set; }
+    public static string SecureWebSocketHost { get; private set; } = "";
     public static int    MaxPlayers       { get; private set; } = 8;
     // Tank variant (color) chosen by this machine in the lobby (0-4 = unlocked, 5-7 = locked).
     public static int    LocalVariantIndex { get; set; } = 0;
@@ -53,6 +55,8 @@ public static class LanSessionManager
         RegistryUrl = string.Empty;
         GamePort = 7777;
         TransportMode = NetworkTransportMode.Udp;
+        UseSecureWebSocket = false;
+        SecureWebSocketHost = string.Empty;
         MaxPlayers = 8;
         MapFile = string.Empty;
         Algorithm = "AStar";
@@ -76,6 +80,10 @@ public static class LanSessionManager
         RegistryUrl = cfg.registryUrl ?? string.Empty;
         GamePort = cfg.port == 0 ? (ushort)7777 : cfg.port;
         TransportMode = cfg.transportMode;
+        UseSecureWebSocket = cfg.secureWebSocket;
+        SecureWebSocketHost = string.IsNullOrWhiteSpace(cfg.secureWebSocketHost)
+            ? cfg.host ?? string.Empty
+            : cfg.secureWebSocketHost;
         MaxPlayers = Mathf.Max(1, cfg.maxPlayers);
         if (resetPlayerCount)
             PlayerCount = 1;
