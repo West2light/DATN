@@ -14,8 +14,8 @@ using UnityEngine;
 public class PIBTTcpClient : MonoBehaviour
 {
     [Header("Server")]
-    [Tooltip("Raw TCP host name/IP or URL. Example: 192.168.2.242 or http://192.168.2.242:7777/")]
-    public string host = "192.168.2.242";
+    [Tooltip("Raw TCP host name/IP or URL. Example: 172.31.253.8 or http://172.31.253.8:7777/")]
+    public string host = "172.31.253.8";
     public int port = 7777;
     [Min(1)] public int timeoutMs = 5000;
 

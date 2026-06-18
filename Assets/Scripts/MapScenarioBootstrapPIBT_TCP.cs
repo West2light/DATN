@@ -28,7 +28,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     public MapLoader mapLoader;
 
     [Header("TCP Server")]
-    public string serverHost          = "192.168.2.242";
+    public string serverHost          = "172.31.253.8";
     public int    serverPort          = 7777;
     [Min(0.05f)]
     [Tooltip("Khoảng thời gian (giây) giữa các lần gọi server. 0.5s ≈ 2 tick/s.")]
