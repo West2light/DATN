@@ -101,6 +101,8 @@ public class MapTankTestBootstrap : MonoBehaviour
                     if (agent != null) agent.playerTargets = playerTransforms;
                     var agentLns2 = enemy.GetComponent<GridEnemyAgentPIBT>();
                     if (agentLns2 != null) agentLns2.playerTargets = playerTransforms;
+                    var agentTcp = enemy.GetComponent<GridEnemyAgentPIBT_TCP>();
+                    if (agentTcp != null) agentTcp.playerTargets = playerTransforms;
                 }
 
                 lanCoord.RegisterServerTanks(spawnedTanks, enemies);
@@ -195,6 +197,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         // Mode 3: PIBT-TCP — flagged via PlayerPrefs by the menu, or component already present
         string selectedAlgorithm = PlayerPrefs.GetString("SelectedAlgorithm", "");
         bool isTcpMode = selectedAlgorithm == "PIBT_TCP"
+            || (LanSessionManager.IsActive && LanSessionManager.Algorithm == "PIBT_TCP")
             || (BacktestMode.IsActive && BacktestMode.Algorithm == "PIBT_TCP");
         PlayerPrefs.DeleteKey("SelectedAlgorithm"); // consume so next load is clean
 

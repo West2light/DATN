@@ -781,7 +781,8 @@ public class MenuViewBootstrap : MonoBehaviour
             13, FontStyle.Normal, TextMuted,
             new Vector2(0.5f, 0f), new Vector2(0f, 58f), new Vector2(820f, 24f));
 
-        const float CardW = 210f, CardH = 270f, Gap = 10f;
+        // Keep multiplayer cards visually identical to the single-player cards.
+        const float CardW = 210f, CardH = 300f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
         float startX = -totalW / 2f + CardW / 2f;
 
@@ -824,24 +825,31 @@ public class MenuViewBootstrap : MonoBehaviour
             9, FontStyle.Normal, TextMuted,
             new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
 
-        // A* and PIBT buttons open the LAN lobby
-        string[] modeLabels = { "A*", "PIBT" };
-        string[] modeAlgos  = { "AStar", "PIBT" };
-        Color[]  modeColors = { new Color(0.20f, 0.52f, 0.88f), new Color(0.18f, 0.65f, 0.38f) };
+        // All three algorithms use the same multiplayer lobby. PIBT-TCP is
+        // executed by the authoritative host/server; clients only render the
+        // synchronized world state like they do for the other algorithms.
+        string[] modeLabels = { "A*", "PIBT", "PIBT-TCP" };
+        string[] modeAlgos  = { "AStar", "PIBT", "PIBT_TCP" };
+        Color[]  modeColors =
+        {
+            new Color(0.20f, 0.52f, 0.88f),
+            new Color(0.18f, 0.65f, 0.38f),
+            new Color(0.72f, 0.38f, 0.10f),
+        };
 
-        const float BtnGap = 8f;
-        float btnW        = (w - 16f - BtnGap) / 2f;
-        const float BtnH  = 44f;
-        float btnCentreY  = -h / 2f + BtnH / 2f + 12f;
-        float firstBtnX   = -(btnW + BtnGap) / 2f;
+        const float BtnH   = 34f;
+        const float BtnGap = 5f;
+        float btnW         = w - 16f;
+        float bottomY      = -h / 2f + 10f;
 
-        for (int m = 0; m < 2; m++)
+        for (int m = 0; m < modeLabels.Length; m++)
         {
             string mapFileCap = map.mapFile;
             string algoCap    = modeAlgos[m];
+            float btnY        = bottomY + BtnH / 2f + m * (BtnH + BtnGap);
 
             Button modeBtn = MakeButton(card.transform, "LanMode_" + m, modeLabels[m],
-                new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
+                new Vector2(0f, btnY),
                 new Vector2(btnW, BtnH), modeColors[m]);
             SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
             modeBtn.onClick.AddListener(() => HandleLanModeSelected(mapFileCap, algoCap, modeBtn));

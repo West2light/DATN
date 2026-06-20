@@ -63,7 +63,9 @@ public static class LanSessionManager
     }
 
     public static int    EnemyCount => 6 * Mathf.Max(1, PlayerCount);
-    public static string GameScene  => Algorithm == "PIBT" ? "MapF_TankTest_PIBT" : "MapF_TankTest";
+    public static string GameScene  => Algorithm == "PIBT" || Algorithm == "PIBT_TCP"
+        ? "MapF_TankTest_PIBT"
+        : "MapF_TankTest";
 
     private static void ApplyConfig(
         NetworkEndpointConfig cfg,
