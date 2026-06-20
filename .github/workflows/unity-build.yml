@@ -174,6 +174,9 @@ jobs:
       MAX_PLAYERS: ${{ vars.AUTO_DEPLOY_MAX_PLAYERS || '8' }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check required deployment configuration
         shell: bash
         run: |
