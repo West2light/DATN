@@ -118,6 +118,9 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (!BacktestMode.IsActive)
             SpawnPlayer();
 
+        if (!BacktestMode.IsActive)
+            PauseMenuController.Ensure();
+
         SetupCamera();
 
         if (!BacktestMode.IsActive && MapPlacementPhase.ShouldTrigger())
@@ -189,9 +192,31 @@ public class MapTankTestBootstrap : MonoBehaviour
     {
         List<Vector2Int> spawnCells = ComputeEnemySpawnCells();
 
+        // Mode 3: PIBT-TCP — flagged via PlayerPrefs by the menu, or component already present
+        string selectedAlgorithm = PlayerPrefs.GetString("SelectedAlgorithm", "");
+        bool isTcpMode = selectedAlgorithm == "PIBT_TCP"
+            || (BacktestMode.IsActive && BacktestMode.Algorithm == "PIBT_TCP");
+        PlayerPrefs.DeleteKey("SelectedAlgorithm"); // consume so next load is clean
+
+        Debug.Log($"[MapTankTestBootstrap] SpawnScenario algorithm='{selectedAlgorithm}', backtest='{BacktestMode.Algorithm}', isTcpMode={isTcpMode}");
+
+        MapScenarioBootstrapPIBT_TCP tcpBootstrap = GetComponent<MapScenarioBootstrapPIBT_TCP>();
+        if (isTcpMode && tcpBootstrap == null)
+            tcpBootstrap = gameObject.AddComponent<MapScenarioBootstrapPIBT_TCP>();
+
+        if (isTcpMode && tcpBootstrap != null)
+        {
+            Debug.Log("[MapTankTestBootstrap] Spawning PIBT_TCP scenario; this should connect to the TCP server.");
+            tcpBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) tcpBootstrap.enemySpawnCells = spawnCells;
+            tcpBootstrap.SpawnScenario();
+            return;
+        }
+
         MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibtBootstrap != null)
         {
+            Debug.Log("[MapTankTestBootstrap] Spawning local PIBT scenario.");
             pibtBootstrap.mapLoader = mapLoader;
             if (spawnCells != null) pibtBootstrap.enemySpawnCells = spawnCells;
             pibtBootstrap.SpawnScenario();
@@ -201,6 +226,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         MapScenarioBootstrap scenarioBootstrap = GetComponent<MapScenarioBootstrap>();
         if (scenarioBootstrap != null)
         {
+            Debug.Log("[MapTankTestBootstrap] Spawning AStar scenario.");
             scenarioBootstrap.mapLoader = mapLoader;
             if (spawnCells != null) scenarioBootstrap.enemySpawnCells = spawnCells;
             scenarioBootstrap.SpawnScenario();
@@ -343,7 +369,9 @@ public class MapTankTestBootstrap : MonoBehaviour
 
     private List<GameObject> GetSpawnedEnemies()
     {
-        // MapScenarioBootstrapPIBT takes priority (matches SpawnScenario() dispatch order)
+        var tcp = GetComponent<MapScenarioBootstrapPIBT_TCP>();
+        if (tcp != null) return new List<GameObject>(tcp.Enemies);
+
         var pibt = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibt != null) return new List<GameObject>(pibt.Enemies);
 

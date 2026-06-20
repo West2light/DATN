@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -16,10 +17,10 @@ using UnityEditor;
 public class MenuViewBootstrap : MonoBehaviour
 {
     // ── Constants ──────────────────────────────────────────────────────────
-    private const string MenuSceneName   = "Menu";
-    private const string PrefKeyVariant  = "MenuTankVariant";
-    private const string PrefKeyMapFile  = "SelectedMapFile";
-    private const string SpritesRoot     = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
+    private const string MenuSceneName      = "Menu";
+    private const string PrefKeyVariant     = "MenuTankVariant";
+    private const string PrefKeyMapFile     = "SelectedMapFile";
+    private const string SpritesRoot        = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/";
 
     // Palette
     private static readonly Color BgDark      = new Color(0.07f, 0.12f, 0.18f, 1f);
@@ -53,6 +54,8 @@ public class MenuViewBootstrap : MonoBehaviour
     };
 
     // ── Map data ───────────────────────────────────────────────────────────
+    private const string PrefKeyAlgorithm = "SelectedAlgorithm";
+
     private struct MapDef
     {
         public string label;
@@ -66,11 +69,11 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private static readonly MapDef[] Maps =
     {
-        new MapDef { label = "Alpha-32",  sizeLabel = "32 × 32  •  10% walls",  previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map",    sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
-        new MapDef { label = "Mansion",   sizeLabel = "133 × 270",              previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
-        new MapDef { label = "Chantry",   sizeLabel = "162 × 141",              previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
-        new MapDef { label = "Gallows",   sizeLabel = "251 × 180",              previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
-        new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls", previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map", sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Alpha-32",  sizeLabel = "32 × 32  •  10% walls",    previewTint = new Color(0.20f, 0.55f, 0.30f), mapFile = "Assets/MapData/random-32-32-10.map",    sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Mansion",   sizeLabel = "133 × 270",                previewTint = new Color(0.50f, 0.38f, 0.20f), mapFile = "Assets/MapData/ht_mansion_n.map",       sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Chantry",   sizeLabel = "162 × 141",                previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Gallows",   sizeLabel = "251 × 180",                previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls",  previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map",   sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
@@ -242,7 +245,7 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
         btnStart.onClick.AddListener(() => { _isLanMode = false; ShowScreen(Screen.Outfit); });
 
-        // MULTIPLAYER INTERNET — vào màn chọn HOST / JOIN, không qua màn chọn tank
+        // MULTIPLAYER INTERNET — vào màn chọn HOST / JOIN
         Button btnHost = MakeButton(card.transform, "BtnHost",
             "MULTIPLAYER  INTERNET", new Vector2(0f, -58f), new Vector2(290f, 60f),
             new Color(0.12f, 0.32f, 0.58f, 1f));
@@ -479,7 +482,8 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 1f), new Vector2(0f, -80f), new Vector2(640f, 24f));
 
         // 5 cards, CardW=210, Gap=10 → total=1090px, centred in 1280
-        const float CardW = 210f, CardH = 270f, Gap = 10f;
+        // CardH increased to 300 to fit 3 mode buttons (A*, PIBT, PIBT-TCP)
+        const float CardW = 210f, CardH = 300f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
         float startX = -totalW / 2f + CardW / 2f;
 
@@ -560,39 +564,48 @@ public class MenuViewBootstrap : MonoBehaviour
                 9, FontStyle.Normal, TextMuted,
                 new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
 
-        // ── Algorithm mode buttons ────────────────────────────────────────
-        string[] modeLabels = { "A*", "PIBT" };
-        string[] modeScenes = { map.sceneAStar, map.scenePIBT };
-        Color[] modeColors =
+        // ── Algorithm mode buttons (3 stacked vertically) ────────────────
+        // m=0 A*, m=1 PIBT (local), m=2 PIBT-TCP (server)
+        // PIBT-TCP reuses scenePIBT scene — distinguishes via PrefKeyAlgorithm.
+        string[] modeLabels  = { "A*", "PIBT", "PIBT-TCP" };
+        string[] modeAlgos   = { "AStar", "PIBT", "PIBT_TCP" };
+        string[] modeScenes  = { map.sceneAStar, map.scenePIBT, map.scenePIBT };
+        Color[]  modeColors  =
         {
             new Color(0.20f, 0.52f, 0.88f, 1f),
             new Color(0.18f, 0.65f, 0.38f, 1f),
+            new Color(0.72f, 0.38f, 0.10f, 1f),
         };
 
-        const float BtnGap = 8f;
-        float btnW   = (w - 16f - BtnGap) / 2f;
-        const float BtnH = 44f;
-        float btnCentreY = -h / 2f + BtnH / 2f + 12f;
-        float firstBtnX  = -(btnW + BtnGap) / 2f;
+        const float BtnH   = 34f;
+        const float BtnGap = 5f;
+        float btnW         = w - 16f;
+        float bottomY      = -h / 2f + 10f;
 
-        for (int m = 0; m < 2; m++)
+        for (int m = 0; m < 3; m++)
         {
-            int    capturedM  = m;
-            bool   avail      = modeScenes[m] != null;
-            Color  col        = avail ? modeColors[m] : BtnDisabled;
+            int    capturedM   = m;
+            bool   avail       = !string.IsNullOrEmpty(modeScenes[m]);
+            Color  col         = avail ? modeColors[m] : BtnDisabled;
+            float  btnY        = bottomY + BtnH / 2f + m * (BtnH + BtnGap);
 
             Button modeBtn = MakeButton(card.transform, "Mode_" + m,
-                modeLabels[m],
-                new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
-                new Vector2(btnW, BtnH), col);
+                modeLabels[m], new Vector2(0f, btnY), new Vector2(btnW, BtnH), col);
 
             if (avail)
             {
                 string sceneName  = modeScenes[capturedM];
+                string algoCap    = modeAlgos[capturedM];
                 string mapFileCap = map.mapFile;
                 modeBtn.onClick.AddListener(() =>
                 {
+                    if (algoCap == "PIBT_TCP")
+                    {
+                        CheckAndLoadPibtTcp(mapFileCap, sceneName);
+                        return;
+                    }
                     PlayerPrefs.SetString(PrefKeyMapFile, mapFileCap);
+                    PlayerPrefs.SetString(PrefKeyAlgorithm, algoCap);
                     PlayerPrefs.Save();
                     SceneManager.LoadScene(sceneName);
                 });
@@ -950,10 +963,10 @@ public class MenuViewBootstrap : MonoBehaviour
 
     private void ShowScreen(Screen screen)
     {
-        if (_screenMain  != null) _screenMain.SetActive(screen == Screen.Main);
-        if (_screenOutfit != null) _screenOutfit.SetActive(screen == Screen.Outfit);
-        if (_screenMap   != null) _screenMap.SetActive(screen == Screen.MapSelect);
-        if (_screenLan   != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
+        if (_screenMain     != null) _screenMain.SetActive(screen == Screen.Main);
+        if (_screenOutfit   != null) _screenOutfit.SetActive(screen == Screen.Outfit);
+        if (_screenMap      != null) _screenMap.SetActive(screen == Screen.MapSelect);
+        if (_screenLan      != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
         if (_screenInternet != null) _screenInternet.SetActive(screen == Screen.InternetEntry);
     }
 
@@ -1069,5 +1082,74 @@ public class MenuViewBootstrap : MonoBehaviour
         if (rtex == null) return null;
         return Sprite.Create(rtex, new Rect(0, 0, rtex.width, rtex.height), new Vector2(0.5f, 0.5f), 128f);
 #endif
+    }
+
+    // ── PIBT-TCP: enter game; the scene sends hello immediately.
+
+    private void CheckAndLoadPibtTcp(string mapFile, string scene)
+    {
+        PlayerPrefs.SetString(PrefKeyMapFile, mapFile);
+        PlayerPrefs.SetString(PrefKeyAlgorithm, "PIBT_TCP");
+        PlayerPrefs.Save();
+        SceneManager.LoadScene(scene);
+    }
+
+    private void ShowMenuToast(string message, float duration)
+    {
+        StartCoroutine(MenuToastCoroutine(message, duration));
+    }
+
+    private IEnumerator MenuToastCoroutine(string message, float duration)
+    {
+        GameObject canvasGO = new GameObject("MenuToast");
+        canvasGO.layer = LayerMask.NameToLayer("UI");
+        Canvas canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 99;
+        var scaler = canvasGO.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280, 720);
+        scaler.matchWidthOrHeight  = 0.5f;
+        canvasGO.AddComponent<GraphicRaycaster>();
+
+        GameObject panelGO = new GameObject("Panel");
+        panelGO.layer = LayerMask.NameToLayer("UI");
+        panelGO.transform.SetParent(canvasGO.transform, false);
+        RectTransform pr = panelGO.AddComponent<RectTransform>();
+        pr.anchorMin        = new Vector2(0.5f, 0.5f);
+        pr.anchorMax        = new Vector2(0.5f, 0.5f);
+        pr.pivot            = new Vector2(0.5f, 0.5f);
+        pr.anchoredPosition = Vector2.zero;
+        pr.sizeDelta        = new Vector2(460, 110);
+        Image bg = panelGO.AddComponent<Image>();
+        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
+
+        GameObject textGO = new GameObject("Text");
+        textGO.layer = LayerMask.NameToLayer("UI");
+        textGO.transform.SetParent(panelGO.transform, false);
+        RectTransform tr = textGO.AddComponent<RectTransform>();
+        tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
+        tr.offsetMin = new Vector2(14, 8); tr.offsetMax = new Vector2(-14, -8);
+        Text txt = textGO.AddComponent<Text>();
+        txt.text      = message;
+        txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.fontSize  = 18;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.color     = new Color(1f, 0.38f, 0.32f, 1f);
+
+        CanvasGroup cg = canvasGO.AddComponent<CanvasGroup>();
+        cg.alpha = 1f;
+
+        float fadeStart = duration - 0.7f;
+        float elapsed   = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            if (elapsed > fadeStart)
+                cg.alpha = Mathf.Lerp(1f, 0f, (elapsed - fadeStart) / 0.7f);
+            yield return null;
+        }
+
+        Destroy(canvasGO);
     }
 }

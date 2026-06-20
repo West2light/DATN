@@ -8,7 +8,7 @@ using UnityEditor;
 /// <summary>
 /// Spawn và despawn thùng sắt tối màu liên tục ở các ô walkable ngoài vùng
 /// an toàn quanh Eagle Base.  Dùng để stress-test khả năng dynamic replanning
-/// của A* và PIBT trong chế độ backtest.
+/// của A*, PIBT và PIBT-C++ trong chế độ backtest.
 ///
 /// Crates KHÔNG có layer Hittable → không bị đạn phá huỷ.
 /// Crates CÓ BoxCollider2D (layer Walls) → vật lý block tank.
@@ -34,6 +34,7 @@ public class DynamicObstacleSpawner : MonoBehaviour
 
     private List<GridEnemyAgent>     _agentsA;
     private List<GridEnemyAgentPIBT> _agentsL;
+    private List<GridEnemyAgentPIBT_TCP> _agentsT;
 
     private readonly List<CrateEntry> _active = new List<CrateEntry>();
     private float _nextSpawn;
@@ -55,12 +56,13 @@ public class DynamicObstacleSpawner : MonoBehaviour
         _nextSpawn = Time.time + spawnInterval;
     }
 
-    public void SetAgents(List<GridEnemyAgent> agentsA, List<GridEnemyAgentPIBT> agentsL)
+    public void SetAgents(List<GridEnemyAgent> agentsA, List<GridEnemyAgentPIBT> agentsL, List<GridEnemyAgentPIBT_TCP> agentsT = null)
     {
         _agentsA = agentsA;
         _agentsL = agentsL;
+        _agentsT = agentsT;
 
-        int totalAgents = (agentsA?.Count ?? 0) + (agentsL?.Count ?? 0);
+        int totalAgents = (agentsA?.Count ?? 0) + (agentsL?.Count ?? 0) + (agentsT?.Count ?? 0);
         if (totalAgents <= 0) return;
 
         maxActiveCrates = totalAgents * cratesPerAgent;
