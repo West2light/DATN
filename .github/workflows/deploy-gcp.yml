@@ -55,6 +55,7 @@ env:
   GCP_ARTIFACT_BUCKET: ${{ vars.GCP_ARTIFACT_BUCKET }}
   GCP_VM_NAME: ${{ vars.GCP_VM_NAME || 'tank-mapf-server' }}
   GCP_STATIC_IP_NAME: ${{ vars.GCP_STATIC_IP_NAME || 'tank-mapf-ip' }}
+  APP_DOMAIN: ${{ vars.APP_DOMAIN }}
   REGISTRY_ADMIN_TOKEN: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
   REQUIRED_SERVER_SESSION_CODE: ${{ secrets.TF_VAR_SERVER_SESSION_CODE }}
   REQUIRED_REGISTRY_ADMIN_TOKEN: ${{ secrets.TF_VAR_REGISTRY_ADMIN_TOKEN }}
@@ -161,8 +162,8 @@ jobs:
 
           {
             echo "server_ip=$server_ip"
-            echo "registry_base_url=http://${server_ip}:8080"
-            echo "web_url=http://${server_ip}"
+            echo "registry_base_url=https://${APP_DOMAIN}/registry"
+            echo "web_url=https://${APP_DOMAIN}"
             echo "server_artifact=$server_artifact"
             echo "web_artifact=$web_artifact"
           } >> "$GITHUB_OUTPUT"
