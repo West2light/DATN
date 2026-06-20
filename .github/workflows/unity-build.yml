@@ -233,7 +233,7 @@ jobs:
 
           {
             echo "server_ip=$server_ip"
-            echo "registry_base_url=https://${APP_DOMAIN}/registry"
+            echo "registry_base_url=https://${APP_DOMAIN}"
             echo "web_url=https://${APP_DOMAIN}"
             echo "server_artifact=$server_artifact"
             echo "web_artifact=$web_artifact"
@@ -286,11 +286,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl -fsS "${{ steps.targets.outputs.registry_base_url }}/healthz"
+          curl -fsS "${{ steps.targets.outputs.registry_base_url }}/create" | grep -qi 'tank mapf'
           curl -fsSI "${{ steps.targets.outputs.web_url }}"
           curl -fsS "${{ steps.targets.outputs.web_url }}/StreamingAssets/MapData/random-32-32-10.map" | grep -q '^type'
-          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.wasm"
-          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.data"
+          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.wasm.br"
+          curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.data.br"
           curl -fsS "${{ steps.targets.outputs.web_url }}/build-manifest.json" | tee /tmp/web-build-manifest.json >/dev/null
           grep -q "${GITHUB_SHA}" /tmp/web-build-manifest.json
 
