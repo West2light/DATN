@@ -123,7 +123,7 @@ public class MapGameOverController : MonoBehaviour
 
         Text text = textObject.AddComponent<Text>();
         text.text = "GAME OVER";
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UiFontProvider.GetDefaultFont();
         text.fontSize = 48;
         text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;

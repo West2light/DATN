@@ -1,7 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -75,15 +77,17 @@ public class MenuViewBootstrap : MonoBehaviour
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
-    private enum Screen { Main, LanEntry, Outfit, MapSelect, LanMapSelect }
+    private enum Screen { Main, LanEntry, Outfit, MapSelect, LanMapSelect, InternetEntry }
 
     private Canvas     _canvas;
-    private GameObject _screenMain, _screenLanEntry, _screenOutfit, _screenMap, _screenLan;
+    private GameObject _screenMain, _screenLanEntry, _screenOutfit, _screenMap, _screenLan, _screenInternet;
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
+    private Text       _lanStatusText;
     private int        _selectedVariant;
     private bool       _isLanMode;   // true khi vào Outfit từ nút MULTIPLAYER LAN
+    private bool       _creatingInternetRoom;
     private readonly List<Image>  _variantSwatchImages = new List<Image>();
     private readonly List<GameObject> _variantRings    = new List<GameObject>();
 
@@ -115,7 +119,63 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildScreenOutfit();
         BuildScreenMapSelect();
         BuildScreenLanMapSelect();
+        BuildScreenInternetEntry();
         ShowScreen(Screen.Main);
+        TryAutoJoinInternetSession();
+    }
+
+    private void TryAutoJoinInternetSession()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        string joinTarget = GetAutoJoinTarget(Application.absoluteURL);
+        if (string.IsNullOrWhiteSpace(joinTarget))
+            return;
+
+        string defaultMap = Maps.Length > 0 ? Maps[0].mapFile : "Assets/MapData/random-32-32-10.map";
+        LanLobbyController.ShowAndJoin(defaultMap, "AStar", joinTarget);
+#endif
+    }
+
+    private static string GetAutoJoinTarget(string absoluteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(absoluteUrl))
+            return string.Empty;
+
+        if (!Uri.TryCreate(absoluteUrl, UriKind.Absolute, out Uri uri))
+            return string.Empty;
+
+        string sessionFromQuery = GetQueryValue(uri, "session");
+        if (!string.IsNullOrWhiteSpace(sessionFromQuery))
+            return $"{uri.Scheme}://{uri.Authority}/play?session={UnityWebRequest.EscapeURL(sessionFromQuery.Trim())}";
+
+        string[] segments = uri.AbsolutePath.Trim('/').Split(new[] { '/' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length >= 2 && segments[0].Equals("s", System.StringComparison.OrdinalIgnoreCase))
+            return $"{uri.Scheme}://{uri.Authority}/play?session={UnityWebRequest.EscapeURL(segments[1])}";
+
+        return string.Empty;
+    }
+
+    private static string GetQueryValue(Uri uri, string key)
+    {
+        string query = uri.Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+            return string.Empty;
+
+        string[] pairs = query.Split(new[] { '&' }, System.StringSplitOptions.RemoveEmptyEntries);
+        foreach (string pair in pairs)
+        {
+            string[] keyValue = pair.Split(new[] { '=' }, 2);
+            if (keyValue.Length == 0)
+                continue;
+
+            string currentKey = Uri.UnescapeDataString(keyValue[0]);
+            if (!currentKey.Equals(key, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return keyValue.Length > 1 ? Uri.UnescapeDataString(keyValue[1]) : string.Empty;
+        }
+
+        return string.Empty;
     }
 
     // ── Setup ──────────────────────────────────────────────────────────────
@@ -163,9 +223,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetImageRounded(card, PanelDark);
 
         // Title
-        MakeText(card.transform, "Title", "TANK MAPF",
+        Text title = MakeText(card.transform, "Title", "TANK MAPF",
             54, FontStyle.Bold, AccentGold,
             new Vector2(0.5f, 0.5f), new Vector2(0f, 170f), new Vector2(380f, 72f));
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.fontStyle = FontStyle.Bold;
+        title.transform.SetAsLastSibling();
 
         // Subtitle
         MakeText(card.transform, "Subtitle", "Multi-Agent Pathfinding",
@@ -183,12 +246,12 @@ public class MenuViewBootstrap : MonoBehaviour
         SetTextColor(btnStart.transform, new Color(0.10f, 0.09f, 0.09f));
         btnStart.onClick.AddListener(() => { _isLanMode = false; ShowScreen(Screen.Outfit); });
 
-        // MULTIPLAYER LAN — opens the LanEntry sub-screen (Host / Join)
-        Button btnMulti = MakeButton(card.transform, "BtnMulti",
-            "MULTIPLAYER  LAN", new Vector2(0f, -58f), new Vector2(290f, 60f),
+        // MULTIPLAYER INTERNET — vào màn chọn HOST / JOIN
+        Button btnHost = MakeButton(card.transform, "BtnHost",
+            "MULTIPLAYER  INTERNET", new Vector2(0f, -58f), new Vector2(290f, 60f),
             new Color(0.12f, 0.32f, 0.58f, 1f));
-        SetTextColor(btnMulti.transform, new Color(0.75f, 0.90f, 1f));
-        btnMulti.onClick.AddListener(() => ShowScreen(Screen.LanEntry));
+        SetTextColor(btnHost.transform, new Color(0.75f, 0.90f, 1f));
+        btnHost.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.InternetEntry); });
 
         // SHOP — disabled
         Button btnShop = MakeButton(card.transform, "BtnShop",
@@ -296,8 +359,8 @@ public class MenuViewBootstrap : MonoBehaviour
         BuildVariantSwatches(selectCard.transform, lockOverlay);
 
         // ── Navigation ─────────────────────────────────────────────────────
-        Button btnBack = MakeButton(_screenOutfit.transform, "BtnBack",
-            "← BACK", new Vector2(-500f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenOutfit.transform, "BtnBack",
+            new Vector2(-500f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
@@ -305,7 +368,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Button btnNext = MakeButton(_screenOutfit.transform, "BtnNext",
             "NEXT →", new Vector2(500f, -320f), new Vector2(130f, 46f), AccentGold);
         SetTextColor(btnNext.transform, new Color(0.10f, 0.09f, 0.09f));
-        btnNext.onClick.AddListener(() => ShowScreen(_isLanMode ? Screen.LanMapSelect : Screen.MapSelect));
+        btnNext.onClick.AddListener(() => ShowScreen(Screen.MapSelect));
 
         // Apply initial selection
         SelectVariant(_selectedVariant, lockOverlay);
@@ -428,8 +491,8 @@ public class MenuViewBootstrap : MonoBehaviour
         for (int i = 0; i < Maps.Length; i++)
             BuildMapCard(_screenMap.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
 
-        Button btnBack = MakeButton(_screenMap.transform, "BtnBack",
-            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenMap.transform, "BtnBack",
+            new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
@@ -466,7 +529,7 @@ public class MenuViewBootstrap : MonoBehaviour
 
         if (map.available && !string.IsNullOrEmpty(map.mapFile))
         {
-            BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+            BeginMiniMapPreview(preview.transform, map.mapFile, map.previewTint);
         }
         else
         {
@@ -559,11 +622,25 @@ public class MenuViewBootstrap : MonoBehaviour
 
     // ── Mini-map helpers ───────────────────────────────────────────────────
 
-    private static void BuildMiniMapRawImage(Transform previewParent, string mapFilePath, Color tint)
+    private void BeginMiniMapPreview(Transform previewParent, string mapFilePath, Color tint)
     {
-        char[][] grid = LoadMapGrid(mapFilePath);
-        if (grid == null || grid.Length == 0) return;
+        StartCoroutine(BuildMiniMapRawImageAsync(previewParent, mapFilePath, tint));
+    }
 
+    private System.Collections.IEnumerator BuildMiniMapRawImageAsync(Transform previewParent, string mapFilePath, Color tint)
+    {
+        char[][] grid = null;
+        yield return LoadMapGridAsync(mapFilePath, loadedGrid => grid = loadedGrid);
+        if (grid == null || grid.Length == 0)
+        {
+            ShowMiniMapPlaceholder(previewParent);
+            yield break;
+        }
+        BuildMiniMapRawImage(previewParent, grid, tint);
+    }
+
+    private static void BuildMiniMapRawImage(Transform previewParent, char[][] grid, Color tint)
+    {
         int rows = grid.Length;
         int cols = grid[0].Length;
 
@@ -607,7 +684,37 @@ public class MenuViewBootstrap : MonoBehaviour
         raw.color   = Color.white;
     }
 
-    private static char[][] LoadMapGrid(string assetPath)
+    private static void ShowMiniMapPlaceholder(Transform previewParent)
+    {
+        if (previewParent == null || previewParent.Find("Placeholder") != null)
+            return;
+
+        MakeText(previewParent, "Placeholder", "?",
+            42, FontStyle.Bold, new Color(1f, 1f, 1f, 0.12f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(122f, 60f));
+    }
+
+    private System.Collections.IEnumerator LoadMapGridAsync(string assetPath, Action<char[][]> onLoaded)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        using UnityWebRequest request = UnityWebRequest.Get(BuildWebGlMapUrl(assetPath));
+        yield return request.SendWebRequest();
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            onLoaded?.Invoke(ParseMapGridText(request.downloadHandler.text));
+        }
+        else
+        {
+            Debug.LogWarning($"[MenuViewBootstrap] Could not load minimap map data for '{assetPath}': {request.error}");
+            onLoaded?.Invoke(null);
+        }
+#else
+        onLoaded?.Invoke(LoadMapGridSync(assetPath));
+        yield break;
+#endif
+    }
+
+    private static char[][] LoadMapGridSync(string assetPath)
     {
         string fileName = Path.GetFileName(assetPath);
         string fullPath = Path.Combine(Application.streamingAssetsPath, "MapData", fileName);
@@ -619,7 +726,11 @@ public class MenuViewBootstrap : MonoBehaviour
             fullPath = Path.Combine(Application.dataPath, relativePart);
         }
         if (!File.Exists(fullPath)) return null;
-        string text = File.ReadAllText(fullPath);
+        return ParseMapGridText(File.ReadAllText(fullPath));
+    }
+
+    private static char[][] ParseMapGridText(string text)
+    {
         if (string.IsNullOrEmpty(text)) return null;
 
         var gridLines = new List<string>();
@@ -638,6 +749,16 @@ public class MenuViewBootstrap : MonoBehaviour
         return grid;
     }
 
+    private static string BuildWebGlMapUrl(string assetPath)
+    {
+        string fileName = Path.GetFileName(assetPath);
+        string escapedFileName = UnityWebRequest.EscapeURL(fileName);
+        if (Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out Uri pageUri))
+            return new Uri(pageUri, $"StreamingAssets/MapData/{escapedFileName}").ToString();
+
+        return $"StreamingAssets/MapData/{escapedFileName}";
+    }
+
     // ── Screen transition ──────────────────────────────────────────────────
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -649,13 +770,17 @@ public class MenuViewBootstrap : MonoBehaviour
         _screenLan = MakePanel(_canvas.transform, "ScreenLanMapSelect",
             Vector2.zero, new Vector2(1280f, 720f), BgDark);
 
-        MakeText(_screenLan.transform, "Title", "LAN  —  SELECT MAP & MODE",
+        MakeText(_screenLan.transform, "Title", "INTERNET  —  SELECT MAP & MODE",
             30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
 
         MakeText(_screenLan.transform, "Hint", "Chọn map và chế độ AI · số enemy = 6 × số người chơi",
             13, FontStyle.Italic, TextMuted,
             new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
+
+        _lanStatusText = MakeText(_screenLan.transform, "LanStatus", string.Empty,
+            13, FontStyle.Normal, TextMuted,
+            new Vector2(0.5f, 0f), new Vector2(0f, 58f), new Vector2(820f, 24f));
 
         const float CardW = 210f, CardH = 270f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
@@ -664,11 +789,11 @@ public class MenuViewBootstrap : MonoBehaviour
         for (int i = 0; i < Maps.Length; i++)
             BuildLanMapCard(_screenLan.transform, i, startX + i * (CardW + Gap), -15f, CardW, CardH);
 
-        Button btnBack = MakeButton(_screenLan.transform, "BtnBack",
-            "← BACK", new Vector2(-540f, -320f), new Vector2(130f, 46f),
+        Button btnBack = MakeBackButton(_screenLan.transform, "BtnBack",
+            new Vector2(-540f, -320f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
-        btnBack.onClick.AddListener(() => ShowScreen(Screen.Outfit));
+        btnBack.onClick.AddListener(() => ShowScreen(Screen.InternetEntry));
     }
 
     private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)
@@ -688,7 +813,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Color previewBg = Color.Lerp(map.previewTint, Color.black, 0.72f);
         GameObject preview = MakePanel(card.transform, "MapPreview",
             new Vector2(0f, previewCentreY), new Vector2(PreviewSize, PreviewSize), previewBg);
-        BuildMiniMapRawImage(preview.transform, map.mapFile, map.previewTint);
+        BeginMiniMapPreview(preview.transform, map.mapFile, map.previewTint);
         MakeText(preview.transform, "Badge", "#" + (idx + 1),
             11, FontStyle.Bold, new Color(1f, 1f, 1f, 0.55f),
             new Vector2(1f, 0f), new Vector2(-6f, 6f), new Vector2(30f, 18f));
@@ -720,12 +845,83 @@ public class MenuViewBootstrap : MonoBehaviour
                 new Vector2(firstBtnX + m * (btnW + BtnGap), btnCentreY),
                 new Vector2(btnW, BtnH), modeColors[m]);
             SetTextColor(modeBtn.transform, new Color(0.06f, 0.06f, 0.06f));
-            modeBtn.onClick.AddListener(() => LanLobbyController.ShowAsHost(mapFileCap, algoCap));
+            modeBtn.onClick.AddListener(() => HandleLanModeSelected(mapFileCap, algoCap, modeBtn));
         }
     }
 
+    private void HandleLanModeSelected(string mapFile, string algorithm, Button button)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (_creatingInternetRoom)
+            return;
+
+        StartCoroutine(CreateInternetRoomAndJoin(mapFile, algorithm, button));
+#else
+        LanLobbyController.Show(mapFile, algorithm);
+#endif
+    }
+
+    private System.Collections.IEnumerator CreateInternetRoomAndJoin(string mapFile, string algorithm, Button button)
+    {
+        _creatingInternetRoom = true;
+        if (button != null)
+            button.interactable = false;
+
+        SetLanStatus("Creating internet room...", TextMuted);
+
+        bool finished = false;
+        string joinTarget = string.Empty;
+        string error = string.Empty;
+
+        yield return InternetSessionClient.CreateRoom(
+            GetRuntimeRegistryBaseUrl(),
+            mapFile,
+            algorithm,
+            8,
+            url =>
+            {
+                joinTarget = url;
+                finished = true;
+            },
+            message =>
+            {
+                error = message;
+                finished = true;
+            });
+
+        _creatingInternetRoom = false;
+        if (button != null)
+            button.interactable = true;
+
+        if (!finished || !string.IsNullOrWhiteSpace(error))
+        {
+            SetLanStatus(string.IsNullOrWhiteSpace(error) ? "Create room did not complete." : error, new Color(1f, 0.4f, 0.4f));
+            yield break;
+        }
+
+        SetLanStatus("Room ready. Opening lobby and joining...", new Color(0.40f, 0.90f, 0.50f));
+        LanLobbyController.ShowAndJoin(mapFile, algorithm, joinTarget);
+    }
+
+    private string GetRuntimeRegistryBaseUrl()
+    {
+        if (Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out Uri uri))
+            return $"{uri.Scheme}://{uri.Authority}";
+
+        return "http://127.0.0.1";
+    }
+
+    private void SetLanStatus(string message, Color color)
+    {
+        if (_lanStatusText == null)
+            return;
+
+        _lanStatusText.text = message ?? string.Empty;
+        _lanStatusText.color = color;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // SCREEN: LAN Entry  (Host / Join picker)
+    // SCREEN: LAN Entry  (Host / Join picker — LAN only)
     // ═══════════════════════════════════════════════════════════════════════
 
     private void BuildScreenLanEntry()
@@ -752,11 +948,11 @@ public class MenuViewBootstrap : MonoBehaviour
             new Color(0.40f, 0.60f, 0.80f, 0.25f));
 
         // HOST GAME button
-        Button btnHost = MakeButton(card.transform, "BtnHost",
+        Button btnHostLan = MakeButton(card.transform, "BtnHost",
             "●  HOST GAME", new Vector2(0f, 0f), new Vector2(320f, 64f),
             new Color(0.14f, 0.38f, 0.70f, 1f));
-        SetTextColor(btnHost.transform, new Color(0.85f, 0.95f, 1f));
-        btnHost.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.Outfit); });
+        SetTextColor(btnHostLan.transform, new Color(0.85f, 0.95f, 1f));
+        btnHostLan.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.Outfit); });
 
         // Description under HOST
         MakeText(card.transform, "HostDesc", "Chọn Map → Tạo phòng → Chờ người chơi",
@@ -764,11 +960,11 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 0.5f), new Vector2(0f, -42f), new Vector2(340f, 18f));
 
         // JOIN GAME button
-        Button btnJoin = MakeButton(card.transform, "BtnJoin",
+        Button btnJoinLan = MakeButton(card.transform, "BtnJoin",
             "→  JOIN GAME", new Vector2(0f, -84f), new Vector2(320f, 64f),
             new Color(0.10f, 0.26f, 0.46f, 1f));
-        SetTextColor(btnJoin.transform, new Color(0.65f, 0.85f, 1f));
-        btnJoin.onClick.AddListener(() => LanLobbyController.ShowAsJoin());
+        SetTextColor(btnJoinLan.transform, new Color(0.65f, 0.85f, 1f));
+        btnJoinLan.onClick.AddListener(() => LanLobbyController.ShowAsJoin());
 
         // Description under JOIN
         MakeText(card.transform, "JoinDesc", "Nhập Room Code hoặc IP → Kết nối",
@@ -776,11 +972,51 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 0.5f), new Vector2(0f, -126f), new Vector2(340f, 18f));
 
         // Back button
-        Button btnBack = MakeButton(_screenLanEntry.transform, "BtnBack",
+        Button btnBackLan = MakeButton(_screenLanEntry.transform, "BtnBack",
             "← BACK", new Vector2(-500f, -300f), new Vector2(130f, 46f),
+            new Color(0.28f, 0.38f, 0.48f, 1f));
+        SetTextColor(btnBackLan.transform, TextLight);
+        btnBackLan.onClick.AddListener(() => ShowScreen(Screen.Main));
+    }
+
+    // SCREEN: Internet Entry (HOST / JOIN)
+    private void BuildScreenInternetEntry()
+    {
+        _screenInternet = MakePanel(_canvas.transform, "ScreenInternetEntry",
+            Vector2.zero, new Vector2(1280f, 720f), BgDark);
+
+        MakeText(_screenInternet.transform, "Title", "MULTIPLAYER INTERNET",
+            34, FontStyle.Bold, TextLight,
+            new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(720f, 52f));
+
+        MakeText(_screenInternet.transform, "Hint",
+            "Tạo phòng mới, hoặc tham gia bằng mã phòng / link mời",
+            15, FontStyle.Italic, TextMuted,
+            new Vector2(0.5f, 1f), new Vector2(0f, -108f), new Vector2(760f, 24f));
+
+        Button btnHostGame = MakeButton(_screenInternet.transform, "BtnHostGame",
+            "●  HOST GAME  —  Tạo phòng", new Vector2(0f, 40f), new Vector2(440f, 72f),
+            new Color(0.18f, 0.48f, 0.90f, 1f));
+        SetTextColor(btnHostGame.transform, TextLight);
+        btnHostGame.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
+
+        Button btnJoinRoom = MakeButton(_screenInternet.transform, "BtnJoinRoom",
+            "→  JOIN ROOM  —  Nhập mã / link", new Vector2(0f, -52f), new Vector2(440f, 72f),
+            new Color(0.20f, 0.55f, 0.32f, 1f));
+        SetTextColor(btnJoinRoom.transform, TextLight);
+        btnJoinRoom.onClick.AddListener(OpenJoinPrompt);
+
+        Button btnBack = MakeBackButton(_screenInternet.transform, "BtnBack",
+            new Vector2(-500f, -300f), new Vector2(130f, 46f),
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.Main));
+    }
+
+    private void OpenJoinPrompt()
+    {
+        string defaultMap = Maps.Length > 0 ? Maps[0].mapFile : "Assets/MapData/random-32-32-10.map";
+        LanLobbyController.ShowJoinPrompt(defaultMap, "AStar", GetRuntimeRegistryBaseUrl());
     }
 
     // ── Screen transition ──────────────────────────────────────────────────
@@ -792,6 +1028,7 @@ public class MenuViewBootstrap : MonoBehaviour
         if (_screenOutfit   != null) _screenOutfit.SetActive(screen == Screen.Outfit);
         if (_screenMap      != null) _screenMap.SetActive(screen == Screen.MapSelect);
         if (_screenLan      != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
+        if (_screenInternet != null) _screenInternet.SetActive(screen == Screen.InternetEntry);
     }
 
     // ── UI helpers ─────────────────────────────────────────────────────────
@@ -837,6 +1074,20 @@ public class MenuViewBootstrap : MonoBehaviour
         return btn;
     }
 
+    private static Button MakeBackButton(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
+    {
+        Button btn = MakeButton(parent, name, "← BACK", pos, size, color);
+
+        Text label = btn.GetComponentInChildren<Text>(true);
+        if (label != null)
+        {
+            label.color = TextLight;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
+        }
+        return btn;
+    }
+
     private static Text MakeText(Transform parent, string name, string value,
         int fontSize, FontStyle style, Color color,
         Vector2 anchor, Vector2 pos, Vector2 size)
@@ -855,7 +1106,7 @@ public class MenuViewBootstrap : MonoBehaviour
 
         var text = go.AddComponent<Text>();
         text.text      = value;
-        text.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font      = UiFontProvider.GetDefaultFont();
         text.fontSize  = fontSize;
         text.fontStyle = style;
         text.alignment = TextAnchor.MiddleCenter;

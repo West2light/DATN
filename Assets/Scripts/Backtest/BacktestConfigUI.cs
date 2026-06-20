@@ -11,6 +11,7 @@ public static class BacktestConfigUI
     private static readonly Color RowOn        = new Color(0.13f, 0.28f, 0.50f, 1f);
     private static readonly Color RowOff       = new Color(0.14f, 0.15f, 0.17f, 1f);
     private static readonly Color ChkBg        = new Color(0f,    0f,    0f,    0.35f);
+    private static readonly Color ChkOn        = new Color(0.62f, 0.88f, 0.70f, 1f);
     private static readonly Color AccentGold   = new Color(1.00f, 0.82f, 0.22f, 1f);
     private static readonly Color BtnGreen     = new Color(0.10f, 0.48f, 0.24f, 1f);
     private static readonly Color BtnSlate     = new Color(0.18f, 0.19f, 0.22f, 1f);
@@ -29,7 +30,7 @@ public static class BacktestConfigUI
     // ── State ──────────────────────────────────────────────────────────────
     private static bool[]     _sel;
     private static Image[]    _rowImg;
-    private static Text[]     _chkTxt;
+    private static Image[]    _chkMark;
     private static Text[]     _badgeTxt;
     private static Button     _startBtn;
     private static Text       _startLbl;
@@ -48,7 +49,7 @@ public static class BacktestConfigUI
         int n    = BacktestRunner.MapCount;
         _sel     = new bool[n];
         _rowImg  = new Image[n];
-        _chkTxt  = new Text[n];
+        _chkMark = new Image[n];
         _reps    = BacktestRunner.Reps;
         for (int i = 0; i < n; i++) _sel[i] = true;
 
@@ -181,15 +182,7 @@ public static class BacktestConfigUI
             cRt.sizeDelta = new Vector2(26f, 26f);
             chk.AddComponent<Image>().color = ChkBg;
 
-            var ct = Child(chk, "Mark", layer);
-            var ctRt = ct.GetComponent<RectTransform>();
-            ctRt.anchorMin = Vector2.zero; ctRt.anchorMax = Vector2.one;
-            ctRt.offsetMin = Vector2.zero; ctRt.offsetMax = Vector2.zero;
-            var ctTxt = ct.AddComponent<Text>();
-            ctTxt.text = "✓"; ctTxt.font = Fnt(); ctTxt.fontSize = 17;
-            ctTxt.fontStyle = FontStyle.Bold; ctTxt.color = TextWhite;
-            ctTxt.alignment = TextAnchor.MiddleCenter;
-            _chkTxt[i] = ctTxt;
+            _chkMark[i] = MakeCheckFill(chk, layer);
 
             // ── Map name (upper line) ──────────────────────────────────────
             string lbl  = BacktestRunner.GetMapLabel(i);
@@ -302,7 +295,7 @@ public static class BacktestConfigUI
     private static void ApplyRow(int i)
     {
         if (_rowImg[i] != null) _rowImg[i].color = _sel[i] ? RowOn : RowOff;
-        if (_chkTxt[i] != null) _chkTxt[i].text  = _sel[i] ? "✓" : "";
+        if (_chkMark[i] != null) _chkMark[i].enabled = _sel[i];
     }
 
     private static void RefreshStart()
@@ -469,7 +462,7 @@ public static class BacktestConfigUI
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
-    private static Font Fnt() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font Fnt() => UiFontProvider.GetDefaultFont();
 
     private static void Stretch(GameObject go)
     {
@@ -492,6 +485,20 @@ public static class BacktestConfigUI
         go.AddComponent<RectTransform>();
         go.transform.SetParent(parent.transform, false);
         return go;
+    }
+
+    private static Image MakeCheckFill(GameObject parent, int layer)
+    {
+        var go = Child(parent, "Fill", layer);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(10f, 10f);
+
+        var img = go.AddComponent<Image>();
+        img.color = ChkOn;
+        return img;
     }
 
     private static GameObject FootBtn(GameObject parent, int layer,

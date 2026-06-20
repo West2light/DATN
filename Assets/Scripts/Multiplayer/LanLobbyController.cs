@@ -1,9 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
-using Unity.Services.Relay.Models;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -12,15 +11,7 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// LAN lobby overlay.
-///
-/// Host path:  LanLobbyController.ShowAsHost(mapFile, algo)
-///             → creates room immediately (relay or LAN)
-///             → transitions to WaitingLobby
-///
-/// Client path: LanLobbyController.ShowAsJoin()
-///             → shows Joining screen (room code / IP input)
-///             → transitions to WaitingLobby after connect
+/// LAN lobby overlay.  Call  LanLobbyController.Show(mapFile, algorithm)  from the menu.
 /// </summary>
 public class LanLobbyController : MonoBehaviour
 {
@@ -29,172 +20,225 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Config ────────────────────────────────────────────────────────────────
     private const ushort GamePort   = 7777;
-    private const int    MaxPlayers = 4;
+    private const int    MaxPlayers = 8;
 
     // ── Palette ───────────────────────────────────────────────────────────────
-    private static readonly Color Bg         = new Color(0f,    0f,    0f,    0.90f);
-    private static readonly Color Panel      = new Color(0.08f, 0.10f, 0.13f, 1f);
-    private static readonly Color Gold       = new Color(1.00f, 0.82f, 0.22f, 1f);
-    private static readonly Color Blue       = new Color(0.18f, 0.48f, 0.90f, 1f);
-    private static readonly Color Green      = new Color(0.10f, 0.52f, 0.26f, 1f);
-    private static readonly Color Slate      = new Color(0.18f, 0.20f, 0.25f, 1f);
-    private static readonly Color Danger     = new Color(0.38f, 0.08f, 0.08f, 1f);
-    private static readonly Color White      = Color.white;
-    private static readonly Color Muted      = new Color(0.50f, 0.55f, 0.62f, 1f);
-    private static readonly Color BlueTint   = new Color(0.65f, 0.82f, 1.00f, 1f);
-    private static readonly Color Sep        = new Color(1f, 1f, 1f, 0.07f);
-    private static readonly Color ReadyGreen = new Color(0.12f, 0.60f, 0.30f, 1f);
-
-    // Tank body colors — must match MenuViewBootstrap.Variants order
-    private static readonly Color[] VariantColors =
-    {
-        new Color(0.22f, 0.50f, 0.90f, 1f), // 0 Blue
-        new Color(0.88f, 0.22f, 0.22f, 1f), // 1 Red
-        new Color(0.25f, 0.70f, 0.30f, 1f), // 2 Green
-        new Color(0.28f, 0.30f, 0.35f, 1f), // 3 Dark
-        new Color(0.82f, 0.72f, 0.38f, 1f), // 4 Sand
-    };
-    private static readonly string[] VariantLabels = { "Blue", "Red", "Green", "Dark", "Sand" };
+    private static readonly Color Bg          = new Color(0f,    0f,    0f,    0.90f);
+    private static readonly Color Panel       = new Color(0.08f, 0.10f, 0.13f, 1f);
+    private static readonly Color PanelLight  = new Color(0.11f, 0.14f, 0.18f, 1f);
+    private static readonly Color Gold        = new Color(1.00f, 0.82f, 0.22f, 1f);
+    private static readonly Color Blue        = new Color(0.18f, 0.48f, 0.90f, 1f);
+    private static readonly Color Green       = new Color(0.10f, 0.52f, 0.26f, 1f);
+    private static readonly Color Slate       = new Color(0.18f, 0.20f, 0.25f, 1f);
+    private static readonly Color Danger      = new Color(0.38f, 0.08f, 0.08f, 1f);
+    private static readonly Color White       = Color.white;
+    private static readonly Color Muted       = new Color(0.50f, 0.55f, 0.62f, 1f);
+    private static readonly Color BlueTint    = new Color(0.65f, 0.82f, 1.00f, 1f);
+    private static readonly Color Sep         = new Color(1f, 1f, 1f, 0.07f);
 
     // ── Panel dimensions ──────────────────────────────────────────────────────
-    private const float PW   = 520f;
-    private const float PH   = 480f;
-    private const float PadX = 22f;
+    // Header   : 0    → 72   (gold bar + title + map info + separator)
+    // Content  : 72   → 292  (status + ip box + player list)
+    // Separator: 292
+    // Footer   : bottom 188px (3 button rows + cancel)
+    // Total height: 480
+    private const float PW    = 680f;   // panel width (wider for the 2-column lobby)
+    private const float PH    = 480f;   // panel height
+    private const float PadX  = 22f;
     private float       FullW => PW - PadX * 2f;
 
-    // ── Screens ───────────────────────────────────────────────────────────────
-    private enum Screen { HostCreating, Joining, WaitingLobby }
+    // ── State ─────────────────────────────────────────────────────────────────
+    private enum Screen { Choose, Hosting, Joining, Lobby }
 
-    // ── Session state ─────────────────────────────────────────────────────────
-    private string       _mapFile, _algorithm;
-    private bool         _isHost;
+    private string     _mapFile, _algorithm;
     private LanDiscovery _discovery;
-    private GameObject   _root, _panel;
-    private int          _hostRetryCount;
-    private string       _roomCode;
-    private string       _pendingIp;
+    private GameObject _root, _panel;
+    private int        _hostRetryCount;
 
-    // ── HostCreating screen refs ──────────────────────────────────────────────
-    private GameObject _hostCreatingContainer;
-    private Text       _hostCreatingStatus;
+    // Content refs
+    private Text       _statusTxt;
+    private GameObject _ipBox;
+    private Text       _ipVal;
+    private Text       _playersTxt;
 
-    // ── Joining screen refs ───────────────────────────────────────────────────
-    private GameObject _joiningContainer;
-    private Text       _joiningStatus;
-    private InputField _joinInput;
+    // Footer refs (hosted as overlapping pairs at same Y)
+    private Button     _btnHost;       // Choose screen
+    private Button     _btnStart;      // Hosting screen (same Y as _btnHost)
+    private Button     _btnJoin;       // Choose screen
+    private GameObject _joinRow;       // Joining screen (same Y as _btnJoin): input+connect
+    private InputField _ipInput;
 
-    // ── WaitingLobby screen refs ──────────────────────────────────────────────
-    private GameObject _lobbyContainer;
-    private Text       _lobbyRoomCodeVal;
-    private Button[]   _variantBtns;
-    private Image[]    _variantBtnImgs;
-    private Text[]     _slotTexts;
+    // Waiting-lobby refs (internet client flow)
+    private GameObject _lobbyBox;       // content container with slot list + tank picker + code
+    private Text       _lobbySlotsTxt;  // multi-line player/slot list
+    private Text       _lobbyCodeTxt;   // room code + invite hint
+    private Button     _btnReadyLobby;  // y2: toggle local Ready
+    private Button     _btnStartLobby;  // y1: owner-only START (RequestStartServerRpc)
+    private Text       _btnReadyLabel, _btnStartLabel;
+    private readonly List<Image> _variantSwatches = new List<Image>();
+    private readonly List<GameObject> _variantRings = new List<GameObject>();
+    private Image      _lobbyTankPreview;
+    private Text       _lobbyTankName;
+    private int        _shownVariant = -1;
+    private string     _joinRegistryUrl = string.Empty;
+    private bool       _localReady;
+    private bool       _refreshingLobby;
+    private static Sprite[] _variantSpriteCache;
 
-    // ── Footer refs ───────────────────────────────────────────────────────────
-    private Button _btnStart;
-    private Button _btnReady;
-    private bool   _localReady;
-
-    // ── Entry points ──────────────────────────────────────────────────────────
-
-    /// <summary>Called from the LAN Map Select screen when the host picks a map.</summary>
-    public static void ShowAsHost(string mapFile, string algorithm)
+    // Display colors approximating the 5 unlocked tank body variants (blue/red/green/dark/sand)
+    private static readonly Color[] VariantColors =
     {
-        if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
-        CleanupSession();
+        new Color(0.22f, 0.48f, 0.90f), new Color(0.85f, 0.27f, 0.27f),
+        new Color(0.26f, 0.70f, 0.36f), new Color(0.40f, 0.42f, 0.48f),
+        new Color(0.82f, 0.71f, 0.42f),
+    };
 
-        var go = new GameObject("LanLobbyController");
-        DontDestroyOnLoad(go);
-        _instance            = go.AddComponent<LanLobbyController>();
-        _instance._mapFile   = mapFile;
-        _instance._algorithm = algorithm;
-        _instance._isHost    = true;
-        _instance.Build();
-        _instance.DoHost();
-    }
+    private readonly List<string> _clients = new List<string>();
+    private string _pendingIp;
+    private string _autoJoinTarget;
+    private bool   _connected;   // true between OnClientConnected and OnClientDisconnected
 
-    /// <summary>Called from the main menu JOIN button.</summary>
-    public static void ShowAsJoin()
-    {
-        if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
-        CleanupSession();
-
-        var go = new GameObject("LanLobbyController");
-        DontDestroyOnLoad(go);
-        _instance            = go.AddComponent<LanLobbyController>();
-        _instance._mapFile   = "";
-        _instance._algorithm = "AStar";
-        _instance._isHost    = false;
-        _instance.Build();
-        _instance.SwitchTo(Screen.Joining);
-    }
+    // ── Entry point ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Shuts down any live NetworkManager session and destroys bridge GameObjects.
-    /// Safe to call from any exit path; re-entrant calls are no-ops.
+    /// Shut down any live NetworkManager, destroy all bridge GameObjects immediately,
+    /// and deactivate LAN session state.  Safe to call from any exit path; re-entrant
+    /// calls after the first are no-ops (guarded by LanSessionManager.IsActive).
     /// </summary>
     public static void CleanupSession()
     {
+        // Guard: only the first call does real work.  When the server shuts down, the
+        // client receives OnNetworkDisconnect AND ReturnToMenuAfterDelay fires — both
+        // paths call CleanupSession, so we must not double-Shutdown.
         if (!LanSessionManager.IsActive) return;
-        LanSessionManager.Deactivate();
+        LanSessionManager.Deactivate();  // mark inactive before touching NGO so any
+                                          // re-entrant call from NGO callbacks bails out.
 
+        // Stop the 30 Hz sync coroutine before Shutdown so it cannot fire
+        // one more tick and call SendNamedMessageToAll on a shut-down NM.
         LanGameCoordinator.Instance?.StopSync();
 
         var nm = NetworkManager.Singleton;
         if (nm != null)
         {
-            if (nm.IsListening) nm.Shutdown();
+            if (nm.IsListening)
+                nm.Shutdown();
+
+            // Use DestroyImmediate for bridge GOs so they are gone BEFORE the deferred
+            // Destroy(nm) fires at end-of-frame.  If NM is destroyed first, NGO's
+            // internal NM.OnDestroy() may traverse the still-alive bridge NetworkObjects
+            // and throw MissingReferenceException.  Destroying bridges synchronously
+            // (while NM is still alive) prevents that race entirely.
             foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
                 if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
+
             UnityEngine.Object.Destroy(nm.gameObject);
         }
         else
         {
+            // NM already gone — clean up any orphaned bridge GOs that slipped through.
             foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
                 if (b != null) UnityEngine.Object.DestroyImmediate(b.gameObject);
         }
     }
 
-    // ── Build ─────────────────────────────────────────────────────────────────
+    public static void Show(string mapFile, string algorithm)
+    {
+        ShowInternal(mapFile, algorithm, string.Empty);
+    }
+
+    public static void ShowAndJoin(string mapFile, string algorithm, string joinTarget)
+    {
+        ShowInternal(mapFile, algorithm, joinTarget);
+    }
+
+    public static void ShowJoinPrompt(string mapFile, string algorithm, string registryUrl)
+    {
+        if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
+        CleanupSession();
+
+        var go = new GameObject("LanLobbyController");
+        DontDestroyOnLoad(go);
+        _instance                  = go.AddComponent<LanLobbyController>();
+        _instance._mapFile         = mapFile;
+        _instance._algorithm       = algorithm;
+        _instance._autoJoinTarget  = string.Empty;
+        _instance._joinRegistryUrl = registryUrl ?? string.Empty;
+        _instance.Build();
+        _instance.OpenJoinScreen();
+    }
+
+    private void OpenJoinScreen()
+    {
+        if (!EnsureNetworkManager()) return;
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+    }
+
+    private static void ShowInternal(string mapFile, string algorithm, string joinTarget)
+    {
+        if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
+        CleanupSession();
+
+        var go = new GameObject("LanLobbyController");
+        DontDestroyOnLoad(go);
+        _instance                = go.AddComponent<LanLobbyController>();
+        _instance._mapFile       = mapFile;
+        _instance._algorithm     = algorithm;
+        _instance._autoJoinTarget = joinTarget ?? string.Empty;
+        _instance.Build();
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (string.IsNullOrWhiteSpace(_instance._autoJoinTarget))
+            _instance.SwitchTo(Screen.Joining);
+#else
+        _instance.SwitchTo(Screen.Choose);
+#endif
+        if (!string.IsNullOrWhiteSpace(_instance._autoJoinTarget))
+            _instance.BeginAutoJoin();
+    }
+
+    // ── Build the whole overlay ───────────────────────────────────────────────
 
     private void Build()
     {
         int L = LayerMask.NameToLayer("UI");
 
+        // Root canvas
         _root = new GameObject("LanOverlay");
         DontDestroyOnLoad(_root);
         _root.layer = L;
         var cv = _root.AddComponent<Canvas>();
-        cv.renderMode   = RenderMode.ScreenSpaceOverlay;
+        cv.renderMode = RenderMode.ScreenSpaceOverlay;
         cv.sortingOrder = 300;
         var sc = _root.AddComponent<CanvasScaler>();
-        sc.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         sc.referenceResolution = new Vector2(1280f, 720f);
         _root.AddComponent<GraphicRaycaster>();
 
+        // Backdrop
         var dim = Mk(_root, "Dim", L);
         Stretch(dim); dim.AddComponent<Image>().color = Bg;
 
+        // Panel
         _panel = Mk(_root, "Panel", L);
         var pRt = _panel.GetComponent<RectTransform>();
         pRt.anchorMin = pRt.anchorMax = new Vector2(0.5f, 0.5f);
-        pRt.pivot     = new Vector2(0.5f, 0.5f);
+        pRt.pivot = new Vector2(0.5f, 0.5f);
         pRt.anchoredPosition = Vector2.zero;
-        pRt.sizeDelta        = new Vector2(PW, PH);
+        pRt.sizeDelta = new Vector2(PW, PH);
         _panel.AddComponent<Image>().color = Panel;
 
         BuildHeader(L);
-        BuildHostCreatingContent(L);
-        BuildJoiningContent(L);
-        BuildWaitingLobbyContent(L);
+        BuildContent(L);
         BuildFooter(L);
+        BuildLobby(L);
     }
 
-    // ── Header (always visible) ───────────────────────────────────────────────
+    // ── Header ────────────────────────────────────────────────────────────────
 
     private void BuildHeader(int L)
     {
-        // Gold accent bar
+        // Gold accent bar (top edge)
         var bar = Mk(_panel, "Bar", L);
         var bRt = bar.GetComponent<RectTransform>();
         bRt.anchorMin = new Vector2(0f, 1f); bRt.anchorMax = new Vector2(1f, 1f);
@@ -202,316 +246,658 @@ public class LanLobbyController : MonoBehaviour
         bRt.sizeDelta = new Vector2(0f, 5f);
         bar.AddComponent<Image>().color = Gold;
 
-        TLbl(_panel, "Title", "MULTIPLAYER  LAN",
+        // Title
+        string title =
+#if UNITY_WEBGL && !UNITY_EDITOR
+            "MULTIPLAYER  INTERNET";
+#else
+            "MULTIPLAYER  LAN";
+#endif
+        TLbl(_panel, "Title", title,
             22, FontStyle.Bold, Gold, new Vector2(0f, -16f), new Vector2(FullW, 28f));
 
-        // Sub-line: map info for host, join prompt for client
-        string sub = _isHost
-            ? $"{System.IO.Path.GetFileNameWithoutExtension(_mapFile)}  ·  {_algorithm}  ·  tối đa {MaxPlayers} người"
-            : "Nhập Room Code hoặc IP để tham gia phòng";
-        TLbl(_panel, "Sub", sub, 12, FontStyle.Normal, Muted,
-            new Vector2(0f, -48f), new Vector2(FullW, 18f));
+        // Map · algorithm line
+        string map = System.IO.Path.GetFileNameWithoutExtension(_mapFile);
+        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  tối đa {MaxPlayers} người",
+            12, FontStyle.Normal, Muted, new Vector2(0f, -48f), new Vector2(FullW, 18f));
 
         HSep(-72f, L);
     }
 
-    // ── HostCreating screen (shown while async room setup runs) ───────────────
+    // ── Content ───────────────────────────────────────────────────────────────
 
-    private void BuildHostCreatingContent(int L)
+    private void BuildContent(int L)
     {
-        _hostCreatingContainer = MkFillPanel("HostCreating", L);
-        _hostCreatingContainer.SetActive(false);
-
-        // Big centred status message
-        var sGo = Mk(_hostCreatingContainer, "Status", L);
+        // Status text
+        var sGo = Mk(_panel, "Status", L);
         var sRt = sGo.GetComponent<RectTransform>();
-        sRt.anchorMin = new Vector2(0f, 0.5f); sRt.anchorMax = new Vector2(1f, 0.5f);
-        sRt.pivot = new Vector2(0.5f, 0.5f);
-        sRt.anchoredPosition = new Vector2(0f, 20f);
-        sRt.sizeDelta = new Vector2(-PadX * 2f, 80f);
-        _hostCreatingStatus = sGo.AddComponent<Text>();
-        _hostCreatingStatus.font = F(); _hostCreatingStatus.fontSize = 16;
-        _hostCreatingStatus.color = Muted; _hostCreatingStatus.alignment = TextAnchor.MiddleCenter;
-        _hostCreatingStatus.horizontalOverflow = HorizontalWrapMode.Wrap;
-        _hostCreatingStatus.text = "Đang tạo phòng…";
-    }
+        sRt.anchorMin = new Vector2(0f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
+        sRt.pivot = new Vector2(0.5f, 1f);
+        sRt.anchoredPosition = new Vector2(0f, -88f);
+        sRt.sizeDelta = new Vector2(-PadX * 2f, 56f);
+        _statusTxt = sGo.AddComponent<Text>();
+        _statusTxt.font = F(); _statusTxt.fontSize = 14;
+        _statusTxt.color = White; _statusTxt.alignment = TextAnchor.MiddleCenter;
 
-    // ── Joining screen (Room Code / IP input) ─────────────────────────────────
-    //
-    //  y from content top (-72):
-    //   -88  status text  (h=36)
-    //  -138  input box    (h=52)  — prominent, full-width
-    //  -210  auto-discover hint  (h=20)
-    //  -240  connect button (h=52)
-
-    private void BuildJoiningContent(int L)
-    {
-        _joiningContainer = MkFillPanel("Joining", L);
-        _joiningContainer.SetActive(false);
-
-        // Status
-        var stGo = Mk(_joiningContainer, "Status", L);
-        var stRt = stGo.GetComponent<RectTransform>();
-        stRt.anchorMin = new Vector2(0f, 1f); stRt.anchorMax = new Vector2(1f, 1f);
-        stRt.pivot = new Vector2(0.5f, 1f);
-        stRt.anchoredPosition = new Vector2(0f, -88f);
-        stRt.sizeDelta = new Vector2(-PadX * 2f, 36f);
-        _joiningStatus = stGo.AddComponent<Text>();
-        _joiningStatus.font = F(); _joiningStatus.fontSize = 13;
-        _joiningStatus.color = Muted; _joiningStatus.alignment = TextAnchor.MiddleCenter;
-
-        // Input box
-        var ifBox = Mk(_joiningContainer, "InputBox", L);
-        var ibRt  = ifBox.GetComponent<RectTransform>();
+        // IP box (host-only)
+        _ipBox = Mk(_panel, "IpBox", L);
+        var ibRt = _ipBox.GetComponent<RectTransform>();
         ibRt.anchorMin = new Vector2(0f, 1f); ibRt.anchorMax = new Vector2(1f, 1f);
         ibRt.pivot = new Vector2(0.5f, 1f);
-        ibRt.anchoredPosition = new Vector2(0f, -134f);
-        ibRt.sizeDelta = new Vector2(-PadX * 2f, 52f);
-        ifBox.AddComponent<Image>().color = new Color(0.10f, 0.13f, 0.17f, 1f);
+        ibRt.anchoredPosition = new Vector2(0f, -154f);
+        ibRt.sizeDelta = new Vector2(-PadX * 2f, 60f);
+        _ipBox.AddComponent<Image>().color = new Color(0.06f, 0.14f, 0.26f, 1f);
+        _ipBox.SetActive(false);
 
-        // Input field inside box
-        var ifGo = Mk(ifBox, "Input", L);
-        var ifRt = ifGo.GetComponent<RectTransform>();
-        ifRt.anchorMin = Vector2.zero; ifRt.anchorMax = Vector2.one;
-        ifRt.offsetMin = new Vector2(14f, 0f); ifRt.offsetMax = new Vector2(-14f, 0f);
-        _joinInput = ifGo.AddComponent<InputField>();
+        // IP box border accent (left edge)
+        var accent = Mk(_ipBox, "Accent", L);
+        var aRt = accent.GetComponent<RectTransform>();
+        aRt.anchorMin = new Vector2(0f, 0f); aRt.anchorMax = new Vector2(0f, 1f);
+        aRt.pivot = new Vector2(0f, 0.5f);
+        aRt.anchoredPosition = Vector2.zero; aRt.sizeDelta = new Vector2(4f, 0f);
+        accent.AddComponent<Image>().color = Gold;
 
-        var ifTxtGo = Mk(ifGo, "T", L);
-        var ifTxtRt = ifTxtGo.GetComponent<RectTransform>();
-        ifTxtRt.anchorMin = Vector2.zero; ifTxtRt.anchorMax = Vector2.one;
-        ifTxtRt.offsetMin = ifTxtRt.offsetMax = Vector2.zero;
-        var ifTxtC = ifTxtGo.AddComponent<Text>();
-        ifTxtC.font = F(); ifTxtC.fontSize = 18; ifTxtC.color = White;
-        ifTxtC.alignment = TextAnchor.MiddleLeft;
-        _joinInput.textComponent = ifTxtC;
+        TLbl(_ipBox, "IpLbl",
+            "IP của bạn  —  share cho người chơi khác:",
+            11, FontStyle.Normal, Muted, new Vector2(0f, -6f), new Vector2(FullW - 16f, 18f));
 
-        var phGo = Mk(ifGo, "Ph", L);
-        var phRt = phGo.GetComponent<RectTransform>();
-        phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
-        phRt.offsetMin = phRt.offsetMax = Vector2.zero;
-        var phTxt = phGo.AddComponent<Text>();
-        phTxt.font = F(); phTxt.fontSize = 14; phTxt.color = Muted;
-        phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = "Room Code hoặc IP  (vd: AB3X7K / 192.168.1.5)";
-        phTxt.fontStyle = FontStyle.Italic;
-        _joinInput.placeholder = phTxt;
+        var ivGo = Mk(_ipBox, "IpVal", L);
+        var ivRt = ivGo.GetComponent<RectTransform>();
+        ivRt.anchorMin = new Vector2(0f, 0f); ivRt.anchorMax = new Vector2(1f, 0f);
+        ivRt.pivot = new Vector2(0.5f, 0f);
+        ivRt.anchoredPosition = new Vector2(0f, 8f); ivRt.sizeDelta = new Vector2(-16f, 26f);
+        _ipVal = ivGo.AddComponent<Text>();
+        _ipVal.font = F(); _ipVal.fontSize = 20; _ipVal.fontStyle = FontStyle.Bold;
+        _ipVal.color = Gold; _ipVal.alignment = TextAnchor.MiddleCenter;
 
-        // Auto-discover hint
-        var discGo = Mk(_joiningContainer, "Hint", L);
-        var dRt    = discGo.GetComponent<RectTransform>();
-        dRt.anchorMin = new Vector2(0f, 1f); dRt.anchorMax = new Vector2(1f, 1f);
-        dRt.pivot = new Vector2(0.5f, 1f);
-        dRt.anchoredPosition = new Vector2(0f, -198f);
-        dRt.sizeDelta = new Vector2(-PadX * 2f, 22f);
-        var dTxt = discGo.AddComponent<Text>();
-        dTxt.font = F(); dTxt.fontSize = 11; dTxt.color = Muted;
-        dTxt.alignment = TextAnchor.MiddleCenter;
-        dTxt.text = "Đang tự động tìm host trong mạng LAN…";
+        // Player list (host-only)
+        var plGo = Mk(_panel, "Players", L);
+        var plRt = plGo.GetComponent<RectTransform>();
+        plRt.anchorMin = new Vector2(0f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
+        plRt.pivot = new Vector2(0.5f, 1f);
+        plRt.anchoredPosition = new Vector2(0f, -224f);
+        plRt.sizeDelta = new Vector2(-PadX * 2f, 60f);
+        _playersTxt = plGo.AddComponent<Text>();
+        _playersTxt.font = F(); _playersTxt.fontSize = 13;
+        _playersTxt.color = BlueTint; _playersTxt.alignment = TextAnchor.UpperLeft;
+        plGo.SetActive(false);
 
-        // Connect button
-        var cnGo = Mk(_joiningContainer, "BtnConnect", L);
-        var cnRt = cnGo.GetComponent<RectTransform>();
-        cnRt.anchorMin = new Vector2(0f, 1f); cnRt.anchorMax = new Vector2(1f, 1f);
-        cnRt.pivot = new Vector2(0.5f, 1f);
-        cnRt.anchoredPosition = new Vector2(0f, -232f);
-        cnRt.sizeDelta = new Vector2(-PadX * 2f, 52f);
-        cnGo.AddComponent<Image>().color = Blue;
-        var cnBtn = cnGo.AddComponent<Button>(); cnBtn.targetGraphic = cnGo.GetComponent<Image>();
-        cnBtn.onClick.AddListener(() => DoConnect(_joinInput.text.Trim()));
-        LblFill(cnGo, "→  KẾT NỐI", 16, FontStyle.Bold, White, L);
-
-        HSep(-72f - 300f, L);   // divider just above footer
-    }
-
-    // ── WaitingLobby screen ───────────────────────────────────────────────────
-    //
-    //  y from panel top:
-    //   -82   Room Code box   (h=50)
-    //  -142   Variant label   (h=16)
-    //  -162   Variant buttons (h=38)
-    //  -210   Sep
-    //  -220   Players header  (h=16)
-    //  -238 .. -297  4 slot rows (14px + 2px gap each)
-
-    private void BuildWaitingLobbyContent(int L)
-    {
-        _lobbyContainer = MkFillPanel("Lobby", L);
-        _lobbyContainer.SetActive(false);
-
-        // Room Code box
-        var rcBox = Mk(_lobbyContainer, "RcBox", L);
-        var rcRt  = rcBox.GetComponent<RectTransform>();
-        rcRt.anchorMin = new Vector2(0f, 1f); rcRt.anchorMax = new Vector2(1f, 1f);
-        rcRt.pivot = new Vector2(0.5f, 1f);
-        rcRt.anchoredPosition = new Vector2(0f, -82f);
-        rcRt.sizeDelta = new Vector2(-PadX * 2f, 50f);
-        rcBox.AddComponent<Image>().color = new Color(0.06f, 0.14f, 0.26f, 1f);
-
-        var rcAccent = Mk(rcBox, "Accent", L);
-        var raRt = rcAccent.GetComponent<RectTransform>();
-        raRt.anchorMin = new Vector2(0f, 0f); raRt.anchorMax = new Vector2(0f, 1f);
-        raRt.pivot = new Vector2(0f, 0.5f);
-        raRt.anchoredPosition = Vector2.zero; raRt.sizeDelta = new Vector2(4f, 0f);
-        rcAccent.AddComponent<Image>().color = Gold;
-
-        var rcLbl = Mk(rcBox, "Lbl", L);
-        var rlRt  = rcLbl.GetComponent<RectTransform>();
-        rlRt.anchorMin = new Vector2(0f, 1f); rlRt.anchorMax = new Vector2(1f, 1f);
-        rlRt.pivot = new Vector2(0.5f, 1f);
-        rlRt.anchoredPosition = new Vector2(0f, -4f); rlRt.sizeDelta = new Vector2(-12f, 14f);
-        var rlTxt = rcLbl.AddComponent<Text>();
-        rlTxt.font = F(); rlTxt.fontSize = 11; rlTxt.color = Muted;
-        rlTxt.alignment = TextAnchor.MiddleCenter;
-        rlTxt.text = "Room Code  —  chia sẻ để người khác join:";
-
-        var rcVal = Mk(rcBox, "Val", L);
-        var rvRt  = rcVal.GetComponent<RectTransform>();
-        rvRt.anchorMin = new Vector2(0f, 0f); rvRt.anchorMax = new Vector2(1f, 0f);
-        rvRt.pivot = new Vector2(0.5f, 0f);
-        rvRt.anchoredPosition = new Vector2(0f, 4f); rvRt.sizeDelta = new Vector2(-12f, 28f);
-        _lobbyRoomCodeVal = rcVal.AddComponent<Text>();
-        _lobbyRoomCodeVal.font = F(); _lobbyRoomCodeVal.fontSize = 22;
-        _lobbyRoomCodeVal.fontStyle = FontStyle.Bold;
-        _lobbyRoomCodeVal.color = Gold; _lobbyRoomCodeVal.alignment = TextAnchor.MiddleCenter;
-        _lobbyRoomCodeVal.verticalOverflow = VerticalWrapMode.Overflow;
-
-        // Variant label
-        var bodyLbl = Mk(_lobbyContainer, "BodyLbl", L);
-        var blRt    = bodyLbl.GetComponent<RectTransform>();
-        blRt.anchorMin = new Vector2(0f, 1f); blRt.anchorMax = new Vector2(1f, 1f);
-        blRt.pivot = new Vector2(0.5f, 1f);
-        blRt.anchoredPosition = new Vector2(0f, -140f); blRt.sizeDelta = new Vector2(-PadX * 2f, 16f);
-        var blTxt = bodyLbl.AddComponent<Text>();
-        blTxt.font = F(); blTxt.fontSize = 12; blTxt.color = Muted;
-        blTxt.alignment = TextAnchor.MiddleLeft;
-        blTxt.text = "Chọn màu xe tăng:";
-
-        // Variant swatches
-        int   varCount = VariantColors.Length;
-        float btnW     = (FullW - (varCount - 1) * 6f) / varCount;
-        _variantBtns    = new Button[varCount];
-        _variantBtnImgs = new Image[varCount];
-        for (int i = 0; i < varCount; i++)
-        {
-            int idx = i;
-            var vGo = Mk(_lobbyContainer, $"V{i}", L);
-            var vRt = vGo.GetComponent<RectTransform>();
-            vRt.anchorMin = new Vector2(0f, 1f); vRt.anchorMax = new Vector2(0f, 1f);
-            vRt.pivot = new Vector2(0f, 1f);
-            vRt.anchoredPosition = new Vector2(PadX + i * (btnW + 6f), -160f);
-            vRt.sizeDelta = new Vector2(btnW, 38f);
-            var vImg = vGo.AddComponent<Image>(); vImg.color = VariantColors[i];
-            _variantBtnImgs[i] = vImg;
-            var vBtn = vGo.AddComponent<Button>(); vBtn.targetGraphic = vImg;
-            vBtn.onClick.AddListener(() => OnPickVariant(idx));
-            _variantBtns[i] = vBtn;
-            var nGo = Mk(vGo, "N", L);
-            var nRt = nGo.GetComponent<RectTransform>();
-            nRt.anchorMin = Vector2.zero; nRt.anchorMax = Vector2.one;
-            nRt.offsetMin = nRt.offsetMax = Vector2.zero;
-            var nTxt = nGo.AddComponent<Text>();
-            nTxt.font = F(); nTxt.fontSize = 11; nTxt.fontStyle = FontStyle.Bold;
-            nTxt.color = White; nTxt.alignment = TextAnchor.MiddleCenter;
-            nTxt.text = VariantLabels[i];
-        }
-
-        // Sep
-        {
-            var go = Mk(_lobbyContainer, "Sep", L);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.anchoredPosition = new Vector2(0f, -208f); rt.sizeDelta = new Vector2(0f, 1f);
-            go.AddComponent<Image>().color = Sep;
-        }
-
-        // Players header
-        var plHdr = Mk(_lobbyContainer, "PlHdr", L);
-        var phRt  = plHdr.GetComponent<RectTransform>();
-        phRt.anchorMin = new Vector2(0f, 1f); phRt.anchorMax = new Vector2(1f, 1f);
-        phRt.pivot = new Vector2(0.5f, 1f);
-        phRt.anchoredPosition = new Vector2(0f, -218f); phRt.sizeDelta = new Vector2(-PadX * 2f, 16f);
-        var phTxt = plHdr.AddComponent<Text>();
-        phTxt.font = F(); phTxt.fontSize = 12; phTxt.color = Muted;
-        phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = $"Người chơi  (0/{MaxPlayers})";
-
-        // Slot rows
-        _slotTexts = new Text[MaxPlayers];
-        for (int i = 0; i < MaxPlayers; i++)
-        {
-            var slGo = Mk(_lobbyContainer, $"Slot{i}", L);
-            var slRt = slGo.GetComponent<RectTransform>();
-            slRt.anchorMin = new Vector2(0f, 1f); slRt.anchorMax = new Vector2(1f, 1f);
-            slRt.pivot = new Vector2(0.5f, 1f);
-            slRt.anchoredPosition = new Vector2(0f, -238f - i * 15f);
-            slRt.sizeDelta = new Vector2(-PadX * 2f, 14f);
-            _slotTexts[i] = slGo.AddComponent<Text>();
-            _slotTexts[i].font = F(); _slotTexts[i].fontSize = 12;
-            _slotTexts[i].color = Muted; _slotTexts[i].alignment = TextAnchor.MiddleLeft;
-            _slotTexts[i].text = $"  Slot {i + 1}  —";
-        }
+        HSep(-292f, L);
     }
 
     // ── Footer ────────────────────────────────────────────────────────────────
     //
-    //  y= 14  h=36   [CANCEL]             always
-    //  y= 58  h=44   [START GAME]         WaitingLobby host only
-    //  y=110  h=44   [READY]              WaitingLobby
+    //  Layout from bottom (all anchored to panel bottom-center):
+    //
+    //  y= 14  h=36   [CANCEL]                   ← always visible
+    //  y= 58  h=52   [HOST GAME]  or  [START GAME]   ← toggled
+    //  y=118  h=44   [JOIN (nhập IP)]  or  [IP row]  ← toggled
 
     private void BuildFooter(int L)
     {
-        BtnFull("BtnCancel", "CANCEL", Danger, new Color(1f, 0.55f, 0.55f), 14f, 36f, Close);
+        const float BH = 36f;   // cancel height
+        const float PH1 = 52f;  // host / start height
+        const float PH2 = 44f;  // join height
+        const float Gap = 8f;
 
-        _btnStart = BtnFull("BtnStart", "▶  START GAME", Green, White, 58f, 44f, DoStartGame);
-        _btnStart.gameObject.SetActive(false);
+        float y0 = 14f;                    // cancel bottom
+        float y1 = y0 + BH + Gap;         // 58
+        float y2 = y1 + PH1 + Gap;        // 118
 
-        _btnReady = BtnFull("BtnReady", "◉  READY", Slate, White, 110f, 44f, DoToggleReady);
-        _btnReady.gameObject.SetActive(false);
+        // CANCEL — always visible, subtle
+        BtnFull("BtnCancel", "CANCEL", Danger, new Color(1f, 0.55f, 0.55f),
+            y0, BH, Close);
+
+        // HOST GAME — Choose screen
+        _btnHost = BtnFull("BtnHost", "●  HOST GAME", Blue, White,
+            y1, PH1, DoHost);
+
+        // START GAME — Hosting screen (same Y, toggled with _btnHost)
+        _btnStart = BtnFull("BtnStart", "▶  START GAME", Green, White,
+            y1, PH1, DoStartGame);
+
+        // JOIN — Choose screen
+        _btnJoin = BtnFull("BtnJoin", "→  JOIN  (nhập IP host)", Slate, White,
+            y2, PH2, ShowJoinRow);
+
+        // JOIN ROW — Joining screen (same Y, replaces _btnJoin)
+        _joinRow = BuildJoinRow(L, y2, PH2);
+
+        // START GAME (owner, Lobby screen) — same Y as host/start, toggled by screen.
+        _btnStartLobby = BtnFull("BtnStartLobby", "▶  START GAME", Green, White,
+            y1, PH1, DoLobbyStart);
+        _btnStartLabel = _btnStartLobby.GetComponentInChildren<Text>();
+        SetVis(_btnStartLobby, false);
+
+        // READY toggle (Lobby screen) — same Y as join.
+        _btnReadyLobby = BtnFull("BtnReadyLobby", "✔  SẴN SÀNG", Blue, White,
+            y2, PH2, DoToggleReady);
+        _btnReadyLabel = _btnReadyLobby.GetComponentInChildren<Text>();
+        SetVis(_btnReadyLobby, false);
+    }
+
+    // ── Waiting lobby (internet client flow) ───────────────────────────────────
+
+    private void BuildLobby(int L)
+    {
+        _lobbyBox = Mk(_panel, "LobbyBox", L);
+        var rt = _lobbyBox.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, -100f);
+        rt.sizeDelta = new Vector2(-PadX * 2f, 210f);
+        _lobbyBox.SetActive(false);
+
+        // Left column: tank preview.
+        var prevLbl = Mk(_lobbyBox, "PrevLbl", L);
+        var prRt = prevLbl.GetComponent<RectTransform>();
+        prRt.anchorMin = new Vector2(0f, 1f); prRt.anchorMax = new Vector2(0.34f, 1f);
+        prRt.pivot = new Vector2(0.5f, 1f);
+        prRt.anchoredPosition = new Vector2(0f, 0f); prRt.sizeDelta = new Vector2(0f, 16f);
+        var prTxt = prevLbl.AddComponent<Text>();
+        prTxt.font = F(); prTxt.fontSize = 11; prTxt.color = Muted;
+        prTxt.alignment = TextAnchor.MiddleCenter; prTxt.text = "PREVIEW";
+
+        var holder = Mk(_lobbyBox, "Holder", L);
+        var hRt = holder.GetComponent<RectTransform>();
+        hRt.anchorMin = new Vector2(0.03f, 1f); hRt.anchorMax = new Vector2(0.31f, 1f);
+        hRt.pivot = new Vector2(0.5f, 1f);
+        hRt.anchoredPosition = new Vector2(0f, -20f); hRt.sizeDelta = new Vector2(0f, 120f);
+        holder.AddComponent<Image>().color = new Color(0.06f, 0.12f, 0.18f, 1f);
+
+        var imgGo = Mk(holder, "TankImg", L);
+        var imRt = imgGo.GetComponent<RectTransform>();
+        imRt.anchorMin = new Vector2(0.12f, 0.12f); imRt.anchorMax = new Vector2(0.88f, 0.88f);
+        imRt.offsetMin = imRt.offsetMax = Vector2.zero;
+        _lobbyTankPreview = imgGo.AddComponent<Image>();
+        _lobbyTankPreview.preserveAspect = true;
+
+        var nameGo = Mk(_lobbyBox, "TankName", L);
+        var nmRt = nameGo.GetComponent<RectTransform>();
+        nmRt.anchorMin = new Vector2(0f, 1f); nmRt.anchorMax = new Vector2(0.34f, 1f);
+        nmRt.pivot = new Vector2(0.5f, 1f);
+        nmRt.anchoredPosition = new Vector2(0f, -146f); nmRt.sizeDelta = new Vector2(0f, 22f);
+        _lobbyTankName = nameGo.AddComponent<Text>();
+        _lobbyTankName.font = F(); _lobbyTankName.fontSize = 16; _lobbyTankName.fontStyle = FontStyle.Bold;
+        _lobbyTankName.color = Gold; _lobbyTankName.alignment = TextAnchor.MiddleCenter;
+        _lobbyTankName.text = "Blue";
+
+        // Right column: slots, swatches, room code, and copy action.
+        var slots = Mk(_lobbyBox, "Slots", L);
+        var sRt = slots.GetComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(0.38f, 1f); sRt.anchorMax = new Vector2(1f, 1f);
+        sRt.pivot = new Vector2(0.5f, 1f);
+        sRt.anchoredPosition = new Vector2(0f, 0f); sRt.sizeDelta = new Vector2(0f, 96f);
+        _lobbySlotsTxt = slots.AddComponent<Text>();
+        _lobbySlotsTxt.font = F(); _lobbySlotsTxt.fontSize = 13;
+        _lobbySlotsTxt.color = BlueTint; _lobbySlotsTxt.alignment = TextAnchor.UpperLeft;
+        _lobbySlotsTxt.text = "Đang tải danh sách người chơi…";
+
+        var pickLbl = Mk(_lobbyBox, "PickLbl", L);
+        var plRt = pickLbl.GetComponent<RectTransform>();
+        plRt.anchorMin = new Vector2(0.38f, 1f); plRt.anchorMax = new Vector2(1f, 1f);
+        plRt.pivot = new Vector2(0f, 1f);
+        plRt.anchoredPosition = new Vector2(0f, -100f); plRt.sizeDelta = new Vector2(0f, 16f);
+        var plTxt = pickLbl.AddComponent<Text>();
+        plTxt.font = F(); plTxt.fontSize = 11; plTxt.color = Muted;
+        plTxt.alignment = TextAnchor.MiddleLeft; plTxt.text = "Chọn màu tank:";
+
+        var picker = Mk(_lobbyBox, "Picker", L);
+        var pkRt = picker.GetComponent<RectTransform>();
+        pkRt.anchorMin = new Vector2(0.38f, 1f); pkRt.anchorMax = new Vector2(1f, 1f);
+        pkRt.pivot = new Vector2(0.5f, 1f);
+        pkRt.anchoredPosition = new Vector2(0f, -120f); pkRt.sizeDelta = new Vector2(0f, 32f);
+        _variantRings.Clear();
+        _variantSwatches.Clear();
+        for (int i = 0; i < VariantColors.Length; i++)
+        {
+            int idx = i;
+            float x0 = i * 0.2f, x1 = i * 0.2f + 0.17f;
+
+            var ring = Mk(picker, $"Ring{i}", L);
+            var rgRt = ring.GetComponent<RectTransform>();
+            rgRt.anchorMin = new Vector2(x0, 0f); rgRt.anchorMax = new Vector2(x1, 1f);
+            rgRt.offsetMin = new Vector2(-3f, -3f); rgRt.offsetMax = new Vector2(3f, 3f);
+            ring.AddComponent<Image>().color = new Color(1f, 0.82f, 0.15f, 0.95f);
+            ring.SetActive(false);
+            _variantRings.Add(ring);
+
+            var sw = Mk(picker, $"Sw{i}", L);
+            var swRt = sw.GetComponent<RectTransform>();
+            swRt.anchorMin = new Vector2(x0, 0f); swRt.anchorMax = new Vector2(x1, 1f);
+            swRt.offsetMin = swRt.offsetMax = Vector2.zero;
+            var img = sw.AddComponent<Image>(); img.color = VariantColors[i];
+            var btn = sw.AddComponent<Button>(); btn.targetGraphic = img;
+            btn.onClick.AddListener(() => PickVariant(idx));
+            _variantSwatches.Add(img);
+        }
+
+        var code = Mk(_lobbyBox, "Code", L);
+        var cRt = code.GetComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0.38f, 1f); cRt.anchorMax = new Vector2(0.72f, 1f);
+        cRt.pivot = new Vector2(0f, 1f);
+        cRt.anchoredPosition = new Vector2(0f, -160f); cRt.sizeDelta = new Vector2(0f, 26f);
+        _lobbyCodeTxt = code.AddComponent<Text>();
+        _lobbyCodeTxt.font = F(); _lobbyCodeTxt.fontSize = 13; _lobbyCodeTxt.fontStyle = FontStyle.Bold;
+        _lobbyCodeTxt.color = Gold; _lobbyCodeTxt.alignment = TextAnchor.MiddleLeft;
+
+        var copy = Mk(_lobbyBox, "Copy", L);
+        var cpRt = copy.GetComponent<RectTransform>();
+        cpRt.anchorMin = new Vector2(0.74f, 1f); cpRt.anchorMax = new Vector2(1f, 1f);
+        cpRt.pivot = new Vector2(1f, 1f);
+        cpRt.anchoredPosition = new Vector2(0f, -158f); cpRt.sizeDelta = new Vector2(0f, 28f);
+        copy.AddComponent<Image>().color = Slate;
+        var copyBtn = copy.AddComponent<Button>(); copyBtn.targetGraphic = copy.GetComponent<Image>();
+        copyBtn.onClick.AddListener(CopyInvite);
+        LblFill(copy, "COPY LINK", 11, FontStyle.Bold, White, L);
+
+        EnsureVariantSpritesLoaded();
+        UpdateLobbyPreview(LanSessionManager.LocalVariantIndex);
+    }
+
+    private static readonly string[] VariantBodyFiles =
+    { "tankBody_blue", "tankBody_red", "tankBody_green", "tankBody_dark", "tankBody_sand" };
+
+    private void UpdateLobbyPreview(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantColors.Length - 1);
+        if (idx == _shownVariant)
+            return;
+
+        _shownVariant = idx;
+        if (_lobbyTankPreview != null)
+        {
+            Sprite spr = _variantSpriteCache != null && idx < _variantSpriteCache.Length
+                ? _variantSpriteCache[idx]
+                : null;
+            _lobbyTankPreview.sprite = spr;
+            _lobbyTankPreview.color = spr != null ? Color.white : VariantColors[idx];
+        }
+        if (_lobbyTankName != null) _lobbyTankName.text = VariantDisplayName(idx);
+        for (int i = 0; i < _variantRings.Count; i++)
+            if (_variantRings[i] != null) _variantRings[i].SetActive(i == idx);
+    }
+
+    private static void EnsureVariantSpritesLoaded()
+    {
+        if (_variantSpriteCache != null)
+            return;
+
+        _variantSpriteCache = new Sprite[VariantBodyFiles.Length];
+        for (int i = 0; i < VariantBodyFiles.Length; i++)
+            _variantSpriteCache[i] = LoadVariantSprite(i);
+    }
+
+    private static string VariantDisplayName(int i)
+    {
+        switch (Mathf.Clamp(i, 0, 4))
+        {
+            case 0:  return "Blue";
+            case 1:  return "Red";
+            case 2:  return "Green";
+            case 3:  return "Dark";
+            default: return "Sand";
+        }
+    }
+
+    private static Sprite LoadVariantSprite(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantBodyFiles.Length - 1);
+        string file = VariantBodyFiles[idx];
+#if UNITY_EDITOR
+        string path = "Assets/Sprites/Kenny Topdown Tanks Redux/PNG/Retina/" + file + ".png";
+        var spr = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (spr != null) return spr;
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (tex != null)
+            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        return null;
+#else
+        Sprite spr = Resources.Load<Sprite>("TankSprites/" + file);
+        if (spr != null) return spr;
+        Texture2D rtex = Resources.Load<Texture2D>("TankSprites/" + file);
+        if (rtex == null) return null;
+        return Sprite.Create(rtex, new Rect(0, 0, rtex.width, rtex.height), new Vector2(0.5f, 0.5f), 128f);
+#endif
+    }
+
+    private GameObject BuildJoinRow(int L, float yFromBottom, float rowH)
+    {
+        var row = Mk(_panel, "JoinRow", L);
+        var rt  = row.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yFromBottom);
+        rt.sizeDelta = new Vector2(FullW, rowH);
+        row.SetActive(false);
+
+        // "Back" button (left ~15%)
+        var backGo = Mk(row, "Back", L);
+        var bkRt   = backGo.GetComponent<RectTransform>();
+        bkRt.anchorMin = new Vector2(0f, 0f); bkRt.anchorMax = new Vector2(0.13f, 1f);
+        bkRt.offsetMin = bkRt.offsetMax = Vector2.zero;
+        backGo.AddComponent<Image>().color = Slate;
+        var bkBtn = backGo.AddComponent<Button>(); bkBtn.targetGraphic = backGo.GetComponent<Image>();
+        bkBtn.onClick.AddListener(SwitchToChoose);
+        LblFill(backGo, "◀", 16, FontStyle.Bold, Muted, L);
+
+        // IP InputField (middle ~55%)
+        var ifGo = Mk(row, "IpInput", L);
+        var ifRt = ifGo.GetComponent<RectTransform>();
+        ifRt.anchorMin = new Vector2(0.14f, 0f); ifRt.anchorMax = new Vector2(0.70f, 1f);
+        ifRt.offsetMin = new Vector2(2f, 0f); ifRt.offsetMax = Vector2.zero;
+        ifGo.AddComponent<Image>().color = new Color(0.10f, 0.12f, 0.16f, 1f);
+        _ipInput = ifGo.AddComponent<InputField>();
+        var ifTxt = Mk(ifGo, "T", L);
+        var ifTxtRt = ifTxt.GetComponent<RectTransform>();
+        ifTxtRt.anchorMin = Vector2.zero; ifTxtRt.anchorMax = Vector2.one;
+        ifTxtRt.offsetMin = new Vector2(10f, 0f); ifTxtRt.offsetMax = Vector2.zero;
+        var ifTxtC = ifTxt.AddComponent<Text>();
+        ifTxtC.font = F(); ifTxtC.fontSize = 14; ifTxtC.color = White;
+        ifTxtC.alignment = TextAnchor.MiddleLeft;
+        _ipInput.textComponent = ifTxtC;
+        _ipInput.text = "";
+
+        // Placeholder
+        var phGo = Mk(ifGo, "Ph", L);
+        var phRt = phGo.GetComponent<RectTransform>();
+        phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
+        phRt.offsetMin = new Vector2(10f, 0f); phRt.offsetMax = Vector2.zero;
+        var phTxt = phGo.AddComponent<Text>();
+        phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
+        phTxt.alignment = TextAnchor.MiddleLeft;
+        phTxt.text = "Nhập IP, IP:port, invite link, hoặc session code";
+        phTxt.fontStyle = FontStyle.Italic;
+        _ipInput.placeholder = phTxt;
+
+        // KẾT NỐI button (right ~30%)
+        var cnGo = Mk(row, "Connect", L);
+        var cnRt = cnGo.GetComponent<RectTransform>();
+        cnRt.anchorMin = new Vector2(0.71f, 0f); cnRt.anchorMax = new Vector2(1f, 1f);
+        cnRt.offsetMin = new Vector2(2f, 0f); cnRt.offsetMax = Vector2.zero;
+        cnGo.AddComponent<Image>().color = Blue;
+        var cnBtn = cnGo.AddComponent<Button>(); cnBtn.targetGraphic = cnGo.GetComponent<Image>();
+        cnBtn.onClick.AddListener(() => DoConnect(_ipInput.text.Trim()));
+        LblFill(cnGo, "JOIN", 13, FontStyle.Bold, White, L);
+
+        return row;
+    }
+
+    private void PositionJoinRowForJoinScreen()
+    {
+        if (_joinRow == null)
+            return;
+
+        var rt = _joinRow.GetComponent<RectTransform>();
+        if (rt == null)
+            return;
+
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 66f);
+        rt.sizeDelta = new Vector2(FullW, 56f);
     }
 
     // ── Screen transitions ────────────────────────────────────────────────────
 
+    // Turn every screen-specific widget off; each SwitchTo case re-enables its own.
+    // CANCEL is intentionally not touched (always visible).
+    private void HideAllScreenWidgets()
+    {
+        if (_statusTxt != null)
+        {
+            _statusTxt.gameObject.SetActive(true);
+            var srt = _statusTxt.GetComponent<RectTransform>();
+            srt.anchoredPosition = new Vector2(0f, -88f);
+            srt.sizeDelta = new Vector2(-PadX * 2f, 56f);
+            _statusTxt.fontSize = 14;
+        }
+        SetVis(_btnHost, false);  SetVis(_btnStart, false);  SetVis(_btnStartLobby, false);
+        SetVis(_btnJoin, false);  SetVis(_btnReadyLobby, false);
+        _joinRow?.SetActive(false);
+        _ipBox?.SetActive(false);
+        _playersTxt?.gameObject.SetActive(false);
+        _lobbyBox?.SetActive(false);
+        CancelInvoke(nameof(RefreshLobby));
+    }
+
     private void SwitchTo(Screen s)
     {
-        _hostCreatingContainer?.SetActive(s == Screen.HostCreating);
-        _joiningContainer?.SetActive(s == Screen.Joining);
-        _lobbyContainer?.SetActive(s == Screen.WaitingLobby);
+        switch (s)
+        {
+            case Screen.Choose:
+                SwitchToChoose();
+                break;
+            case Screen.Hosting:
+                HideAllScreenWidgets();
+                SetStatus($"Đang chờ người chơi kết nối…", Gold);
+                SetVis(_btnStart, true);
+                SetVis(_btnJoin,  true);
+                _ipBox?.SetActive(true);
+                _playersTxt?.gameObject.SetActive(true);
+                RefreshPlayers();
+                break;
+            case Screen.Joining:
+                HideAllScreenWidgets();
+                SetStatus("Nhập IP, IP:port, invite link, hoặc session code:", Muted);
+                if (_statusTxt != null)
+                {
+                    var srt = _statusTxt.GetComponent<RectTransform>();
+                    srt.anchoredPosition = new Vector2(0f, -132f);
+                    srt.sizeDelta = new Vector2(-PadX * 2f, 76f);
+                    _statusTxt.fontSize = 15;
+                }
+                PositionJoinRowForJoinScreen();
+                SetStatus("Dán link mời hoặc nhập mã phòng\nvd: 43E98F hoặc https://luminx.io.vn/play?session=...", Muted);
+                _joinRow.SetActive(true);
+                break;
+            case Screen.Lobby:
+                HideAllScreenWidgets();
+                if (_statusTxt != null)
+                {
+                    var srt = _statusTxt.GetComponent<RectTransform>();
+                    srt.anchoredPosition = new Vector2(0f, -78f);
+                    srt.sizeDelta = new Vector2(-PadX * 2f, 18f);
+                    _statusTxt.fontSize = 12;
+                }
+                SetStatus("Phòng chờ — chọn tank & SẴN SÀNG", Green);
+                _lobbyBox?.SetActive(true);
+                SetVis(_btnReadyLobby, true);
+                // START (owner-only) visibility is managed each tick by RefreshLobby.
+                InvokeRepeating(nameof(RefreshLobby), 0f, 0.3f);
+                break;
+        }
+    }
 
-        SetVis(_btnReady, s == Screen.WaitingLobby);
-        if (s == Screen.WaitingLobby)
+    private void SwitchToChoose()
+    {
+        // Stop auto-discovery if user goes back from Joining screen
+        if (_discovery != null) { _discovery.StopListening(); }
+        HideAllScreenWidgets();
+        SetStatus("Chọn vai trò của bạn:", Muted);
+#if UNITY_WEBGL && !UNITY_EDITOR
+        SetVis(_btnHost,  false);
+#else
+        SetVis(_btnHost,  true);
+#endif
+        SetVis(_btnJoin,  true);
+    }
+
+    // ── Lobby refresh + actions ────────────────────────────────────────────────
+
+    private void RefreshLobby()
+    {
+        if (_lobbySlotsTxt == null) return;
+
+        var bridges = new List<LanNetworkBridge>(
+            FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None));
+        bridges.RemoveAll(b => b == null || !b.IsSpawned);
+        bridges.Sort((a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
+
+        ulong ownerId = LanNetworkBridge.ResolveOwnerClientId();
+        var   local   = LanNetworkBridge.Local;
+        ulong localId = local != null ? local.OwnerClientId : ulong.MaxValue;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Người chơi  ({bridges.Count}/{MaxPlayers})");
+        int slot = 0, readyCount = 0;
+        foreach (var b in bridges)
         {
-            bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
-            SetVis(_btnStart, isHost);
-            if (isHost) _btnStart.interactable = false;
+            bool isOwner = b.OwnerClientId == ownerId;
+            bool isLocal = b.OwnerClientId == localId;
+            bool ready   = b.Ready.Value;
+            if (ready) readyCount++;
+            string star = isOwner ? "★" : "  ";
+            string st   = ready ? "✓ sẵn sàng" : "… chưa";
+            string tag  = isOwner ? " [chủ phòng]" : "";
+            string you  = isLocal ? " (bạn)" : "";
+            sb.AppendLine($"{star} #{slot}  {VariantName(b.VariantIndex.Value)}   {st}{tag}{you}");
+            slot++;
         }
-        else
+        _lobbySlotsTxt.text = sb.ToString();
+
+        string code = LanSessionManager.SessionCode;
+        if (_lobbyCodeTxt != null)
+            _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Mã phòng: {code}";
+
+        if (local != null && _btnReadyLabel != null)
         {
-            SetVis(_btnStart, false);
+            _localReady = local.Ready.Value;
+            _btnReadyLabel.text = _localReady ? "✖  HỦY SẴN SÀNG" : "✔  SẴN SÀNG";
         }
 
-        if (s == Screen.Joining)
-        {
-            _joiningStatus.text = "Đang tự động tìm host trong mạng LAN…";
-            _joiningStatus.color = Muted;
-            LanSessionManager.ActivateClient(_mapFile, _algorithm);
-            EnsureNetworkManager();
-            StartAutoDiscover();
-        }
+        if (local != null && local.VariantIndex.Value != _shownVariant)
+            UpdateLobbyPreview(local.VariantIndex.Value);
 
-        if (s == Screen.WaitingLobby)
+        // START: only the room owner sees it; enabled when everyone is ready.
+        bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
+        SetVis(_btnStartLobby, isRoomOwner);
+        if (isRoomOwner && _btnStartLobby != null)
         {
-            if (_lobbyRoomCodeVal != null)
-                _lobbyRoomCodeVal.text = string.IsNullOrEmpty(_roomCode) ? "—" : _roomCode;
-            HighlightVariant(LanSessionManager.LocalVariantIndex);
-            RefreshLobbySlots();
+            int minStart =
+#if UNITY_EDITOR
+                1;
+#else
+                2;
+#endif
+            bool allReady = bridges.Count >= minStart && readyCount == bridges.Count;
+            _btnStartLobby.interactable = allReady;
+            if (_btnStartLabel != null)
+                _btnStartLabel.text = allReady
+                    ? "▶  START GAME"
+                    : $"START  ({readyCount}/{bridges.Count} · cần ≥{minStart})";
         }
+    }
+
+    private void PickVariant(int idx)
+    {
+        idx = Mathf.Clamp(idx, 0, VariantColors.Length - 1);
+        LanSessionManager.LocalVariantIndex = idx;
+        PlayerPrefs.SetInt("MenuTankVariant", idx); PlayerPrefs.Save();
+        LanNetworkBridge.Local?.SubmitVariant(idx);
+        UpdateLobbyPreview(idx);
+    }
+
+    private void DoToggleReady()
+    {
+        var local = LanNetworkBridge.Local;
+        if (local == null) { SetStatus("Đang vào phòng… thử lại sau giây lát.", Muted); return; }
+        local.SubmitReady(!local.Ready.Value);
+    }
+
+    private void DoLobbyStart()
+    {
+        LanNetworkBridge.Local?.RequestStartServerRpc();
+    }
+
+    private void CopyInvite()
+    {
+        string link = BuildInviteLink();
+        if (string.IsNullOrEmpty(link)) return;
+        WebClipboard.Copy(link);
+        SetStatus("Đã copy link mời!", Green);
+    }
+
+    private static string BuildInviteLink()
+    {
+        string code = LanSessionManager.SessionCode;
+        if (string.IsNullOrWhiteSpace(code)) return "";
+        string reg = LanSessionManager.RegistryUrl ?? "";
+        // Web base = registry host without the registry port (the WebGL site is on port 80).
+        string webBase = reg;
+        int scheme = reg.IndexOf("://", StringComparison.Ordinal);
+        if (scheme >= 0)
+        {
+            int hostStart = scheme + 3;
+            int portColon = reg.IndexOf(':', hostStart);
+            if (portColon >= 0) webBase = reg.Substring(0, portColon);
+        }
+        if (string.IsNullOrWhiteSpace(webBase)) return code;
+        return $"{webBase}/play?session={code}";
+    }
+
+    private static string VariantName(int i)
+    {
+        switch (Mathf.Clamp(i, 0, 4))
+        {
+            case 0:  return "[xanh]";
+            case 1:  return "[đỏ]";
+            case 2:  return "[lục]";
+            case 3:  return "[xám]";
+            default: return "[cát]";
+        }
+    }
+
+    private void ShowJoinRow()
+    {
+        if (!EnsureNetworkManager()) return;
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+        StartAutoDiscover();
+    }
+
+    private void BeginAutoJoin()
+    {
+        if (string.IsNullOrWhiteSpace(_autoJoinTarget))
+            return;
+
+        // Don't restart a join that is already connected or in progress — re-entry would
+        // shut down the live connection and feed the reconnect loop.
+        if (_connected || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient))
+            return;
+
+        if (!EnsureNetworkManager())
+            return;
+
+        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        SwitchTo(Screen.Joining);
+        if (_ipInput != null)
+            _ipInput.text = _autoJoinTarget;
+        DoConnect(_autoJoinTarget);
+    }
+
+    private void StartAutoDiscover()
+    {
+        if (_discovery != null) { _discovery.Stop(); Destroy(_discovery); }
+        _discovery = gameObject.AddComponent<LanDiscovery>();
+        SetStatus("Đang tự động tìm host trong mạng LAN…", Muted);
+        _discovery.OnHostFound += ip =>
+        {
+            if (_ipInput != null) _ipInput.text = ip;
+            SetStatus($"Tìm thấy host: {ip}  —  bấm KẾT NỐI", new Color(0.3f, 0.9f, 0.4f));
+            _discovery.StopListening();
+        };
+        _discovery.StartListening();
     }
 
     // ── Host flow ─────────────────────────────────────────────────────────────
 
-    private async void DoHost()
+    private void DoHost()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        SetStatus("WebGL cannot host locally. Create an internet room from the menu.", new Color(1f, 0.6f, 0.3f));
+        return;
+#else
         if (!EnsureNetworkManager()) return;
         if (NetworkManager.Singleton.IsListening)
         {
@@ -521,66 +907,40 @@ public class LanLobbyController : MonoBehaviour
             return;
         }
 
-        SwitchTo(Screen.HostCreating);
         LanSessionManager.ActivateHost(_mapFile, _algorithm);
+        NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: true);
+        NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+        NetworkManager.Singleton.OnClientConnectedCallback  += OnJoin;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnLeave;
 
-        NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientJoined;
-        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientLeft;
-        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientJoined;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientLeft;
-        NetworkManager.Singleton.OnTransportFailure         -= OnHostTransportFailure;
-        NetworkManager.Singleton.OnTransportFailure         += OnHostTransportFailure;
+        // Subscribe to transport failure so we can recover from "port already in use".
+        NetworkManager.Singleton.OnTransportFailure -= OnHostTransportFailure;
+        NetworkManager.Singleton.OnTransportFailure += OnHostTransportFailure;
 
-        bool   relayOk  = false;
-        string roomCode = null;
-        SetStatus("Đang kết nối Unity Relay…", Muted);
-
-        try
+        // Host listens on 0.0.0.0 (all interfaces) so LAN clients can reach it
+        var hostTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (hostTransport != null)
         {
-            bool inited = await RelayManager.InitAsync();
-            if (inited)
-            {
-                SetStatus("Đang tạo phòng…", Muted);
-                var (allocation, code) = await RelayManager.CreateRoomAsync(MaxPlayers - 1);
-                RelayManager.ApplyHostToTransport(allocation);
-                roomCode = code;
-                relayOk  = true;
-                LanSessionManager.UseRelay = true;
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[Relay] Failed, falling back to LAN: {e.Message}");
-            LanSessionManager.UseRelay = false;
+            hostTransport.SetConnectionData("0.0.0.0", GamePort);
+            hostTransport.UseWebSockets = false;
         }
 
-        if (!relayOk)
-        {
-            var tr = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            if (tr != null) tr.SetConnectionData("0.0.0.0", GamePort);
-            SetStatus("Relay không khả dụng — dùng LAN IP…", Muted);
-        }
-
+        // StartHost() returns false if transport fails — don't proceed on failure.
+        // OnHostTransportFailure will handle retry; _hostRetryCount must NOT be reset here.
         if (!NetworkManager.Singleton.StartHost()) return;
 
-        if (relayOk)
-        {
-            _roomCode = roomCode ?? "ERROR";
-            Debug.Log($"[Relay] Hosting with Room Code: {_roomCode}");
-        }
-        else
-        {
-            string ip = GetLocalIP();
-            _roomCode = $"{ip}:{GamePort}";
-            Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}  (local IP: {ip})");
-            _discovery = gameObject.AddComponent<LanDiscovery>();
-            _discovery.StartBroadcasting(GamePort);
-        }
+        string ip = GetLocalIP();
+        Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}  (LAN IP: {ip})");
+        if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
 
-        _hostRetryCount = 0;
-        _localReady = false;
+        _discovery = gameObject.AddComponent<LanDiscovery>();
+        _discovery.StartBroadcasting(GamePort);
+
+        _hostRetryCount = 0;   // reset only on genuine success
         LanSessionManager.PlayerCount = 1;
-        SwitchTo(Screen.WaitingLobby);
+        SwitchTo(Screen.Hosting);
+#endif
     }
 
     private void OnHostTransportFailure()
@@ -590,39 +950,58 @@ public class LanLobbyController : MonoBehaviour
 
         _hostRetryCount++;
         const int MaxRetries = 3;
+
         if (_hostRetryCount <= MaxRetries)
         {
             SetStatus($"Port {GamePort} bận — thử lại ({_hostRetryCount}/{MaxRetries})…",
                 new Color(1f, 0.65f, 0.1f));
-            if (NetworkManager.Singleton != null) Destroy(NetworkManager.Singleton.gameObject);
+            Debug.LogWarning($"[LAN] Transport bind failed (attempt {_hostRetryCount}). Retrying in 3 s.");
+
+            // Destroy the entire NM so the OS closes its socket before we recreate.
+            if (NetworkManager.Singleton != null)
+                Destroy(NetworkManager.Singleton.gameObject);
             Invoke(nameof(RetryHost), 3f);
         }
         else
         {
             _hostRetryCount = 0;
-            if (NetworkManager.Singleton != null) { NetworkManager.Singleton.Shutdown(); Destroy(NetworkManager.Singleton.gameObject); }
-            SetStatus($"Không thể mở port {GamePort}. Thoát build đang chạy rồi thử lại.",
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.Shutdown();
+                Destroy(NetworkManager.Singleton.gameObject);
+            }
+            SetStatus(
+                $"Không thể mở port {GamePort}.\n" +
+                "Tiến trình khác đang chiếm port này.\n" +
+                "Thoát hết build đang chạy hoặc khởi động lại Unity rồi thử lại.",
                 new Color(1f, 0.3f, 0.3f));
+            Debug.LogError($"[LAN] Port {GamePort} blocked after {MaxRetries} retries. Manual fix required.");
         }
     }
 
-    private void OnClientJoined(ulong id)
+    private void OnJoin(ulong id)
     {
         if (id == NetworkManager.Singleton.LocalClientId) return;
         LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
-        RefreshLobbySlots();
+        _clients.Add($"Client {_clients.Count + 2}");
+        RefreshPlayers();
+        SetStatus($"{LanSessionManager.PlayerCount}/{MaxPlayers}  người đã vào", Green);
     }
 
-    private void OnClientLeft(ulong id)
+    private void OnLeave(ulong id)
     {
         LanSessionManager.PlayerCount = Mathf.Max(1, NetworkManager.Singleton.ConnectedClients.Count);
-        RefreshLobbySlots();
+        RefreshPlayers();
     }
 
     // ── Join flow ─────────────────────────────────────────────────────────────
 
     private void RetryHost()
     {
+        // DestroyImmediate so EnsureNetworkManager() finds Singleton==null
+        // and creates a truly fresh NM — deferred Destroy leaves the old
+        // (shut-down) singleton alive until end-of-frame, causing StartHost()
+        // to run on a stale NM object.
         if (NetworkManager.Singleton != null)
         {
             if (NetworkManager.Singleton.IsListening) NetworkManager.Singleton.Shutdown();
@@ -632,114 +1011,61 @@ public class LanLobbyController : MonoBehaviour
     }
     private void RetryConnect() { if (_pendingIp != null) DoConnect(_pendingIp); }
 
-    private void StartAutoDiscover()
-    {
-        if (_discovery != null) { _discovery.Stop(); Destroy(_discovery); }
-        _discovery = gameObject.AddComponent<LanDiscovery>();
-        _discovery.OnHostFound += ip =>
-        {
-            if (_joinInput != null && string.IsNullOrEmpty(_joinInput.text))
-                _joinInput.text = ip;
-            SetStatus($"Tìm thấy host: {ip}  —  bấm KẾT NỐI", new Color(0.3f, 0.9f, 0.4f));
-            _discovery.StopListening();
-        };
-        _discovery.StartListening();
-    }
-
-    private void DoConnect(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            SetStatus("Nhập Room Code hoặc IP!", new Color(1f, 0.35f, 0.35f));
-            return;
-        }
-        string trimmed = input.Trim();
-        if (RelayManager.IsJoinCode(trimmed.ToUpper()))
-            DoConnectViaRelayAsync(trimmed.ToUpper());
-        else
-            DoConnectViaIP(trimmed);
-    }
-
-    private async void DoConnectViaRelayAsync(string code)
-    {
-        SetStatus($"Đang kết nối Room Code {code}…", Muted);
-        try
-        {
-            bool inited = await RelayManager.InitAsync();
-            if (!inited) { SetStatus("Không thể kết nối Unity Relay.", new Color(1f, 0.4f, 0.3f)); return; }
-
-            JoinAllocation joinAlloc = await RelayManager.JoinRoomAsync(code);
-            RelayManager.ApplyClientToTransport(joinAlloc);
-            LanSessionManager.UseRelay = true;
-            _roomCode = code;
-
-            RegisterClientCallbacks();
-            NetworkManager.Singleton.StartClient();
-            SceneManager.sceneLoaded -= OnGameSceneLoaded;
-            SceneManager.sceneLoaded += OnGameSceneLoaded;
-            SetStatus("Đã vào phòng! Chờ host bắt đầu…", new Color(0.3f, 0.9f, 0.4f));
-            CancelInvoke(nameof(OnConnectionTimeout));
-            Invoke(nameof(OnConnectionTimeout), 15f);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[Relay] Join failed: {e.Message}");
-            SetStatus($"Lỗi Room Code: {e.Message}", new Color(1f, 0.4f, 0.3f));
-        }
-    }
-
-    private void DoConnectViaIP(string ip)
-    {
-        int colon = ip.IndexOf(':');
-        if (colon >= 0) ip = ip.Substring(0, colon).Trim();
-
-        if (string.IsNullOrWhiteSpace(ip)) { SetStatus("IP không hợp lệ!", new Color(1f, 0.35f, 0.35f)); return; }
-
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
-        {
-            NetworkManager.Singleton.Shutdown();
-            _pendingIp = ip;
-            Invoke(nameof(RetryConnect), 0.5f);
-            return;
-        }
-
-        var t = NetworkManager.Singleton?.GetComponent<UnityTransport>();
-        if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
-
-        t.SetConnectionData(ip, GamePort);
-        LanSessionManager.UseRelay = false;
-        _roomCode = $"{ip}:{GamePort}";
-        Debug.Log($"[LAN] Connecting to {ip}:{GamePort}");
-
-        RegisterClientCallbacks();
-        NetworkManager.Singleton.StartClient();
-        SetStatus($"Đang kết nối tới {ip}:{GamePort}…", Muted);
-        CancelInvoke(nameof(OnConnectionTimeout));
-        Invoke(nameof(OnConnectionTimeout), 8f);
-    }
-
-    private void RegisterClientCallbacks()
-    {
-        NetworkManager.Singleton.OnClientConnectedCallback  -= OnSelfConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback -= OnSelfDisconnected;
-        NetworkManager.Singleton.OnClientConnectedCallback  += OnSelfConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnSelfDisconnected;
-    }
-
-    private void OnSelfConnected(ulong _)
+    private void OnClientConnected(ulong _)
     {
         CancelInvoke(nameof(OnConnectionTimeout));
+        // Cancel any pending reconnect and clear the retry token. Otherwise a RetryConnect
+        // scheduled by an earlier attempt fires AFTER we are connected, calls Shutdown on the
+        // live session, and tears down a perfectly good connection (the recurring
+        // "Connected → Disconnected" loop seen in the browser console).
+        CancelInvoke(nameof(RetryConnect));
+        _pendingIp = null;
+        _connected = true;
+        SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
         Debug.Log("[LAN] Connected to host.");
-        _localReady = false;
+        // When the host loads the game scene, NGO will trigger a scene load on this client.
+        // Register so we can close the lobby overlay once the game scene is live.
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
         SceneManager.sceneLoaded += OnGameSceneLoaded;
-        SwitchTo(Screen.WaitingLobby);
+        // Show the waiting lobby: slot list, tank picker, READY, and (owner-only) START.
+        SwitchTo(Screen.Lobby);
     }
 
-    private void OnSelfDisconnected(ulong _)
+    private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Ignore the menu scene and any scene that isn't our LAN game scene
+        if (scene.name == "Menu") return;
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
+        Debug.Log($"[LAN] Game scene '{scene.name}' loaded on client — closing lobby overlay.");
+        // Close the overlay without shutting down the NetworkManager
+        CancelInvoke();
+        _discovery?.Stop();
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
+        if (_root != null) Destroy(_root);
+        _root = null;
+        _instance = null;
+        Destroy(gameObject);
+    }
+
+    private void OnClientDisconnected(ulong _)
     {
         CancelInvoke(nameof(OnConnectionTimeout));
+        _connected = false;
+        string reason = NetworkManager.Singleton != null ? NetworkManager.Singleton.DisconnectReason : string.Empty;
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            SetStatus($"Connection rejected: {reason}", new Color(1f, 0.4f, 0.4f));
+            Debug.LogWarning($"[LAN] Disconnected from host. Reason: {reason}");
+            return;
+        }
         SetStatus("Mất kết nối với host.", new Color(1f, 0.4f, 0.4f));
+        Debug.LogWarning("[LAN] Disconnected from host.");
     }
 
     private void OnConnectionTimeout()
@@ -747,120 +1073,133 @@ public class LanLobbyController : MonoBehaviour
         if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsConnectedClient)
         {
             NetworkManager.Singleton.Shutdown();
-            SetStatus("Hết thời gian — kiểm tra IP và firewall.", new Color(1f, 0.4f, 0.3f));
+            SetStatus("Hết thời gian — không thể kết nối.\nKiểm tra IP và firewall.", new Color(1f, 0.4f, 0.3f));
+            Debug.LogWarning($"[LAN] Connection timeout to {_pendingIp ?? "?"}:{GamePort}");
         }
     }
 
-    private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void DoConnect(string ip)
     {
-        if (scene.name == "Menu") return;
-        SceneManager.sceneLoaded -= OnGameSceneLoaded;
-        Debug.Log($"[LAN] Game scene '{scene.name}' loaded — closing lobby.");
-        CancelInvoke();
-        _discovery?.Stop();
-        UnregisterAllCallbacks();
-        if (_root != null) Destroy(_root);
-        _root = null; _instance = null;
-        Destroy(gameObject);
-    }
-
-    // ── WaitingLobby: variant picker ──────────────────────────────────────────
-
-    private void OnPickVariant(int idx)
-    {
-        if (idx < 0 || idx >= VariantColors.Length) return;
-        LanSessionManager.LocalVariantIndex = idx;
-        HighlightVariant(idx);
-        var bridge = FindOwnBridge();
-        if (bridge != null)
+        string fallbackRegistry = !string.IsNullOrWhiteSpace(LanSessionManager.RegistryUrl)
+            ? LanSessionManager.RegistryUrl
+            : _joinRegistryUrl;
+        if (!InternetJoinParser.TryParse(ip, fallbackRegistry, out NetworkEndpointConfig endpoint, out string parseError))
         {
-            if (bridge.IsServer) bridge.VariantIndex.Value = idx;
-            else                 bridge.SendVariantServerRpc(idx);
-        }
-    }
-
-    private void HighlightVariant(int idx)
-    {
-        if (_variantBtnImgs == null) return;
-        for (int i = 0; i < _variantBtnImgs.Length; i++)
-        {
-            if (_variantBtnImgs[i] == null || i >= VariantColors.Length) continue;
-            _variantBtnImgs[i].color = (i == idx)
-                ? Color.Lerp(VariantColors[i], White, 0.40f)
-                : VariantColors[i];
-        }
-    }
-
-    // ── WaitingLobby: ready toggle ────────────────────────────────────────────
-
-    private void DoToggleReady()
-    {
-        _localReady = !_localReady;
-        if (_btnReady != null)
-        {
-            var lbl = _btnReady.GetComponentInChildren<Text>();
-            if (lbl != null) lbl.text = _localReady ? "✔  READY" : "◉  READY";
-            var img = _btnReady.GetComponent<Image>();
-            if (img != null) img.color = _localReady ? ReadyGreen : Slate;
-        }
-        var bridge = FindOwnBridge();
-        if (bridge != null)
-        {
-            if (bridge.IsServer) bridge.IsReady.Value = _localReady;
-            else                 bridge.SetReadyServerRpc(_localReady);
-        }
-    }
-
-    // ── WaitingLobby: polling ─────────────────────────────────────────────────
-
-    private void Update()
-    {
-        if (_lobbyContainer == null || !_lobbyContainer.activeSelf) return;
-        RefreshLobbySlots();
-        RefreshStartButton();
-    }
-
-    private void RefreshLobbySlots()
-    {
-        if (_slotTexts == null) return;
-        var bridges = new List<LanNetworkBridge>(
-            UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None));
-        bridges.Sort((a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
-
-        var plHdr = _lobbyContainer?.transform.Find("PlHdr");
-        if (plHdr != null)
-        {
-            var t = plHdr.GetComponent<Text>();
-            if (t != null) t.text = $"Người chơi  ({bridges.Count}/{MaxPlayers})";
+            SetStatus(parseError, new Color(1f, 0.35f, 0.35f));
+            return;
         }
 
-        for (int i = 0; i < _slotTexts.Length; i++)
+        if (string.IsNullOrWhiteSpace(endpoint.host))
         {
-            if (_slotTexts[i] == null) continue;
-            if (i < bridges.Count)
+            if (string.IsNullOrWhiteSpace(endpoint.sessionCode))
             {
-                var b    = bridges[i];
-                string who  = (i == 0) ? "Host" : $"Người chơi {i + 1}";
-                string you  = b.IsOwner ? " (bạn)" : "";
-                string rdy  = b.IsReady.Value ? "✔ READY" : "…";
-                _slotTexts[i].text  = $"  ● Slot {i + 1}  {who}{you}   {rdy}";
-                _slotTexts[i].color = b.IsReady.Value ? new Color(0.3f, 0.9f, 0.4f) : BlueTint;
+                SetStatus("Invite link is missing a session code.", new Color(1f, 0.35f, 0.35f));
+                return;
             }
-            else
+
+            if (string.IsNullOrWhiteSpace(endpoint.registryUrl))
             {
-                _slotTexts[i].text  = $"  Slot {i + 1}  —";
-                _slotTexts[i].color = Muted;
+                SetStatus("Registry URL is missing for this invite code.", new Color(1f, 0.35f, 0.35f));
+                return;
             }
+
+            SetStatus($"Resolving session {endpoint.sessionCode}...", Muted);
+            StartCoroutine(ResolveSessionAndConnect(endpoint));
+            return;
         }
+
+        BeginClientConnection(endpoint, ip);
     }
 
-    private void RefreshStartButton()
+    private IEnumerator ResolveSessionAndConnect(NetworkEndpointConfig endpoint)
     {
-        if (_btnStart == null || !_btnStart.gameObject.activeSelf) return;
-        var bridges = UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
-        int ready = 0;
-        foreach (var b in bridges) if (b != null && b.IsReady.Value) ready++;
-        _btnStart.interactable = ready >= 2;
+        bool finished = false;
+        NetworkEndpointConfig resolvedEndpoint = endpoint;
+        string resolveError = string.Empty;
+
+        yield return InternetSessionClient.ResolveSession(
+            endpoint.registryUrl,
+            endpoint.sessionCode,
+            cfg =>
+            {
+                resolvedEndpoint = cfg;
+                finished = true;
+            },
+            error =>
+            {
+                resolveError = error;
+                finished = true;
+            });
+
+        if (!finished)
+        {
+            SetStatus("Registry request did not complete.", new Color(1f, 0.35f, 0.35f));
+            yield break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resolveError))
+        {
+            SetStatus(resolveError, new Color(1f, 0.35f, 0.35f));
+            yield break;
+        }
+
+        BeginClientConnection(resolvedEndpoint, $"{resolvedEndpoint.host}:{resolvedEndpoint.port}");
+    }
+
+    private void BeginClientConnection(NetworkEndpointConfig endpoint, string retryToken)
+    {
+        // Already connected → never tear down a live session for a duplicate/auto-join call.
+        if (_connected || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient))
+            return;
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            NetworkManager.Singleton.Shutdown();
+            _pendingIp = retryToken;
+            Invoke(nameof(RetryConnect), 0.5f);
+            return;
+        }
+
+        if (!EnsureNetworkManager()) return;
+        var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
+
+        endpoint.mapFile = string.IsNullOrWhiteSpace(endpoint.mapFile) ? _mapFile : endpoint.mapFile;
+        endpoint.algorithm = string.IsNullOrWhiteSpace(endpoint.algorithm) ? _algorithm : endpoint.algorithm;
+        endpoint.maxPlayers = endpoint.maxPlayers <= 0 ? LanSessionManager.MaxPlayers : endpoint.maxPlayers;
+
+        LanSessionManager.ActivateInternetClient(endpoint);
+        t.SetConnectionData(endpoint.host, endpoint.port);
+        t.UseEncryption = false;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // WebGL can only use WebSocket. The retry path re-parses a raw "host:port" string
+        // whose transportMode defaults to UDP — forcing WebSocket here prevents the doomed
+        // UDP attempts seen alternating in the browser console.
+        t.UseWebSockets = true;
+        t.UseEncryption = endpoint.secureWebSocket;
+        if (t.UseEncryption)
+        {
+            string secureHost = string.IsNullOrWhiteSpace(endpoint.secureWebSocketHost)
+                ? endpoint.host
+                : endpoint.secureWebSocketHost;
+            t.SetClientSecrets(secureHost, null);
+        }
+#else
+        t.UseWebSockets = endpoint.transportMode == NetworkTransportMode.WebSocket;
+#endif
+        NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: false);
+        Debug.Log($"[LAN] Connecting to {endpoint.host}:{endpoint.port} via {(endpoint.secureWebSocket ? "wss" : endpoint.transportMode.ToArgumentValue())}");
+
+        NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        NetworkManager.Singleton.StartClient();
+        SetStatus($"Connecting to {endpoint.host}:{endpoint.port}...", Muted);
+
+        // Timeout: if not connected after 8s, show error
+        CancelInvoke(nameof(OnConnectionTimeout));
+        Invoke(nameof(OnConnectionTimeout), 8f);
     }
 
     // ── Start game ────────────────────────────────────────────────────────────
@@ -868,11 +1207,6 @@ public class LanLobbyController : MonoBehaviour
     private void DoStartGame()
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
-        var bridges = UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
-        int ready = 0;
-        foreach (var b in bridges) if (b != null && b.IsReady.Value) ready++;
-        if (ready < 2) return;
-
         _discovery?.Stop();
         LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
         NetworkManager.Singleton.SceneManager.LoadScene(LanSessionManager.GameScene, LoadSceneMode.Single);
@@ -883,37 +1217,13 @@ public class LanLobbyController : MonoBehaviour
 
     private bool EnsureNetworkManager()
     {
-        if (NetworkManager.Singleton != null) return true;
-        var go = new GameObject("NetworkManager");
-        DontDestroyOnLoad(go);
-        var tr = go.AddComponent<UnityTransport>();
-        tr.SetConnectionData("0.0.0.0", GamePort);
-        var nm = go.AddComponent<NetworkManager>();
-        if (nm.NetworkConfig == null) nm.NetworkConfig = new NetworkConfig();
-        nm.NetworkConfig.NetworkTransport      = tr;
-        nm.NetworkConfig.EnableSceneManagement = true;
-        var bridge = GetOrCreateBridgePrefab();
-        if (bridge != null) nm.NetworkConfig.PlayerPrefab = bridge;
-        return true;
-    }
-
-    private static GameObject GetOrCreateBridgePrefab()
-    {
-        var p = Resources.Load<GameObject>("LanBridgePrefab");
-        if (p != null) return p;
-#if UNITY_EDITOR
-        if (!AssetDatabase.IsValidFolder("Assets/Resources"))
-            AssetDatabase.CreateFolder("Assets", "Resources");
-        const string path = "Assets/Resources/LanBridgePrefab.prefab";
-        var tmp = new GameObject("LanBridgePrefab");
-        tmp.AddComponent<NetworkObject>();
-        tmp.AddComponent<LanNetworkBridge>();
-        bool ok;
-        PrefabUtility.SaveAsPrefabAsset(tmp, path, out ok);
-        DestroyImmediate(tmp);
-        if (ok) { AssetDatabase.Refresh(); return AssetDatabase.LoadAssetAtPath<GameObject>(path); }
+        NetworkTransportMode defaultTransportMode =
+#if UNITY_WEBGL && !UNITY_EDITOR
+            NetworkTransportMode.WebSocket;
+#else
+            NetworkTransportMode.Udp;
 #endif
-        return null;
+        return NetworkManagerFactory.Ensure("0.0.0.0", GamePort, isServer: false, defaultTransportMode, out _);
     }
 
     private static string GetLocalIP()
@@ -938,47 +1248,45 @@ public class LanLobbyController : MonoBehaviour
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static LanNetworkBridge FindOwnBridge()
+    private void RefreshPlayers()
     {
-        foreach (var b in UnityEngine.Object.FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
-            if (b != null && b.IsOwner) return b;
-        return null;
+        if (_playersTxt == null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Người chơi  ({LanSessionManager.PlayerCount}/{MaxPlayers})");
+        sb.AppendLine("  ●  Host  (bạn)");
+        foreach (var n in _clients) sb.AppendLine($"  ●  {n}");
+        _playersTxt.text = sb.ToString();
     }
 
     private void SetStatus(string msg, Color col)
     {
-        if (_hostCreatingContainer != null && _hostCreatingContainer.activeSelf && _hostCreatingStatus != null)
-        { _hostCreatingStatus.text = msg; _hostCreatingStatus.color = col; return; }
-        if (_joiningContainer != null && _joiningContainer.activeSelf && _joiningStatus != null)
-        { _joiningStatus.text = msg; _joiningStatus.color = col; }
+        if (_statusTxt == null) return;
+        _statusTxt.text = msg; _statusTxt.color = col;
     }
 
     private static void SetVis(Button b, bool v) { if (b) b.gameObject.SetActive(v); }
-
-    private void UnregisterAllCallbacks()
-    {
-        var nm = NetworkManager.Singleton;
-        if (nm == null) return;
-        nm.OnClientConnectedCallback  -= OnClientJoined;
-        nm.OnClientDisconnectCallback -= OnClientLeft;
-        nm.OnClientConnectedCallback  -= OnSelfConnected;
-        nm.OnClientDisconnectCallback -= OnSelfDisconnected;
-    }
 
     private void Close()
     {
         CancelInvoke();
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
         _discovery?.Stop();
-        UnregisterAllCallbacks();
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
         if (_root != null) Destroy(_root);
-        _root = null; _instance = null;
+        _root = null;
+        _instance = null;
         Destroy(gameObject);
     }
 
-    // ── UI micro-helpers ──────────────────────────────────────────────────────
+    // ── UI builder micro-helpers ──────────────────────────────────────────────
 
-    private static Font F() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font F() => UiFontProvider.GetDefaultFont();
 
     private static GameObject Mk(GameObject p, string name, int L)
     {
@@ -989,16 +1297,6 @@ public class LanLobbyController : MonoBehaviour
         return go;
     }
 
-    // Full-panel fill container (anchored 0,0 → 1,1; no offset)
-    private GameObject MkFillPanel(string name, int L)
-    {
-        var go = Mk(_panel, name, L);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
-        return go;
-    }
-
     private static void Stretch(GameObject go)
     {
         var rt = go.GetComponent<RectTransform>();
@@ -1006,6 +1304,7 @@ public class LanLobbyController : MonoBehaviour
         rt.offsetMin = rt.offsetMax = Vector2.zero;
     }
 
+    // Top-anchored label (anchor = (0.5, 1), pivot = (0.5, 1))
     private void TLbl(GameObject p, string name, string txt,
         int sz, FontStyle st, Color col, Vector2 pos, Vector2 sd)
     {
@@ -1020,6 +1319,7 @@ public class LanLobbyController : MonoBehaviour
         t.color = col; t.alignment = TextAnchor.MiddleCenter;
     }
 
+    // 1-pixel horizontal separator, top-anchored
     private void HSep(float yFromTop, int L)
     {
         var go = Mk(_panel, "Sep", L);
@@ -1030,6 +1330,7 @@ public class LanLobbyController : MonoBehaviour
         go.AddComponent<Image>().color = Sep;
     }
 
+    // Full-width button, bottom-anchored
     private Button BtnFull(string name, string label, Color bg, Color txtCol,
         float yFromBottom, float h, UnityEngine.Events.UnityAction onClick)
     {
@@ -1052,6 +1353,7 @@ public class LanLobbyController : MonoBehaviour
         return btn;
     }
 
+    // Fill a GO with a centered text label
     private static void LblFill(GameObject p, string txt, int sz,
         FontStyle st, Color col, int L)
     {

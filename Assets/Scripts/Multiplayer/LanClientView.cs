@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using Object = UnityEngine.Object;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -142,7 +144,7 @@ public class LanClientView : MonoBehaviour
         ulong myClientId = NetworkManager.Singleton != null
             ? NetworkManager.Singleton.LocalClientId
             : ulong.MaxValue;
-        int ownSlot = Mathf.Min(1, playerCount - 1); // safe default (slot 1 for 2-player)
+        int ownSlot = -1;
         int[] variantIndices = new int[playerCount];
         for (int i = 0; i < playerCount; i++)
         {
@@ -151,16 +153,15 @@ public class LanClientView : MonoBehaviour
             if (ownerClientId == myClientId) ownSlot = i;
         }
 
-        // LanClientView only exists on non-server clients. Slot 0 always belongs to the
-        // host (smallest OwnerClientId after sort). If LocalClientId was not yet assigned
-        // at message time (returns 0), the loop above would incorrectly match slot 0.
-        // Guard: CLIENT is never slot 0 in host-mode NGO.
-        if (ownSlot == 0 && playerCount > 1)
+        Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} ownSlot={ownSlot} myId={myClientId}");
+
+        // LocalClientId race: do not guess a slot. Wait for the next init resend so
+        // multiple clients cannot fall back to the same player ghost.
+        if (ownSlot < 0)
         {
-            ownSlot = Mathf.Min(1, playerCount - 1);
-            Debug.LogWarning($"[LanClientView] ownSlot resolved to 0 (LocalClientId race?) — forced to {ownSlot}");
+            Debug.LogWarning("[LanClientView] ownSlot unresolved (LocalClientId race) — waiting for init resend.");
+            return;
         }
-        Debug.Log($"[LanClientView] OnReceiveInitWorld pc={playerCount} ec={enemyCount} ownSlot={ownSlot}");
 
         // Skip ghost recreate if counts and own-slot are already correct, but still
         // re-apply variants — ghosts may have been created via the world-state fallback
@@ -195,128 +196,132 @@ public class LanClientView : MonoBehaviour
     //   int eagleHp; float eaglePx, eaglePy
     private void OnReceiveWorldState(ulong senderId, FastBufferReader reader)
     {
-        // ── 1. Read ALL data from the buffer first ──────────────────────────
-        reader.ReadValueSafe(out int pc);
-        var players = new WsPlayer[pc];
-        for (int i = 0; i < pc; i++)
+        try
         {
-            reader.ReadValueSafe(out players[i].px);
-            reader.ReadValueSafe(out players[i].py);
-            reader.ReadValueSafe(out players[i].bodyRot);
-            reader.ReadValueSafe(out players[i].turretRot);
-            reader.ReadValueSafe(out players[i].hp);
-        }
-
-        reader.ReadValueSafe(out int ec);
-        var enemies = new WsEnemy[ec];
-        for (int i = 0; i < ec; i++)
-        {
-            reader.ReadValueSafe(out enemies[i].idx);
-            reader.ReadValueSafe(out enemies[i].px);
-            reader.ReadValueSafe(out enemies[i].py);
-            reader.ReadValueSafe(out enemies[i].bodyRot);
-            reader.ReadValueSafe(out enemies[i].turretRot);
-            reader.ReadValueSafe(out enemies[i].hp);
-        }
-
-        reader.ReadValueSafe(out int eagleHp);
-        reader.ReadValueSafe(out float eaglePx);
-        reader.ReadValueSafe(out float eaglePy);
-        reader.ReadValueSafe(out float eagleW);
-        reader.ReadValueSafe(out float eagleH);
-
-        // ── 2. Init ghosts if counts don't match yet ────────────────────────
-        if (pc > 0 && (_playerGhosts.Count != pc || _enemyGhosts.Count != ec))
-            InitGhosts(pc, ec);  // fallback: let InitGhosts look up slot from bridge
-
-        // ── 3. Apply player states ──────────────────────────────────────────
-        for (int i = 0; i < pc; i++)
-        {
-            var p = players[i];
-            if (i == _ownSlot)
+            reader.ReadValueSafe(out int pc);
+            var players = new WsPlayer[pc];
+            for (int i = 0; i < pc; i++)
             {
-                // Own ghost: set server-correction target (blended in Update).
-                _ownTargetPos = new Vector3(p.px, p.py, 0f);
-                _ownTargetRot = Quaternion.Euler(0f, 0f, p.bodyRot);
-                _ownTargetSet = true;
-                // Do NOT override OwnGhost turret from server state — prediction in
-                // LanNetworkBridge.Update (PredictTurretAim) already handles this every
-                // frame. Applying server state at 30 Hz would cause visible snapping.
-
-                // HP bar: normalize raw int HP against known max.
-                if (_ownHpSlider != null)
-                    _ownHpSlider.value = (float)p.hp / OwnMaxHp;
-
-                // Death detection — trigger spectator mode on the first hp=0 transition.
-                if (!_ownDied && _ownPrevHp > 0 && p.hp <= 0)
-                {
-                    _ownDied     = true;
-                    IsSpectating = true;
-                    ShowDeadOverlay();
-                }
-                _ownPrevHp = p.hp;
+                reader.ReadValueSafe(out players[i].px);
+                reader.ReadValueSafe(out players[i].py);
+                reader.ReadValueSafe(out players[i].bodyRot);
+                reader.ReadValueSafe(out players[i].turretRot);
+                reader.ReadValueSafe(out players[i].hp);
             }
-            else if (i < _playerGhosts.Count && _playerGhosts[i] != null)
+
+            reader.ReadValueSafe(out int ec);
+            var enemies = new WsEnemy[ec];
+            for (int i = 0; i < ec; i++)
             {
-                if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                reader.ReadValueSafe(out enemies[i].idx);
+                reader.ReadValueSafe(out enemies[i].px);
+                reader.ReadValueSafe(out enemies[i].py);
+                reader.ReadValueSafe(out enemies[i].bodyRot);
+                reader.ReadValueSafe(out enemies[i].turretRot);
+                reader.ReadValueSafe(out enemies[i].hp);
+            }
+
+            reader.ReadValueSafe(out int eagleHp);
+            reader.ReadValueSafe(out float eaglePx);
+            reader.ReadValueSafe(out float eaglePy);
+
+            float eagleW = 1.3f;
+            float eagleH = 1.3f;
+            if (reader.Length - reader.Position >= 8)
+            {
+                reader.ReadValueSafe(out eagleW);
+                reader.ReadValueSafe(out eagleH);
+            }
+
+            if (pc > 0 && (_playerGhosts.Count != pc || _enemyGhosts.Count != ec))
+                InitGhosts(pc, ec);
+
+            for (int i = 0; i < pc; i++)
+            {
+                var p = players[i];
+                if (i == _ownSlot)
                 {
-                    _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
-                    _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                    _ownTargetPos = new Vector3(p.px, p.py, 0f);
+                    _ownTargetRot = Quaternion.Euler(0f, 0f, p.bodyRot);
+                    _ownTargetSet = true;
+
+                    if (_ownHpSlider != null)
+                        _ownHpSlider.value = (float)p.hp / OwnMaxHp;
+
+                    if (!_ownDied && _ownPrevHp > 0 && p.hp <= 0)
+                    {
+                        _ownDied = true;
+                        IsSpectating = true;
+                        ShowDeadOverlay();
+                    }
+                    _ownPrevHp = p.hp;
+                }
+                else if (i < _playerGhosts.Count && _playerGhosts[i] != null)
+                {
+                    if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                    {
+                        _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
+                        _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                    }
+                    else
+                    {
+                        _playerGhosts[i].position = new Vector3(p.px, p.py, 0f);
+                        _playerGhosts[i].rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
+                    }
+
+                    if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
+                        _playerTargetTurretRot[i] = p.turretRot;
+                    SetTurretRot(_playerGhosts[i], p.turretRot);
+                }
+            }
+
+            int alive = 0;
+            for (int i = 0; i < ec; i++)
+            {
+                var e = enemies[i];
+                if (e.idx < 0 || e.idx >= _enemyGhosts.Count) continue;
+                Transform g = _enemyGhosts[e.idx];
+                if (g == null) continue;
+
+                if (e.hp <= 0)
+                {
+                    if (g.gameObject.activeSelf) g.gameObject.SetActive(false);
                 }
                 else
                 {
-                    _playerGhosts[i].position = new Vector3(p.px, p.py, 0f);
-                    _playerGhosts[i].rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
+                    alive++;
+                    if (!g.gameObject.activeSelf) g.gameObject.SetActive(true);
+                    g.position = new Vector3(e.px, e.py, 0f);
+                    g.rotation = Quaternion.Euler(0f, 0f, e.bodyRot);
+                    SetTurretRot(g, e.turretRot);
                 }
-                // Store authoritative turret rotation; Update() re-applies it every frame
-                // to counteract body-rotation interpolation dragging the turret child.
-                if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
-                    _playerTargetTurretRot[i] = p.turretRot;
-                SetTurretRot(_playerGhosts[i], p.turretRot);
             }
-        }
 
-        // ── 4. Apply enemy states ───────────────────────────────────────────
-        int alive = 0;
-        for (int i = 0; i < ec; i++)
-        {
-            var e = enemies[i];
-            if (e.idx < 0 || e.idx >= _enemyGhosts.Count) continue;
-            Transform g = _enemyGhosts[e.idx];
-            if (g == null) continue;
-
-            if (e.hp <= 0)
+            var eaglePos = new Vector2(eaglePx, eaglePy);
+            if (eagleW <= 0f) eagleW = 1.3f;
+            if (eagleH <= 0f) eagleH = 1.3f;
+            if (_eagleGhost == null && eagleHp > 0 && eaglePos != Vector2.zero)
             {
-                if (g.gameObject.activeSelf) g.gameObject.SetActive(false);
+                _eagleGhost = SpawnEagleGhost(eaglePos, eagleW, eagleH);
             }
-            else
+            else if (_eagleGhost != null)
             {
-                alive++;
-                if (!g.gameObject.activeSelf) g.gameObject.SetActive(true);
-                g.position = new Vector3(e.px, e.py, 0f);
-                g.rotation = Quaternion.Euler(0f, 0f, e.bodyRot);
-                SetTurretRot(g, e.turretRot);
+                _eagleGhost.position = new Vector3(eaglePx, eaglePy, 0f);
+                var want = new Vector3(eagleW, eagleH, 1f);
+                if (_eagleGhost.localScale != want) _eagleGhost.localScale = want;
             }
-        }
 
-        // ── 5. Eagle ────────────────────────────────────────────────────────
-        var eaglePos = new Vector2(eaglePx, eaglePy);
-        if (eagleW <= 0f) eagleW = 1.3f;
-        if (eagleH <= 0f) eagleH = 1.3f;
-        if (_eagleGhost == null && eagleHp > 0 && eaglePos != Vector2.zero)
-        {
-            _eagleGhost = SpawnEagleGhost(eaglePos, eagleW, eagleH);
+            if (_eagleHpSlider != null) _eagleHpSlider.value = (float)eagleHp / EagleMaxHp;
+            if (_enemyCountText != null) _enemyCountText.text = $"ENEMY: {alive}";
         }
-        else if (_eagleGhost != null)
+        catch (OverflowException ex)
         {
-            // Sync position in case eagle moved (normally static, but stays correct).
-            _eagleGhost.position    = new Vector3(eaglePx, eaglePy, 0f);
-            // Apply scale if it differs (handles first-packet size correction).
-            var want = new Vector3(eagleW, eagleH, 1f);
-            if (_eagleGhost.localScale != want) _eagleGhost.localScale = want;
+            Debug.LogWarning($"[LanClientView] Dropped malformed world-state packet: {ex.Message}");
         }
-        if (_eagleHpSlider  != null) _eagleHpSlider.value   = (float)eagleHp / EagleMaxHp;
-        if (_enemyCountText != null) _enemyCountText.text    = $"ENEMY: {alive}";
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[LanClientView] World-state handler failed: {ex}");
+        }
     }
 
     // ── Update: interpolate ghosts toward server-authoritative positions ──────
@@ -421,7 +426,10 @@ public class LanClientView : MonoBehaviour
             var bridges = FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None);
             foreach (var b in bridges)
                 if (b.IsOwner && b.Slot.Value >= 0) { _ownSlot = b.Slot.Value; break; }
-            if (_ownSlot < 0) _ownSlot = Mathf.Min(1, playerCount - 1);
+            if (_ownSlot < 0)
+                _ownSlot = LanSessionManager.IsDedicatedServer
+                    ? 0
+                    : Mathf.Min(1, playerCount - 1);
         }
 
         // Spawn player ghosts with the correct tank body sprite per slot ──────

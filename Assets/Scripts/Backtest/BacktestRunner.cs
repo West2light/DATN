@@ -613,7 +613,7 @@ public class BacktestRunner : MonoBehaviour
         lRt.pivot = new Vector2(0.5f, 0.5f);
         lRt.offsetMin = new Vector2(16f, 0f); lRt.offsetMax = new Vector2(-16f, 0f);
         _progressText = labelGo.AddComponent<Text>();
-        _progressText.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        _progressText.font      = UiFontProvider.GetDefaultFont();
         _progressText.fontSize  = 14;
         _progressText.color     = new Color(1f, 0.85f, 0.2f, 1f);
         _progressText.alignment = TextAnchor.MiddleLeft;
@@ -628,7 +628,7 @@ public class BacktestRunner : MonoBehaviour
         cRt.pivot = new Vector2(1f, 0.5f);
         cRt.anchoredPosition = new Vector2(-16f, 0f); cRt.sizeDelta = new Vector2(200f, 0f);
         _statusText = cntGo.AddComponent<Text>();
-        _statusText.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        _statusText.font      = UiFontProvider.GetDefaultFont();
         _statusText.fontSize  = 13;
         _statusText.color     = new Color(0.7f, 0.9f, 0.7f, 1f);
         _statusText.alignment = TextAnchor.MiddleRight;
@@ -642,7 +642,7 @@ public class BacktestRunner : MonoBehaviour
         hRt.pivot = new Vector2(0.5f, 0.5f);
         hRt.anchoredPosition = Vector2.zero; hRt.sizeDelta = new Vector2(280f, 0f);
         var hTxt = hintGo.AddComponent<Text>();
-        hTxt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        hTxt.font      = UiFontProvider.GetDefaultFont();
         hTxt.fontSize  = 11;
         hTxt.color     = new Color(0.55f, 0.60f, 0.68f, 1f);
         hTxt.alignment = TextAnchor.MiddleCenter;
@@ -667,7 +667,7 @@ public class BacktestRunner : MonoBehaviour
         rtRt.anchorMin = Vector2.zero; rtRt.anchorMax = Vector2.one;
         rtRt.offsetMin = new Vector2(8f, 6f); rtRt.offsetMax = new Vector2(-8f, -6f);
         _realtimeText = rtGo.AddComponent<Text>();
-        _realtimeText.font           = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        _realtimeText.font           = UiFontProvider.GetDefaultFont();
         _realtimeText.fontSize       = 12;
         _realtimeText.color          = new Color(0.85f, 0.92f, 1f, 1f);
         _realtimeText.alignment      = TextAnchor.UpperLeft;

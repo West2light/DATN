@@ -87,21 +87,23 @@ public class LanNetworkBridge : NetworkBehaviour
     public NetworkVariable<int> VariantIndex = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-    // Ready state toggled by each player in the WaitingLobby screen.
-    public NetworkVariable<bool> IsReady = new NetworkVariable<bool>(
+    // Lobby "ready" flag for this player. Server-authoritative; client toggles via RPC.
+    // The owner can only start the game once every connected player's Ready is true.
+    public NetworkVariable<bool> Ready = new NetworkVariable<bool>(
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-
-    [ServerRpc]
-    public void SetReadyServerRpc(bool ready)
-    {
-        IsReady.Value = ready;
-    }
 
     // ── Server-side references ────────────────────────────────────────────────
     private TankController _serverTank;
 
     // ── Owner-side: sample input every frame ─────────────────────────────────
     private Camera _ownerCamera;
+
+    // Input is sampled every frame for local prediction but only SENT to the server
+    // at this fixed rate. Sending every render frame (up to 144 fps) floods the
+    // server's transport receive queue over WebSocket and breaks the connection.
+    private const float InputSendInterval = 1f / 30f;
+    private float _inputSendTimer;
+    private bool  _pendingShoot;   // latches a shoot press between throttled sends
 
     public override void OnNetworkSpawn()
     {
@@ -150,9 +152,87 @@ public class LanNetworkBridge : NetworkBehaviour
     }
 
     [ServerRpc]
-    public void SendVariantServerRpc(int variantIndex)
+    private void SendVariantServerRpc(int variantIndex)
     {
         VariantIndex.Value = variantIndex;
+    }
+
+    // ── Lobby: ready toggle + owner-driven start ───────────────────────────────
+
+    // The room owner is the connected client with the smallest clientId. Computed on
+    // demand (no extra synced state) — used both to gate the START action and to label
+    // the owner in the lobby UI.
+    public static ulong ResolveOwnerClientId()
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null) return ulong.MaxValue;
+        ulong owner = ulong.MaxValue;
+        if (nm.IsServer)
+        {
+            foreach (ulong id in nm.ConnectedClientsIds)
+                if (id < owner) owner = id;
+        }
+        else
+        {
+            // On a pure client, derive from the bridges it can see.
+            foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null && b.IsSpawned && b.OwnerClientId < owner) owner = b.OwnerClientId;
+        }
+        return owner;
+    }
+
+    public bool IsRoomOwner => OwnerClientId == ResolveOwnerClientId();
+
+    [ServerRpc]
+    public void SetReadyServerRpc(bool ready)
+    {
+        Ready.Value = ready;
+    }
+
+    // Called by the lobby UI on the LOCAL (owned) bridge to toggle ready / change tank color.
+    public void SubmitReady(bool ready)
+    {
+        if (IsServer) Ready.Value = ready;
+        else SetReadyServerRpc(ready);
+    }
+
+    public void SubmitVariant(int variantIndex)
+    {
+        if (IsServer) VariantIndex.Value = variantIndex;
+        else SendVariantServerRpc(variantIndex);
+    }
+
+    // The local client's own bridge (the one it owns), or null if not spawned yet.
+    public static LanNetworkBridge Local
+    {
+        get
+        {
+            foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+                if (b != null && b.IsSpawned && b.IsOwner) return b;
+            return null;
+        }
+    }
+
+    // Owner asks the server to start the game. RequireOwnership=false because this bridge
+    // is owned by the calling client (its own player object), and we validate the room-owner
+    // identity by clientId rather than NetworkObject ownership.
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestStartServerRpc(ServerRpcParams p = default)
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsServer) return;
+
+        // Only the room owner (smallest connected clientId) may start.
+        if (p.Receive.SenderClientId != ResolveOwnerClientId()) return;
+
+        // Need at least the owner connected, and every connected player's bridge must be Ready.
+        if (nm.ConnectedClients.Count < 1) return;
+        foreach (var b in FindObjectsByType<LanNetworkBridge>(FindObjectsSortMode.None))
+            if (b != null && b.IsSpawned && !b.Ready.Value) return;
+
+        // Dedicated server: load through the bootstrap's guarded path (sets PlayerCount,
+        // dedupes against the grace timer). Host mode uses LanLobbyController.DoStartGame.
+        DedicatedServerBootstrap.Instance?.BeginGameplayScene();
     }
 
     private void Update()
@@ -172,22 +252,33 @@ public class LanNetworkBridge : NetworkBehaviour
         if (IsServer)
         {
             // Host: route qua Coordinator để CHẮC CHẮN chỉ Tank[0] (slot host) nhận input.
+            // Host input is applied locally (no network), so no throttling is needed.
             LanGameCoordinator.Instance?.ApplyHostInput(move, mouseWorld, shoot);
             return;
         }
+
+        // Body prediction runs every frame for responsive local movement (no network cost).
+        // Turret prediction is deferred to LateUpdate so it always wins over any
+        // body-rotation side-effects that happen later in this same Update phase.
+        LanClientView.Instance?.PredictOwnMovement(move);
+
+        // Latch the shoot press so a tap landing between throttled sends is not lost.
+        _pendingShoot |= shoot;
+
+        // Throttle the input RPC to ~30 Hz. See InputSendInterval — sending every frame
+        // overflows the server's receive queue over WebSocket and drops the connection.
+        _inputSendTimer += Time.deltaTime;
+        if (_inputSendTimer < InputSendInterval) return;
+        _inputSendTimer = 0f;
 
         // Client: compute turret angle from OwnGhost's turret position (not raw world pos).
         // This decouples the angle from camera position — two machines with similar camera
         // views would otherwise compute the same world-pos and therefore the same angle.
         float turretAngle = ComputeTurretAngle(mouseWorld);
 
-        // Client từ xa: gửi input qua RPC.
-        SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = shoot });
-
-        // Body prediction runs here (Update) for responsive movement.
-        // Turret prediction is deferred to LateUpdate so it always wins over any
-        // body-rotation side-effects that happen later in this same Update phase.
-        LanClientView.Instance?.PredictOwnMovement(move);
+        // Client từ xa: gửi input qua RPC (đã throttle).
+        SendInputServerRpc(new LanInputPacket { move = move, turretAngle = turretAngle, shoot = _pendingShoot });
+        _pendingShoot = false;
     }
 
     private void LateUpdate()

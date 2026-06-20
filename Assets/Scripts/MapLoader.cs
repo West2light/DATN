@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.Tilemaps;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -50,6 +52,8 @@ public class MapLoader : MonoBehaviour
     private const string MovementObstacleLayerName = "Walls";
     private const string LegacyMovementObstacleLayerName = "ObstaclesMovement";
     private const string BulletObstacleLayerName = "Hittable";
+    private bool _isLoading;
+    private string _lastLoadError;
 
     public int Width => width;
     public int Height => height;
@@ -57,6 +61,9 @@ public class MapLoader : MonoBehaviour
     public int BuildStartY => buildStartY;
     public int BuildWidth => buildWidth;
     public int BuildHeight => buildHeight;
+    public bool IsLoaded => grid != null && width > 0 && height > 0;
+    public bool IsLoading => _isLoading;
+    public string LastLoadError => _lastLoadError;
 
     private void Reset()
     {
@@ -74,6 +81,9 @@ public class MapLoader : MonoBehaviour
     [ContextMenu("Load Map Now")]
     public void LoadAndBuild()
     {
+        if (_isLoading)
+            return;
+
         if (tilesParent == null)
         {
             tilesParent = transform;
@@ -85,22 +95,74 @@ public class MapLoader : MonoBehaviour
         string overrideFile = UnityEngine.PlayerPrefs.GetString("SelectedMapFile", string.Empty);
         if (!string.IsNullOrEmpty(overrideFile)) mapFileName = Path.GetFileName(overrideFile);
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        _isLoading = true;
+        _lastLoadError = null;
+        StartCoroutine(LoadAndBuildFromStreamingAssetsUrl(BuildWebGlMapUrl(mapFileName)));
+        return;
+#else
         string mapPath = Path.Combine(Application.streamingAssetsPath, "MapData", mapFileName);
         if (!File.Exists(mapPath))
             mapPath = Path.Combine(Application.dataPath, "MapData", mapFileName);
         if (!File.Exists(mapPath))
         {
-            Debug.LogError($"[MapLoader] Map file not found: {mapPath}");
+            FailLoad($"[MapLoader] Map file not found: {mapPath}");
             return;
         }
 
         grid = ReadMapFile(mapPath, out width, out height);
+        FinalizeLoadedMap();
+#endif
+    }
+
+    private IEnumerator LoadAndBuildFromStreamingAssetsUrl(string mapUrl)
+    {
+        using UnityWebRequest request = UnityWebRequest.Get(mapUrl);
+        yield return request.SendWebRequest();
+
+        _isLoading = false;
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            FailLoad($"[MapLoader] Map file not found: {mapUrl} ({request.error})");
+            yield break;
+        }
+
+        string text = request.downloadHandler.text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            FailLoad($"[MapLoader] Map file is empty: {mapUrl}");
+            yield break;
+        }
+
+        grid = ReadMapText(text, out width, out height);
+        FinalizeLoadedMap();
+    }
+
+    private void FinalizeLoadedMap()
+    {
         ComputeBuildWindow();
         BuildTiles();
         CreateMapBounds();
         StaticBatchingUtility.Combine(tilesParent.gameObject);
-
         FitCamera();
+        _lastLoadError = null;
+    }
+
+    private void FailLoad(string message)
+    {
+        _isLoading = false;
+        _lastLoadError = message;
+        Debug.LogError(message);
+    }
+
+    private string BuildWebGlMapUrl(string fileName)
+    {
+        string escapedFileName = UnityWebRequest.EscapeURL(fileName);
+        if (Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out Uri pageUri))
+            return new Uri(pageUri, $"StreamingAssets/MapData/{escapedFileName}").ToString();
+
+        return $"StreamingAssets/MapData/{escapedFileName}";
     }
 
     public bool IsWalkable(Vector2Int cell)
@@ -270,10 +332,21 @@ public class MapLoader : MonoBehaviour
 
     private char[][] ReadMapFile(string filePath, out int mapWidth, out int mapHeight)
     {
-        string[] lines = File.ReadAllLines(filePath);
-        if (lines.Length < 4)
+        return ReadMapLines(File.ReadAllLines(filePath), out mapWidth, out mapHeight);
+    }
+
+    private char[][] ReadMapText(string text, out int mapWidth, out int mapHeight)
+    {
+        string normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
+        string[] lines = normalized.Split('\n');
+        return ReadMapLines(lines, out mapWidth, out mapHeight);
+    }
+
+    private char[][] ReadMapLines(string[] lines, out int mapWidth, out int mapHeight)
+    {
+        if (lines == null || lines.Length < 4)
         {
-            throw new InvalidOperationException($"Invalid MAPF map file: {filePath}");
+            throw new InvalidOperationException("Invalid MAPF map file.");
         }
 
         mapHeight = ParseHeaderInt(lines[1], "height");
