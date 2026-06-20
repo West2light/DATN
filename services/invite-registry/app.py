@@ -4,6 +4,8 @@ import secrets
 import html as html_module
 import time
 import subprocess
+import socket
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -41,6 +43,63 @@ REGISTRY_PUBLIC_BASE_URL = env_string("REGISTRY_PUBLIC_BASE_URL", DEFAULT_PUBLIC
 REGISTRY_ADMIN_TOKEN = env_string("REGISTRY_ADMIN_TOKEN", DEFAULT_ADMIN_TOKEN)
 REGISTRY_DATA_FILE = env_string("REGISTRY_DATA_FILE", DEFAULT_DATA_FILE)
 CREATE_ROOM_HELPER = env_string("CREATE_ROOM_HELPER", DEFAULT_CREATE_ROOM_HELPER)
+PIBT_TCP_HOST = env_string("PIBT_TCP_HOST", "110.172.28.110")
+PIBT_TCP_PORT = env_int("PIBT_TCP_PORT", 7777)
+PIBT_HELLO_TIMEOUT = env_int("PIBT_HELLO_TIMEOUT", 60)
+PIBT_PLAN_TIMEOUT = env_int("PIBT_PLAN_TIMEOUT", 15)
+
+
+class PibtRelayConnection:
+    def __init__(self, tcp_socket):
+        self.socket = tcp_socket
+        self.buffer = bytearray()
+        self.lock = threading.Lock()
+        self.last_used = time.time()
+
+    def exchange(self, payload, timeout):
+        with self.lock:
+            self.last_used = time.time()
+            self.socket.settimeout(timeout)
+            self.socket.sendall(payload.encode("utf-8") + b"\n")
+            while b"\n" not in self.buffer:
+                chunk = self.socket.recv(65536)
+                if not chunk:
+                    raise ConnectionError("PIBT server closed the TCP connection")
+                self.buffer.extend(chunk)
+                if len(self.buffer) > 4 * 1024 * 1024:
+                    raise ValueError("PIBT response exceeded 4 MiB")
+
+            line, _, remainder = self.buffer.partition(b"\n")
+            self.buffer = bytearray(remainder)
+            return line.rstrip(b"\r").decode("utf-8")
+
+    def close(self):
+        try:
+            self.socket.close()
+        except OSError:
+            pass
+
+
+PIBT_CONNECTIONS = {}
+PIBT_CONNECTIONS_LOCK = threading.Lock()
+
+
+def remove_pibt_connection(session_id):
+    with PIBT_CONNECTIONS_LOCK:
+        connection = PIBT_CONNECTIONS.pop(session_id, None)
+    if connection is not None:
+        connection.close()
+
+
+def prune_pibt_connections(max_idle_seconds=300):
+    cutoff = time.time() - max_idle_seconds
+    with PIBT_CONNECTIONS_LOCK:
+        expired = [
+            session_id for session_id, connection in PIBT_CONNECTIONS.items()
+            if connection.last_used < cutoff
+        ]
+    for session_id in expired:
+        remove_pibt_connection(session_id)
 
 
 def ensure_data_dir():
@@ -123,6 +182,10 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
             self.write_json(200, {"ok": True})
             return
 
+        if path == "/api/sessions/pibt/healthz":
+            self.write_json(200, {"ok": True, "relay": "pibt-tcp"})
+            return
+
         if path.startswith("/api/sessions/"):
             code = path.rsplit("/", 1)[-1].strip().upper()
             self.handle_get_session(code)
@@ -141,7 +204,11 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path not in {"/api/sessions", "/api/admin/rooms", "/api/rooms"}:
+        pibt_operation = None
+        if parsed.path.startswith("/api/sessions/pibt/"):
+            pibt_operation = parsed.path.rsplit("/", 1)[-1]
+
+        if pibt_operation is None and parsed.path not in {"/api/sessions", "/api/admin/rooms", "/api/rooms"}:
             self.write_json(404, {"error": "Not found"})
             return
 
@@ -159,6 +226,10 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
             body = json.loads(raw_body) if raw_body else {}
         except (UnicodeDecodeError, json.JSONDecodeError):
             self.write_json(400, {"error": "Invalid JSON body"})
+            return
+
+        if pibt_operation is not None:
+            self.handle_pibt_relay(pibt_operation, raw_body, body)
             return
 
         try:
@@ -181,6 +252,59 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
             "joinUrl": build_join_url(session["code"]),
             "webUrl": session.get("webUrl", ""),
         })
+
+    def handle_pibt_relay(self, operation, raw_body, body):
+        if operation not in {"hello", "plan-step", "shutdown"}:
+            self.write_json(404, {"error": "Unknown PIBT relay operation"})
+            return
+
+        session_id = str(body.get("sessionId") or "").strip()
+        if not session_id or len(session_id) > 128:
+            self.write_json(400, {"error": "A valid sessionId is required"})
+            return
+        if len(raw_body.encode("utf-8")) > 2 * 1024 * 1024:
+            self.write_json(413, {"error": "PIBT request exceeded 2 MiB"})
+            return
+
+        prune_pibt_connections()
+        try:
+            if operation == "hello":
+                remove_pibt_connection(session_id)
+                tcp_socket = socket.create_connection(
+                    (PIBT_TCP_HOST, PIBT_TCP_PORT), timeout=5)
+                connection = PibtRelayConnection(tcp_socket)
+                response = connection.exchange(raw_body, PIBT_HELLO_TIMEOUT)
+                if "\"hello_ack\"" not in response:
+                    connection.close()
+                    self.write_raw_json(502, response)
+                    return
+                with PIBT_CONNECTIONS_LOCK:
+                    PIBT_CONNECTIONS[session_id] = connection
+                self.write_raw_json(200, response)
+                return
+
+            with PIBT_CONNECTIONS_LOCK:
+                connection = PIBT_CONNECTIONS.get(session_id)
+            if connection is None:
+                self.write_json(404, {"error": "PIBT relay session was not found or expired"})
+                return
+
+            timeout = 5 if operation == "shutdown" else PIBT_PLAN_TIMEOUT
+            response = connection.exchange(raw_body, timeout)
+            if operation == "shutdown":
+                remove_pibt_connection(session_id)
+            self.write_raw_json(200, response)
+        except (OSError, UnicodeError, ValueError, ConnectionError) as exc:
+            remove_pibt_connection(session_id)
+            self.write_json(502, {"error": f"PIBT TCP relay failed: {exc}"})
+
+    def write_raw_json(self, status_code, raw_json):
+        raw = raw_json.encode("utf-8")
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
 
     def handle_get_session(self, code):
         if not code:

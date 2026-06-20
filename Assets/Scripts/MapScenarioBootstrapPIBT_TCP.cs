@@ -75,6 +75,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private bool            winTriggered;
 
     private PIBTTcpClient              _client;
+    private PIBTWebRelayClient         _webClient;
+    private bool                       _webRequestInFlight;
     private readonly List<GridEnemyAgentPIBT_TCP> _agents = new();
     private readonly List<int> _agentOrientations = new();
     private string _sessionId;
@@ -109,7 +111,11 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         SpawnEnemies();
         Debug.Log($"[PIBT_TCP] Spawned TCP scenario objects. eagle={eagleBase != null}, agents={_agents.Count}, enemies={_enemyGOs.Count}");
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        StartCoroutine(ConnectAndHelloWeb());
+#else
         ConnectAndHello();
+#endif
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -152,21 +158,102 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private void Update()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (!_serverReady || _webClient == null || _webRequestInFlight) return;
+        if (Time.time < _nextTickTime) return;
+        _nextTickTime = Time.time + tcpTickInterval;
+        StartCoroutine(DoStepWeb());
+#else
         if (!_serverReady || _client == null || !_client.IsConnected) return;
         if (Time.time < _nextTickTime) return;
         _nextTickTime = Time.time + tcpTickInterval;
         DoStep();
+#endif
     }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    private IEnumerator ConnectAndHelloWeb()
+    {
+        _webClient = GetComponent<PIBTWebRelayClient>() ?? gameObject.AddComponent<PIBTWebRelayClient>();
+        int height = mapLoader.BuildHeight;
+        int width = mapLoader.BuildWidth;
+        string symbols = BuildMapSymbols(width, height);
+        _sessionId = $"unity-web-{System.Guid.NewGuid():N}";
+        ResetAgentOrientations();
+
+        string response = null;
+        string error = null;
+        string request = PIBTTcpClient.BuildHelloRequest(
+            _sessionId, width, height, symbols, _agents.Count);
+
+        _webRequestInFlight = true;
+        Debug.Log($"[PIBT_WEB] Sending hello through same-origin HTTPS relay. session={_sessionId}, agents={_agents.Count}, map={width}x{height}");
+        yield return _webClient.Exchange("hello", request, 70, (value, failure) =>
+        {
+            response = value;
+            error = failure;
+        });
+        _webRequestInFlight = false;
+
+        if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(response))
+        {
+            StopAgentsForConnectionFailure($"Web relay hello failed: {error}");
+            yield break;
+        }
+
+        bool ok = response.Contains("\"hello_ack\"") &&
+                  (!response.Contains("\"error\"") || response.Contains("\"status\":\"ok\""));
+        if (!ok)
+        {
+            StopAgentsForConnectionFailure($"Unexpected hello response: {response}");
+            yield break;
+        }
+
+        _serverReady = true;
+        _nextTickTime = Time.time + tcpTickInterval;
+        Debug.Log($"[PIBT_WEB] Connected and initialized through relay. {_agents.Count} agents, map {width}x{height}.");
+    }
+
+    private IEnumerator DoStepWeb()
+    {
+        int rows = mapLoader.BuildHeight;
+        int cols = mapLoader.BuildWidth;
+        var data = BuildStepData(rows, cols);
+        string request = PIBTTcpClient.BuildPlanStepRequest(_sessionId, _frame, _frame, data);
+        _frame++;
+
+        string response = null;
+        string error = null;
+        _webRequestInFlight = true;
+        yield return _webClient.Exchange("plan-step", request, 20, (value, failure) =>
+        {
+            response = value;
+            error = failure;
+        });
+        _webRequestInFlight = false;
+
+        if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(response))
+        {
+            StopAgentsForConnectionFailure($"Web relay plan_step failed: {error}");
+            yield break;
+        }
+
+        string[] actions = PIBTTcpClient.ParseActions(response, data.Length);
+        if (actions == null)
+        {
+            StopAgentsForConnectionFailure($"Could not parse relay plan_result: {response}");
+            yield break;
+        }
+
+        ApplyStepActions(actions, rows, cols);
+    }
+#endif
 
     private void DoStep()
     {
         int rows    = mapLoader.BuildHeight;
         int cols    = mapLoader.BuildWidth;
-        int goalFlat = EagleFlat(rows, cols);
-
-        var data = new (int id, int loc, int orientation, int goalLoc)[_agents.Count];
-        for (int i = 0; i < _agents.Count; i++)
-            data[i] = (i, AgentFlat(i, rows, cols), AgentOrientation(i), goalFlat);
+        var data = BuildStepData(rows, cols);
 
         string[] actions = _client.PlanStep(_frame, _frame, data);
         _frame++;
@@ -176,19 +263,39 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
                 ? _client.LastError
                 : "Unknown plan_step failure.";
             Debug.LogWarning($"[PIBT_TCP] Server plan_step failed — stopping agents. {reason}");
-            _serverReady = false;
-            foreach (var a in _agents)
-                if (a != null) a.StopMovement();
-            ShowToast("Mất kết nối PIBT server.\nAgent đã dừng.", 3f);
+            StopAgentsForConnectionFailure(reason);
             return;
         }
 
+        ApplyStepActions(actions, rows, cols);
+    }
+
+    private (int id, int loc, int orientation, int goalLoc)[] BuildStepData(int rows, int cols)
+    {
+        int goalFlat = EagleFlat(rows, cols);
+        var data = new (int id, int loc, int orientation, int goalLoc)[_agents.Count];
+        for (int i = 0; i < _agents.Count; i++)
+            data[i] = (i, AgentFlat(i, rows, cols), AgentOrientation(i), goalFlat);
+        return data;
+    }
+
+    private void ApplyStepActions(string[] actions, int rows, int cols)
+    {
         for (int i = 0; i < _agents.Count && i < actions.Length; i++)
         {
             if (_agents[i] == null) continue;
             Vector2Int nextCell = ApplyAction(i, actions[i], rows, cols);
             _agents[i].SetNextTarget(nextCell);
         }
+    }
+
+    private void StopAgentsForConnectionFailure(string reason)
+    {
+        Debug.LogError($"[PIBT_TCP] {reason}");
+        _serverReady = false;
+        foreach (var agent in _agents)
+            if (agent != null) agent.StopMovement();
+        ShowToast("Mất kết nối PIBT server.\nAgent đã dừng.", 3f);
     }
 
     private string BuildMapSymbols(int cols, int rows)
@@ -649,7 +756,11 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private void ClearScenario()
     {
+        _serverReady = false;
+        _webRequestInFlight = false;
+        _frame = 0;
         _agents.Clear();
+        _agentOrientations.Clear();
         _enemyGOs.Clear();
         Transform existing = transform.Find("ScenarioRuntime_PIBT_TCP");
         if (existing == null) return;

@@ -17,7 +17,9 @@ public class PIBTTcpClient : MonoBehaviour
     [Tooltip("Raw TCP host name/IP or URL. Example: 110.172.28.110 or http://110.172.28.110:7777/")]
     public string host = "110.172.28.110";
     public int port = 7777;
-    [Min(1)] public int timeoutMs = 5000;
+    [Min(1)] public int connectTimeoutMs = 5000;
+    [Min(1000)] public int helloTimeoutMs = 60000;
+    [Min(1000)] public int planTimeoutMs = 15000;
 
     private TcpClient _client;
     private Stream _stream;
@@ -33,13 +35,13 @@ public class PIBTTcpClient : MonoBehaviour
         {
             LastError = null;
             ResolveEndpoint(host, port, out string connectHost, out int connectPort, out bool useTls);
-            Debug.Log($"[PIBTTcpClient] Connecting raw TCP endpoint host='{host}', port={port} -> {connectHost}:{connectPort}, tls={useTls}, timeoutMs={timeoutMs}");
+            Debug.Log($"[PIBTTcpClient] Connecting raw TCP endpoint host='{host}', port={port} -> {connectHost}:{connectPort}, tls={useTls}, connectTimeoutMs={connectTimeoutMs}");
 
             _client = new TcpClient();
-            _client.SendTimeout = timeoutMs;
-            _client.ReceiveTimeout = timeoutMs;
+            _client.SendTimeout = planTimeoutMs;
+            _client.ReceiveTimeout = helloTimeoutMs;
             IAsyncResult connectResult = _client.BeginConnect(connectHost, connectPort, null, null);
-            if (!connectResult.AsyncWaitHandle.WaitOne(timeoutMs))
+            if (!connectResult.AsyncWaitHandle.WaitOne(connectTimeoutMs))
             {
                 throw new TimeoutException($"Timed out connecting to {connectHost}:{connectPort}");
             }
@@ -102,17 +104,12 @@ public class PIBTTcpClient : MonoBehaviour
         _sessionId = sessionId;
         LastError = null;
 
-        string json =
-            "{\"type\":\"hello\"" +
-            $",\"sessionId\":\"{Escape(sessionId)}\"" +
-            $",\"teamSize\":{teamSize}" +
-            ",\"map\":{" +
-            $"\"width\":{width},\"height\":{height},\"symbols\":\"{Escape(symbols)}\"" +
-            "}}";
+        string json = BuildHelloRequest(sessionId, width, height, symbols, teamSize);
 
         Debug.Log($"[PIBTTcpClient] Sending hello session={sessionId}, teamSize={teamSize}, map={width}x{height}, symbolsLength={symbols?.Length ?? 0}, payloadBytes={Encoding.UTF8.GetByteCount(json) + 1}");
         if (!SendLine(json)) return false;
 
+        if (_client != null) _client.ReceiveTimeout = helloTimeoutMs;
         string resp = RecvLine();
         if (resp == null)
         {
@@ -139,32 +136,15 @@ public class PIBTTcpClient : MonoBehaviour
 
     public string[] PlanStep(int requestId, int timestep, (int id, int loc, int orientation, int goalLoc)[] agents)
     {
-        var sb = new StringBuilder();
-        sb.Append("{\"type\":\"plan_step\"");
-        sb.Append(",\"sessionId\":\"").Append(Escape(_sessionId)).Append('"');
-        sb.Append(",\"requestId\":").Append(requestId);
-        sb.Append(",\"timestep\":").Append(timestep);
-        sb.Append(",\"agents\":[");
+        string request = BuildPlanStepRequest(_sessionId, requestId, timestep, agents);
 
-        for (int i = 0; i < agents.Length; i++)
-        {
-            if (i > 0) sb.Append(',');
-            sb.Append('{');
-            sb.Append("\"id\":").Append(agents[i].id);
-            sb.Append(",\"loc\":").Append(agents[i].loc);
-            sb.Append(",\"orientation\":").Append(agents[i].orientation);
-            sb.Append(",\"goalLoc\":").Append(agents[i].goalLoc);
-            sb.Append('}');
-        }
-
-        sb.Append("]}");
-
-        if (!SendLine(sb.ToString()))
+        if (!SendLine(request))
         {
             LastError = "Failed to send plan_step.";
             return null;
         }
 
+        if (_client != null) _client.ReceiveTimeout = planTimeoutMs;
         string resp = RecvLine();
         if (resp == null)
         {
@@ -192,6 +172,45 @@ public class PIBTTcpClient : MonoBehaviour
 
         LastError = null;
         return actions;
+    }
+
+    internal static string BuildHelloRequest(string sessionId, int width, int height, string symbols, int teamSize)
+    {
+        return
+            "{\"type\":\"hello\"" +
+            $",\"sessionId\":\"{Escape(sessionId)}\"" +
+            $",\"teamSize\":{teamSize}" +
+            ",\"map\":{" +
+            $"\"width\":{width},\"height\":{height},\"symbols\":\"{Escape(symbols)}\"" +
+            "}}";
+    }
+
+    internal static string BuildPlanStepRequest(
+        string sessionId,
+        int requestId,
+        int timestep,
+        (int id, int loc, int orientation, int goalLoc)[] agents)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{\"type\":\"plan_step\"");
+        sb.Append(",\"sessionId\":\"").Append(Escape(sessionId)).Append('"');
+        sb.Append(",\"requestId\":").Append(requestId);
+        sb.Append(",\"timestep\":").Append(timestep);
+        sb.Append(",\"agents\":[");
+
+        for (int i = 0; i < agents.Length; i++)
+        {
+            if (i > 0) sb.Append(',');
+            sb.Append('{');
+            sb.Append("\"id\":").Append(agents[i].id);
+            sb.Append(",\"loc\":").Append(agents[i].loc);
+            sb.Append(",\"orientation\":").Append(agents[i].orientation);
+            sb.Append(",\"goalLoc\":").Append(agents[i].goalLoc);
+            sb.Append('}');
+        }
+
+        sb.Append("]}");
+        return sb.ToString();
     }
 
     private bool SendLine(string json)
@@ -278,7 +297,7 @@ public class PIBTTcpClient : MonoBehaviour
         public int nextLoc;
     }
 
-    private static string[] ParseActions(string json, int expectedLength)
+    internal static string[] ParseActions(string json, int expectedLength)
     {
         try
         {
@@ -352,7 +371,7 @@ public class PIBTTcpClient : MonoBehaviour
         return values.ToArray();
     }
 
-    private static string Escape(string value)
+    internal static string Escape(string value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
 

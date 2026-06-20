@@ -168,6 +168,19 @@ jobs:
             echo "web_artifact=$web_artifact"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Deploy PIBT relay registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud compute scp services/invite-registry/app.py \
+            "$GCP_VM_NAME:/tmp/tank-mapf-registry-app.py" \
+            --zone "$GCP_ZONE" \
+            --tunnel-through-iap
+          gcloud compute ssh "$GCP_VM_NAME" \
+            --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
+            --command "sudo install -o tankmapf -g tankmapf -m 0644 /tmp/tank-mapf-registry-app.py /opt/tank-mapf/registry/app.py && sudo systemctl restart tank-mapf-registry.service"
+
       - name: Deploy Linux dedicated server
         shell: bash
         env:
@@ -222,6 +235,7 @@ jobs:
           set -euo pipefail
 
           curl -fsS "${{ steps.targets.outputs.registry_base_url }}/create" | grep -qi 'tank mapf'
+          curl -fsS "${{ steps.targets.outputs.registry_base_url }}/api/sessions/pibt/healthz" | grep -q 'pibt-tcp'
           curl -fsSI "${{ steps.targets.outputs.web_url }}"
           curl -fsS "${{ steps.targets.outputs.web_url }}/StreamingAssets/MapData/random-32-32-10.map" | grep -q '^type'
           curl -fsSI "${{ steps.targets.outputs.web_url }}/Build/WebGL.wasm.br"
