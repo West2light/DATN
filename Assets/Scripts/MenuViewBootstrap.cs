@@ -77,10 +77,10 @@ public class MenuViewBootstrap : MonoBehaviour
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
-    private enum Screen { Main, LanEntry, Outfit, MapSelect, LanMapSelect, InternetEntry }
+    private enum Screen { Main, Outfit, MapSelect, LanMapSelect, InternetEntry }
 
     private Canvas     _canvas;
-    private GameObject _screenMain, _screenLanEntry, _screenOutfit, _screenMap, _screenLan, _screenInternet;
+    private GameObject _screenMain, _screenOutfit, _screenMap, _screenLan, _screenInternet;
     private Image      _tankPreviewImage;
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
@@ -115,7 +115,6 @@ public class MenuViewBootstrap : MonoBehaviour
         SetupCamera();
         SetupCanvas();
         BuildScreenMain();
-        BuildScreenLanEntry();
         BuildScreenOutfit();
         BuildScreenMapSelect();
         BuildScreenLanMapSelect();
@@ -920,65 +919,6 @@ public class MenuViewBootstrap : MonoBehaviour
         _lanStatusText.color = color;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // SCREEN: LAN Entry  (Host / Join picker — LAN only)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private void BuildScreenLanEntry()
-    {
-        _screenLanEntry = MakePanel(_canvas.transform, "ScreenLanEntry",
-            Vector2.zero, new Vector2(1280f, 720f), BgDark);
-
-        // Centre card (narrower than the map-select cards)
-        GameObject card = MakePanel(_screenLanEntry.transform, "LanCard",
-            new Vector2(0f, 20f), new Vector2(400f, 340f), PanelDark);
-
-        // Title
-        MakeText(card.transform, "Title", "MULTIPLAYER  LAN",
-            26, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
-            new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(360f, 40f));
-
-        // Subtitle
-        MakeText(card.transform, "Sub", "Chọn vai trò của bạn",
-            14, FontStyle.Italic, TextMuted,
-            new Vector2(0.5f, 0.5f), new Vector2(0f, 80f), new Vector2(360f, 24f));
-
-        // Divider
-        MakePanel(card.transform, "Div", new Vector2(0f, 52f), new Vector2(280f, 1f),
-            new Color(0.40f, 0.60f, 0.80f, 0.25f));
-
-        // HOST GAME button
-        Button btnHostLan = MakeButton(card.transform, "BtnHost",
-            "●  HOST GAME", new Vector2(0f, 0f), new Vector2(320f, 64f),
-            new Color(0.14f, 0.38f, 0.70f, 1f));
-        SetTextColor(btnHostLan.transform, new Color(0.85f, 0.95f, 1f));
-        btnHostLan.onClick.AddListener(() => { _isLanMode = true; ShowScreen(Screen.Outfit); });
-
-        // Description under HOST
-        MakeText(card.transform, "HostDesc", "Chọn Map → Tạo phòng → Chờ người chơi",
-            11, FontStyle.Italic, TextMuted,
-            new Vector2(0.5f, 0.5f), new Vector2(0f, -42f), new Vector2(340f, 18f));
-
-        // JOIN GAME button
-        Button btnJoinLan = MakeButton(card.transform, "BtnJoin",
-            "→  JOIN GAME", new Vector2(0f, -84f), new Vector2(320f, 64f),
-            new Color(0.10f, 0.26f, 0.46f, 1f));
-        SetTextColor(btnJoinLan.transform, new Color(0.65f, 0.85f, 1f));
-        btnJoinLan.onClick.AddListener(() => LanLobbyController.ShowAsJoin());
-
-        // Description under JOIN
-        MakeText(card.transform, "JoinDesc", "Nhập Room Code hoặc IP → Kết nối",
-            11, FontStyle.Italic, TextMuted,
-            new Vector2(0.5f, 0.5f), new Vector2(0f, -126f), new Vector2(340f, 18f));
-
-        // Back button
-        Button btnBackLan = MakeButton(_screenLanEntry.transform, "BtnBack",
-            "← BACK", new Vector2(-500f, -300f), new Vector2(130f, 46f),
-            new Color(0.28f, 0.38f, 0.48f, 1f));
-        SetTextColor(btnBackLan.transform, TextLight);
-        btnBackLan.onClick.AddListener(() => ShowScreen(Screen.Main));
-    }
-
     // SCREEN: Internet Entry (HOST / JOIN)
     private void BuildScreenInternetEntry()
     {
@@ -1024,7 +964,6 @@ public class MenuViewBootstrap : MonoBehaviour
     private void ShowScreen(Screen screen)
     {
         if (_screenMain     != null) _screenMain.SetActive(screen == Screen.Main);
-        if (_screenLanEntry != null) _screenLanEntry.SetActive(screen == Screen.LanEntry);
         if (_screenOutfit   != null) _screenOutfit.SetActive(screen == Screen.Outfit);
         if (_screenMap      != null) _screenMap.SetActive(screen == Screen.MapSelect);
         if (_screenLan      != null) _screenLan.SetActive(screen == Screen.LanMapSelect);
