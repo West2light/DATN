@@ -83,6 +83,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private int   _frame;
     private float _nextTickTime;
     private bool  _serverReady;
+    private bool  _stepInFlight;
 
     public GameObject            EagleBase => eagleBase;
     public IReadOnlyList<GameObject> Enemies => _enemyGOs;
@@ -127,33 +128,47 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _client = GetComponent<PIBTTcpClient>() ?? gameObject.AddComponent<PIBTTcpClient>();
         _client.host = serverHost;
         _client.port = serverPort;
-        Debug.Log($"[PIBT_TCP] ConnectAndHello start. endpoint={_client.host}:{_client.port}, agents={_agents.Count}, map={mapLoader.BuildWidth}x{mapLoader.BuildHeight}");
 
-        if (!_client.Connect())
-        {
-            Debug.LogError("[PIBT_TCP] Could not connect to PIBT server at " +
-                           serverHost + ":" + serverPort +
-                           $". Reason: {_client.LastError}");
-            ShowToast($"Không thể kết nối PIBT server\n({serverHost}:{serverPort})\nHãy kiểm tra server/domain trước khi vào game.", 4f);
-            return;
-        }
-
-        int height = mapLoader.BuildHeight;
-        int width  = mapLoader.BuildWidth;
+        // Build map data on main thread — MapLoader is not thread-safe.
+        int height     = mapLoader.BuildHeight;
+        int width      = mapLoader.BuildWidth;
         string symbols = BuildMapSymbols(width, height);
-        _sessionId = $"unity-{System.Guid.NewGuid():N}";
+        _sessionId     = $"unity-{System.Guid.NewGuid():N}";
         ResetAgentOrientations();
 
-        if (!_client.Hello(_sessionId, width, height, symbols, _agents.Count))
+        Debug.Log($"[PIBT_TCP] ConnectAndHello start. endpoint={_client.host}:{_client.port}, agents={_agents.Count}, map={width}x{height}, helloTimeoutMs={_client.helloTimeoutMs}");
+        StartCoroutine(ConnectAndHelloAsync(_client, _sessionId, width, height, symbols, _agents.Count));
+    }
+
+    private IEnumerator ConnectAndHelloAsync(PIBTTcpClient client, string sessionId, int width, int height, string symbols, int agentCount)
+    {
+        bool done    = false;
+        bool success = false;
+
+        var thread = new System.Threading.Thread(() =>
         {
-            Debug.LogError($"[PIBT_TCP] Server hello failed. Reason: {_client.LastError}");
-            _client.Disconnect();
-            return;
+            if (!client.Connect()) { done = true; return; }
+            success = client.Hello(sessionId, width, height, symbols, agentCount);
+            done = true;
+        });
+        thread.IsBackground = true;
+        thread.Start();
+
+        while (!done)
+            yield return null;
+
+        if (!success)
+        {
+            string err = client.LastError ?? "Unknown error";
+            Debug.LogError($"[PIBT_TCP] Connection/hello failed: {err}");
+            client.Disconnect();
+            ShowToast($"Không thể kết nối PIBT server\n({serverHost}:{serverPort})\n{err}", 5f);
+            yield break;
         }
 
-        _serverReady   = true;
-        _nextTickTime  = Time.time + tcpTickInterval;
-        Debug.Log($"[PIBT_TCP] Connected and initialized. {_agents.Count} agents, map {width}×{height}.");
+        _serverReady  = true;
+        _nextTickTime = Time.time + tcpTickInterval;
+        Debug.Log($"[PIBT_TCP] Connected and initialized. {agentCount} agents, map {width}×{height}. _serverReady=true");
     }
 
     private void Update()
@@ -164,10 +179,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _nextTickTime = Time.time + tcpTickInterval;
         StartCoroutine(DoStepWeb());
 #else
-        if (!_serverReady || _client == null || !_client.IsConnected) return;
+        if (!_serverReady || _client == null || !_client.IsConnected || _stepInFlight) return;
         if (Time.time < _nextTickTime) return;
         _nextTickTime = Time.time + tcpTickInterval;
-        DoStep();
+        StartCoroutine(DoStepAsync());
 #endif
     }
 
@@ -249,25 +264,51 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     }
 #endif
 
-    private void DoStep()
-    {
-        int rows    = mapLoader.BuildHeight;
-        int cols    = mapLoader.BuildWidth;
-        var data = BuildStepData(rows, cols);
+    private bool _firstStepLogged;
 
-        string[] actions = _client.PlanStep(_frame, _frame, data);
-        _frame++;
+    private IEnumerator DoStepAsync()
+    {
+        _stepInFlight = true;
+
+        if (!_firstStepLogged)
+        {
+            _firstStepLogged = true;
+            Debug.Log($"[PIBT_TCP] DoStepAsync: first plan_step sent to server. agents={_agents.Count}");
+        }
+
+        int rows = mapLoader.BuildHeight;
+        int cols = mapLoader.BuildWidth;
+        var data = BuildStepData(rows, cols);
+        int requestId = _frame++;
+
+        string[] actions = null;
+        bool done = false;
+        PIBTTcpClient client = _client;
+
+        var thread = new System.Threading.Thread(() =>
+        {
+            actions = client.PlanStep(requestId, requestId, data);
+            done = true;
+        });
+        thread.IsBackground = true;
+        thread.Start();
+
+        while (!done)
+            yield return null;
+
         if (actions == null)
         {
-            string reason = _client != null && !string.IsNullOrEmpty(_client.LastError)
-                ? _client.LastError
+            _stepInFlight = false;
+            string reason = client != null && !string.IsNullOrEmpty(client.LastError)
+                ? client.LastError
                 : "Unknown plan_step failure.";
             Debug.LogWarning($"[PIBT_TCP] Server plan_step failed — stopping agents. {reason}");
             StopAgentsForConnectionFailure(reason);
-            return;
+            yield break;
         }
 
         ApplyStepActions(actions, rows, cols);
+        _stepInFlight = false;
     }
 
     private (int id, int loc, int orientation, int goalLoc)[] BuildStepData(int rows, int cols)
@@ -758,6 +799,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     {
         _serverReady = false;
         _webRequestInFlight = false;
+        _stepInFlight = false;
+        _firstStepLogged = false;
         _frame = 0;
         _agents.Clear();
         _agentOrientations.Clear();
