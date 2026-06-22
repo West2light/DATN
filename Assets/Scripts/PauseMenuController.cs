@@ -143,7 +143,7 @@ public class PauseMenuController : MonoBehaviour
             new Vector2(0f, -5f), Vector2.zero, AccentBlue);
 
         // Tiêu đề
-        MakeLabel(panel, "Title", "TAM DUNG", 38, FontStyle.Bold, Color.white,
+        MakeLabel(panel, "Title", "PAUSED", 38, FontStyle.Bold, Color.white,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -36f), new Vector2(360f, 52f));
 
@@ -155,7 +155,7 @@ public class PauseMenuController : MonoBehaviour
 
         // Nút CHOI TIEP (trên)
         const float BtnW = 320f, BtnH = 52f, Gap = 12f, PadB = 32f;
-        MakeButton(panel, "ResumeBtn", "CHOI TIEP",
+        MakeButton(panel, "ResumeBtn", "RESUME",
             BtnGreen, Color.white,
             new Vector2(0f, PadB + BtnH + Gap), new Vector2(BtnW, BtnH), Resume);
 

@@ -97,7 +97,7 @@ public class MapWinController : MonoBehaviour
             new Vector2(0f, -44f), new Vector2(480f, 82f));
 
         // Subtitle
-        MakeLabel(panel, "SubText", "Tất cả kẻ thù đã bị tiêu diệt!", 19, FontStyle.Italic,
+        MakeLabel(panel, "SubText", "All enemies have been eliminated!", 19, FontStyle.Italic,
             new Color(0.72f, 0.72f, 0.72f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -140f), new Vector2(440f, 30f));
@@ -124,11 +124,11 @@ public class MapWinController : MonoBehaviour
             float y2 = y1 + BtnH + BtnGap;
             float y3 = y2 + BtnH + BtnGap;
 
-            MakeButton(panel, "PlayAgainBtn", "CHƠI LẠI", GoldColor, Color.black,
+            MakeButton(panel, "PlayAgainBtn", "PLAY AGAIN", GoldColor, Color.black,
                 new Vector2(0f, y3), new Vector2(BtnW, BtnH),
                 () => SceneManager.LoadScene(currentScene));
 
-            MakeButton(panel, "ContinueBtn", "CHƠI TIẾP  ▶  PIBT", BtnGreen, Color.white,
+            MakeButton(panel, "ContinueBtn", "CONTINUE  ▶  PIBT", BtnGreen, Color.white,
                 new Vector2(0f, y2), new Vector2(BtnW, BtnH),
                 () => SceneManager.LoadScene(pibtSceneName));
 
@@ -148,7 +148,7 @@ public class MapWinController : MonoBehaviour
             float y1 = PadBottom;
             float y2 = y1 + BtnH + BtnGap;
 
-            MakeButton(panel, "PlayAgainBtn", "CHƠI LẠI", GoldColor, Color.black,
+            MakeButton(panel, "PlayAgainBtn", "PLAY AGAIN", GoldColor, Color.black,
                 new Vector2(0f, y2), new Vector2(BtnW, BtnH),
                 () => SceneManager.LoadScene(currentScene));
 

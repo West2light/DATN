@@ -162,7 +162,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             string err = client.LastError ?? "Unknown error";
             Debug.LogError($"[PIBT_TCP] Connection/hello failed: {err}");
             client.Disconnect();
-            ShowToast($"Không thể kết nối PIBT server\n({serverHost}:{serverPort})\n{err}", 5f);
+            ShowToast($"Cannot connect to PIBT server\n({serverHost}:{serverPort})\n{err}", 5f);
             yield break;
         }
 
@@ -336,7 +336,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _serverReady = false;
         foreach (var agent in _agents)
             if (agent != null) agent.StopMovement();
-        ShowToast("Mất kết nối PIBT server.\nAgent đã dừng.", 3f);
+        ShowToast("Lost connection to PIBT server.\nAgent stopped.", 3f);
     }
 
     private string BuildMapSymbols(int cols, int rows)
