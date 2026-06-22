@@ -380,11 +380,22 @@ public class LanClientView : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (_playerTargetTurretRot == null) return;
-        for (int i = 0; i < _playerGhosts.Count && i < _playerTargetTurretRot.Length; i++)
+        if (_playerTargetTurretRot != null)
         {
-            if (i == _ownSlot || _playerGhosts[i] == null) continue;
-            SetTurretRot(_playerGhosts[i], _playerTargetTurretRot[i]);
+            for (int i = 0; i < _playerGhosts.Count && i < _playerTargetTurretRot.Length; i++)
+            {
+                if (i == _ownSlot || _playerGhosts[i] == null) continue;
+                SetTurretRot(_playerGhosts[i], _playerTargetTurretRot[i]);
+            }
+        }
+
+        // WebGL-safe fallback: do not rely only on the prefab MonoBehaviour. Even if
+        // component execution/stripping differs in production, every enemy HUD is
+        // forced upright after body rotation has been applied for this frame.
+        foreach (Transform ghost in _enemyGhosts)
+        {
+            Transform canvas = ghost?.Find("Canvas");
+            if (canvas != null) canvas.rotation = Quaternion.identity;
         }
     }
 
@@ -565,7 +576,15 @@ public class LanClientView : MonoBehaviour
 
         canvasTransform.rotation = Quaternion.identity;
         UiFollowTank follow = canvasTransform.GetComponent<UiFollowTank>();
-        if (follow != null) follow.enabled = true;
+        if (follow != null)
+        {
+            if (follow.objectToFollow == null)
+            {
+                TankController controller = ghost.GetComponentInChildren<TankController>(true);
+                if (controller != null) follow.objectToFollow = controller.transform;
+            }
+            follow.enabled = true;
+        }
 
         Canvas canvas = canvasTransform.GetComponent<Canvas>();
         if (canvas != null)
