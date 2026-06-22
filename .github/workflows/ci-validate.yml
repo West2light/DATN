@@ -66,5 +66,5 @@ jobs:
           set -euo pipefail
           bash -n infra/gcp/scripts/deploy-release.sh
           bash -n infra/gcp/scripts/deploy-web.sh
+          bash -n infra/gcp/scripts/create-room.sh
           bash -n infra/gcp/scripts/startup.sh
-

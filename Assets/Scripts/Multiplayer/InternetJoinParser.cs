@@ -18,6 +18,7 @@ public static class InternetJoinParser
             algorithm = string.Empty,
             registryUrl = string.Empty,
             maxPlayers = 8,
+            enemyMultiplier = 3,
             isDedicatedServer = false,
             secureWebSocket = false,
             secureWebSocketHost = string.Empty,
@@ -115,6 +116,7 @@ public static class InternetJoinParser
             algorithm = string.Empty,
             registryUrl = string.Empty,
             maxPlayers = 8,
+            enemyMultiplier = 3,
             isDedicatedServer = false,
             secureWebSocket = false,
             secureWebSocketHost = string.Empty,
@@ -145,6 +147,9 @@ public static class InternetJoinParser
             else if (key.Equals("algo", StringComparison.OrdinalIgnoreCase)
                 || key.Equals("algorithm", StringComparison.OrdinalIgnoreCase))
                 config.algorithm = value;
+            else if (key.Equals("enemyMultiplier", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(value, out int enemyMultiplier))
+                config.enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(enemyMultiplier);
         }
 
         if (string.IsNullOrWhiteSpace(config.host))
@@ -171,6 +176,7 @@ public static class InternetJoinParser
             algorithm = string.Empty,
             registryUrl = string.Empty,
             maxPlayers = 8,
+            enemyMultiplier = 3,
             isDedicatedServer = false,
             secureWebSocket = false,
             secureWebSocketHost = string.Empty,

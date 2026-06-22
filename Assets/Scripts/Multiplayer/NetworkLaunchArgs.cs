@@ -12,6 +12,7 @@ public class NetworkLaunchArgs
     public string mapFile = string.Empty;
     public string algorithm = "AStar";
     public int maxPlayers = 8;
+    public int enemyMultiplier = 3;
     public string sessionCode = string.Empty;
     public string registryUrl = string.Empty;
 
@@ -29,6 +30,7 @@ public class NetworkLaunchArgs
         parsed.mapFile = GetString(values, "map", "TANK_MAP", parsed.mapFile);
         parsed.algorithm = GetString(values, "algorithm", "TANK_ALGORITHM", parsed.algorithm);
         parsed.maxPlayers = GetInt(values, "maxPlayers", "TANK_MAX_PLAYERS", parsed.maxPlayers);
+        parsed.enemyMultiplier = GetInt(values, "enemyMultiplier", "TANK_ENEMY_MULTIPLIER", parsed.enemyMultiplier);
         parsed.sessionCode = GetString(values, "sessionCode", "TANK_SESSION_CODE", parsed.sessionCode);
         parsed.registryUrl = GetString(values, "registryUrl", "TANK_REGISTRY_URL", parsed.registryUrl);
 
@@ -47,6 +49,7 @@ public class NetworkLaunchArgs
             algorithm = string.IsNullOrWhiteSpace(algorithm) ? "AStar" : algorithm,
             registryUrl = registryUrl ?? string.Empty,
             maxPlayers = Mathf.Max(1, maxPlayers),
+            enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(enemyMultiplier),
             isDedicatedServer = isDedicatedServer,
             secureWebSocket = false,
             secureWebSocketHost = string.Empty,

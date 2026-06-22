@@ -154,6 +154,7 @@ def make_session_response(session):
         "map": session["map"],
         "algorithm": session["algorithm"],
         "maxPlayers": session["maxPlayers"],
+        "enemyMultiplier": int(session.get("enemyMultiplier", 3)),
         "expiresAt": session["expiresAt"],
     }
     if session.get("webHost"):
@@ -377,6 +378,11 @@ pre{background:#111;color:#0f0;padding:12px;white-space:pre-wrap}
   <option value="PIBT">PIBT</option>
 </select>
 <label>Max players</label><input id="maxPlayers" type="number" min="1" max="8" value="8">
+<label>Enemies per player</label><select id="enemyMultiplier">
+  <option value="1">×1</option>
+  <option value="3" selected>×3</option>
+  <option value="6">×6</option>
+</select>
 <button id="submit">Create room</button>
 <pre id="out"></pre>
 <script>
@@ -387,6 +393,7 @@ document.getElementById('submit').onclick = async () => {
     map: document.getElementById('map').value,
     algorithm: document.getElementById('algorithm').value,
     maxPlayers: parseInt(document.getElementById('maxPlayers').value || '8', 10),
+    enemyMultiplier: parseInt(document.getElementById('enemyMultiplier').value || '3', 10),
   };
   const resp = await fetch('/api/rooms', {
     method: 'POST',
@@ -438,6 +445,13 @@ document.getElementById('submit').onclick = async () => {
         if max_players <= 0:
             raise ValueError("maxPlayers must be greater than 0")
 
+        try:
+            enemy_multiplier = int(body.get("enemyMultiplier", 3))
+        except (TypeError, ValueError):
+            raise ValueError("enemyMultiplier must be an integer")
+        if enemy_multiplier not in {1, 3, 6}:
+            raise ValueError("enemyMultiplier must be 1, 3, or 6")
+
         expires_in_seconds = body.get("expiresInSeconds", 7200)
         try:
             expires_in_seconds = int(expires_in_seconds)
@@ -474,6 +488,7 @@ document.getElementById('submit').onclick = async () => {
             "map": map_name,
             "algorithm": algorithm,
             "maxPlayers": max_players,
+            "enemyMultiplier": enemy_multiplier,
             "expiresAt": now + expires_in_seconds,
             "createdAt": now,
             "joinUrl": build_join_url(code),
@@ -504,6 +519,13 @@ document.getElementById('submit').onclick = async () => {
         if max_players <= 0:
             raise ValueError("maxPlayers must be greater than 0")
 
+        try:
+            enemy_multiplier = int(body.get("enemyMultiplier", 3))
+        except (TypeError, ValueError):
+            raise ValueError("enemyMultiplier must be an integer")
+        if enemy_multiplier not in {1, 3, 6}:
+            raise ValueError("enemyMultiplier must be 1, 3, or 6")
+
         session_code = str(body.get("code") or "").strip().upper() or secrets.token_hex(3).upper()
         if not os.path.exists(CREATE_ROOM_HELPER):
             raise ValueError(f"Create room helper not found: {CREATE_ROOM_HELPER}")
@@ -517,6 +539,7 @@ document.getElementById('submit').onclick = async () => {
                     "--algorithm", algorithm,
                     "--code", session_code,
                     "--max-players", str(max_players),
+                    "--enemy-multiplier", str(enemy_multiplier),
                 ],
                 check=True,
                 capture_output=True,

@@ -51,6 +51,7 @@ public class LanLobbyController : MonoBehaviour
     private enum Screen { Choose, Hosting, Joining, Lobby }
 
     private string     _mapFile, _algorithm;
+    private int        _enemyMultiplier = 3;
     private LanDiscovery _discovery;
     private GameObject _root, _panel;
     private int        _hostRetryCount;
@@ -142,14 +143,14 @@ public class LanLobbyController : MonoBehaviour
         }
     }
 
-    public static void Show(string mapFile, string algorithm)
+    public static void Show(string mapFile, string algorithm, int enemyMultiplier = 3)
     {
-        ShowInternal(mapFile, algorithm, string.Empty);
+        ShowInternal(mapFile, algorithm, string.Empty, enemyMultiplier);
     }
 
-    public static void ShowAndJoin(string mapFile, string algorithm, string joinTarget)
+    public static void ShowAndJoin(string mapFile, string algorithm, string joinTarget, int enemyMultiplier = 3)
     {
-        ShowInternal(mapFile, algorithm, joinTarget);
+        ShowInternal(mapFile, algorithm, joinTarget, enemyMultiplier);
     }
 
     public static void ShowJoinPrompt(string mapFile, string algorithm, string registryUrl)
@@ -162,6 +163,7 @@ public class LanLobbyController : MonoBehaviour
         _instance                  = go.AddComponent<LanLobbyController>();
         _instance._mapFile         = mapFile;
         _instance._algorithm       = algorithm;
+        _instance._enemyMultiplier = 3;
         _instance._autoJoinTarget  = string.Empty;
         _instance._joinRegistryUrl = registryUrl ?? string.Empty;
         _instance.Build();
@@ -171,11 +173,11 @@ public class LanLobbyController : MonoBehaviour
     private void OpenJoinScreen()
     {
         if (!EnsureNetworkManager()) return;
-        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        LanSessionManager.ActivateClient(_mapFile, _algorithm, _enemyMultiplier);
         SwitchTo(Screen.Joining);
     }
 
-    private static void ShowInternal(string mapFile, string algorithm, string joinTarget)
+    private static void ShowInternal(string mapFile, string algorithm, string joinTarget, int enemyMultiplier)
     {
         if (_instance != null) { Destroy(_instance.gameObject); _instance = null; }
         CleanupSession();
@@ -185,6 +187,7 @@ public class LanLobbyController : MonoBehaviour
         _instance                = go.AddComponent<LanLobbyController>();
         _instance._mapFile       = mapFile;
         _instance._algorithm     = algorithm;
+        _instance._enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(enemyMultiplier);
         _instance._autoJoinTarget = joinTarget ?? string.Empty;
         _instance.Build();
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -258,7 +261,7 @@ public class LanLobbyController : MonoBehaviour
 
         // Map · algorithm line
         string map = System.IO.Path.GetFileNameWithoutExtension(_mapFile);
-        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  up to {MaxPlayers} players",
+        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  enemies ×{_enemyMultiplier} per player  ·  up to {MaxPlayers} players",
             12, FontStyle.Normal, Muted, new Vector2(0f, -48f), new Vector2(FullW, 18f));
 
         HSep(-72f, L);
@@ -851,7 +854,7 @@ public class LanLobbyController : MonoBehaviour
     private void ShowJoinRow()
     {
         if (!EnsureNetworkManager()) return;
-        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        LanSessionManager.ActivateClient(_mapFile, _algorithm, _enemyMultiplier);
         SwitchTo(Screen.Joining);
         StartAutoDiscover();
     }
@@ -869,7 +872,7 @@ public class LanLobbyController : MonoBehaviour
         if (!EnsureNetworkManager())
             return;
 
-        LanSessionManager.ActivateClient(_mapFile, _algorithm);
+        LanSessionManager.ActivateClient(_mapFile, _algorithm, _enemyMultiplier);
         SwitchTo(Screen.Joining);
         if (_ipInput != null)
             _ipInput.text = _autoJoinTarget;
@@ -907,7 +910,7 @@ public class LanLobbyController : MonoBehaviour
             return;
         }
 
-        LanSessionManager.ActivateHost(_mapFile, _algorithm);
+        LanSessionManager.ActivateHost(_mapFile, _algorithm, _enemyMultiplier);
         NetworkManagerFactory.ConfigureConnectionApproval(NetworkManager.Singleton, isServer: true);
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
@@ -1167,6 +1170,8 @@ public class LanLobbyController : MonoBehaviour
         endpoint.mapFile = string.IsNullOrWhiteSpace(endpoint.mapFile) ? _mapFile : endpoint.mapFile;
         endpoint.algorithm = string.IsNullOrWhiteSpace(endpoint.algorithm) ? _algorithm : endpoint.algorithm;
         endpoint.maxPlayers = endpoint.maxPlayers <= 0 ? LanSessionManager.MaxPlayers : endpoint.maxPlayers;
+        endpoint.enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(
+            endpoint.enemyMultiplier <= 0 ? _enemyMultiplier : endpoint.enemyMultiplier);
 
         LanSessionManager.ActivateInternetClient(endpoint);
         t.SetConnectionData(endpoint.host, endpoint.port);

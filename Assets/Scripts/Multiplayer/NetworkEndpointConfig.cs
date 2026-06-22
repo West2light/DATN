@@ -11,6 +11,7 @@ public struct NetworkEndpointConfig
     public string algorithm;
     public string registryUrl;
     public int maxPlayers;
+    public int enemyMultiplier;
     public bool isDedicatedServer;
     public bool secureWebSocket;
     public string secureWebSocketHost;
@@ -27,6 +28,7 @@ public struct NetworkEndpointConfig
             algorithm = algorithm,
             registryUrl = string.Empty,
             maxPlayers = 8,
+            enemyMultiplier = 3,
             isDedicatedServer = false,
             secureWebSocket = false,
             secureWebSocketHost = string.Empty,

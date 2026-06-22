@@ -85,6 +85,9 @@ public class MenuViewBootstrap : MonoBehaviour
     private Text       _tankPreviewLabel;
     private Text       _tankTypeLabel;
     private Text       _lanStatusText;
+    private Text       _lanHintText;
+    private readonly List<Button> _enemyMultiplierButtons = new List<Button>();
+    private int        _selectedEnemyMultiplier = 3;
     private int        _selectedVariant;
     private bool       _isLanMode;   // true khi vào Outfit từ nút MULTIPLAYER LAN
     private bool       _creatingInternetRoom;
@@ -775,9 +778,11 @@ public class MenuViewBootstrap : MonoBehaviour
             30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
 
-        MakeText(_screenLan.transform, "Hint", "Choose a map and AI mode · enemies = 6 × player count",
+        _lanHintText = MakeText(_screenLan.transform, "Hint", "Choose a map and AI mode · enemies = player count × multiplier",
             13, FontStyle.Italic, TextMuted,
             new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
+
+        BuildEnemyMultiplierSelector(_screenLan.transform);
 
         _lanStatusText = MakeText(_screenLan.transform, "LanStatus", string.Empty,
             13, FontStyle.Normal, TextMuted,
@@ -796,6 +801,57 @@ public class MenuViewBootstrap : MonoBehaviour
             new Color(0.28f, 0.38f, 0.48f, 1f));
         SetTextColor(btnBack.transform, TextLight);
         btnBack.onClick.AddListener(() => ShowScreen(Screen.InternetEntry));
+    }
+
+    private void BuildEnemyMultiplierSelector(Transform parent)
+    {
+        GameObject panel = MakePanel(parent, "EnemyMultiplierSelector",
+            new Vector2(0f, 215f), new Vector2(670f, 64f), PanelDark);
+
+        int[] values = { 1, 3, 6 };
+        const float buttonWidth = 190f;
+        const float gap = 22f;
+        float startX = -(buttonWidth + gap);
+        _enemyMultiplierButtons.Clear();
+        for (int i = 0; i < values.Length; i++)
+        {
+            int value = values[i];
+            Button button = MakeButton(panel.transform, "EnemyMultiplier_" + value,
+                "×" + value, new Vector2(startX + i * (buttonWidth + gap), 0f),
+                new Vector2(buttonWidth, 46f), BtnDisabled);
+            button.onClick.AddListener(() => SelectEnemyMultiplier(value));
+            _enemyMultiplierButtons.Add(button);
+        }
+        RefreshEnemyMultiplierSelector();
+    }
+
+    private void SelectEnemyMultiplier(int value)
+    {
+        _selectedEnemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(value);
+        RefreshEnemyMultiplierSelector();
+    }
+
+    private void RefreshEnemyMultiplierSelector()
+    {
+        if (_lanHintText != null)
+            _lanHintText.text = $"Choose a map and AI mode · enemies = player count × {_selectedEnemyMultiplier}";
+
+        int[] values = { 1, 3, 6 };
+        for (int i = 0; i < _enemyMultiplierButtons.Count && i < values.Length; i++)
+        {
+            Button button = _enemyMultiplierButtons[i];
+            bool selected = values[i] == _selectedEnemyMultiplier;
+            Color color = selected ? AccentGold : new Color(0.18f, 0.24f, 0.32f, 1f);
+            Image image = button.GetComponent<Image>();
+            if (image != null) image.color = color;
+            ColorBlock colors = button.colors;
+            colors.normalColor = color;
+            colors.selectedColor = color;
+            colors.highlightedColor = Color.Lerp(color, Color.white, 0.18f);
+            colors.pressedColor = Color.Lerp(color, Color.black, 0.22f);
+            button.colors = colors;
+            SetTextColor(button.transform, selected ? Color.black : TextLight);
+        }
     }
 
     private void BuildLanMapCard(Transform parent, int idx, float x, float y, float w, float h)
@@ -864,13 +920,14 @@ public class MenuViewBootstrap : MonoBehaviour
         if (_creatingInternetRoom)
             return;
 
-        StartCoroutine(CreateInternetRoomAndJoin(mapFile, algorithm, button));
+        StartCoroutine(CreateInternetRoomAndJoin(mapFile, algorithm, _selectedEnemyMultiplier, button));
 #else
-        LanLobbyController.Show(mapFile, algorithm);
+        LanLobbyController.Show(mapFile, algorithm, _selectedEnemyMultiplier);
 #endif
     }
 
-    private System.Collections.IEnumerator CreateInternetRoomAndJoin(string mapFile, string algorithm, Button button)
+    private System.Collections.IEnumerator CreateInternetRoomAndJoin(
+        string mapFile, string algorithm, int enemyMultiplier, Button button)
     {
         _creatingInternetRoom = true;
         if (button != null)
@@ -887,6 +944,7 @@ public class MenuViewBootstrap : MonoBehaviour
             mapFile,
             algorithm,
             8,
+            enemyMultiplier,
             url =>
             {
                 joinTarget = url;
@@ -909,7 +967,7 @@ public class MenuViewBootstrap : MonoBehaviour
         }
 
         SetLanStatus("Room ready. Opening lobby and joining...", new Color(0.40f, 0.90f, 0.50f));
-        LanLobbyController.ShowAndJoin(mapFile, algorithm, joinTarget);
+        LanLobbyController.ShowAndJoin(mapFile, algorithm, joinTarget, enemyMultiplier);
     }
 
     private string GetRuntimeRegistryBaseUrl()

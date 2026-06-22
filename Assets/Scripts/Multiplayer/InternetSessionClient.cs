@@ -26,6 +26,7 @@ public static class InternetSessionClient
         public string map;
         public string algorithm;
         public int maxPlayers;
+        public int enemyMultiplier;
         public long expiresAt;
     }
 
@@ -122,6 +123,7 @@ public static class InternetSessionClient
             algorithm = string.IsNullOrWhiteSpace(response.algorithm) ? "AStar" : response.algorithm,
             registryUrl = baseUrl,
             maxPlayers = Mathf.Max(1, response.maxPlayers),
+            enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(response.enemyMultiplier),
             isDedicatedServer = false,
             secureWebSocket = secureWebSocket,
             secureWebSocketHost = secureWebSocketHost,
@@ -135,6 +137,7 @@ public static class InternetSessionClient
         string mapFile,
         string algorithm,
         int maxPlayers,
+        int enemyMultiplier,
         Action<string> onSuccess,
         Action<string> onError)
     {
@@ -163,6 +166,7 @@ public static class InternetSessionClient
             map = normalizedMap,
             algorithm = algorithm.Trim(),
             maxPlayers = Mathf.Max(1, maxPlayers),
+            enemyMultiplier = LanSessionManager.NormalizeEnemyMultiplier(enemyMultiplier),
         });
 
         using UnityWebRequest request = new UnityWebRequest(requestUrl, UnityWebRequest.kHttpVerbPOST);
@@ -215,5 +219,6 @@ public static class InternetSessionClient
         public string map;
         public string algorithm;
         public int maxPlayers;
+        public int enemyMultiplier;
     }
 }

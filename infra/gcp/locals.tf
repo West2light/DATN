@@ -19,6 +19,7 @@ locals {
   registry_app_py      = replace(file("${path.module}/../../services/invite-registry/app.py"), "\r\n", "\n")
   deploy_release_sh    = replace(file("${path.module}/scripts/deploy-release.sh"), "\r\n", "\n")
   deploy_web_sh        = replace(file("${path.module}/scripts/deploy-web.sh"), "\r\n", "\n")
+  create_room_sh       = replace(file("${path.module}/scripts/create-room.sh"), "\r\n", "\n")
   registry_service = templatefile("${path.module}/systemd/tank-mapf-registry.service.tpl", {
     service_user    = local.service_user
     env_file        = local.server_env_file
@@ -66,6 +67,7 @@ locals {
     registry_app_py      = local.registry_app_py
     deploy_release_sh    = local.deploy_release_sh
     deploy_web_sh        = local.deploy_web_sh
+    create_room_sh       = local.create_room_sh
     registry_service     = local.registry_service
     server_service       = local.server_service
     web_server_service   = local.web_server_service

@@ -247,14 +247,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcloud compute scp services/invite-registry/app.py \
-            "$GCP_VM_NAME:/tmp/tank-mapf-registry-app.py" \
+          gcloud compute scp services/invite-registry/app.py infra/gcp/scripts/create-room.sh \
+            "$GCP_VM_NAME:/tmp/" \
             --zone "$GCP_ZONE" \
             --tunnel-through-iap
           gcloud compute ssh "$GCP_VM_NAME" \
             --zone "$GCP_ZONE" \
             --tunnel-through-iap \
-            --command "sudo install -o tankmapf -g tankmapf -m 0644 /tmp/tank-mapf-registry-app.py /opt/tank-mapf/registry/app.py && sudo systemctl restart tank-mapf-registry.service"
+            --command "sudo install -o tankmapf -g tankmapf -m 0644 /tmp/app.py /opt/tank-mapf/registry/app.py && sudo install -o root -g root -m 0755 /tmp/create-room.sh /usr/local/bin/tank-mapf-create-room && sudo systemctl daemon-reload && sudo systemctl restart tank-mapf-registry.service"
 
       - name: Deploy Linux dedicated server
         shell: bash
