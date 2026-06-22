@@ -1,0 +1,76 @@
+<mxfile host="app.diagrams.net" modified="2026-06-21T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="ctx_01" name="01_system_context">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="ctx_title" value="System context" style="text;html=1;strokeColor=none;fillColor=none;fontSize=22;fontStyle=1;fontColor=#1f2937;align=center;" vertex="1" parent="1">
+          <mxGeometry x="520" y="30" width="360" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_client" value="client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff3e8;strokeColor=#ff7a1a;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="230" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_native" value="Native client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff7a1a;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="230" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_web" value="WebGL client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff7a1a;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="420" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_runtime" value="unity runtime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f8fb;strokeColor=#718096;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="140" width="260" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_menu" value="Menu UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#718096;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="425" y="210" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_game" value="Gameplay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#718096;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="425" y="320" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_mapf" value="MAPF core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eefbf3;strokeColor=#19a85b;strokeWidth=2;fontColor=#1f2937;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="425" y="430" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_maps" value="Map data" style="shape=folder;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="425" y="560" width="130" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_prod" value="production services" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eaf2ff;strokeColor=#3b74ff;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="140" width="340" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_registry" value="Registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3b74ff;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="780" y="220" width="180" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_server" value="Game server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3b74ff;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="780" y="340" width="180" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_solver_parent" value="external solver" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eaf8ef;strokeColor=#19a85b;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="140" width="240" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_solver" value="PIBT / EPIBT C++" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#19a85b;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1155" y="280" width="135" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="ctx_native" target="ctx_menu">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="ctx_web" target="ctx_menu">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="ctx_menu" target="ctx_game">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#19a85b;strokeWidth=2;" edge="1" parent="1" source="ctx_game" target="ctx_mapf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#3b74ff;strokeWidth=2;" edge="1" parent="1" source="ctx_menu" target="ctx_registry">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#3b74ff;strokeWidth=2;" edge="1" parent="1" source="ctx_registry" target="ctx_server">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#19a85b;strokeWidth=2;" edge="1" parent="1" source="ctx_mapf" target="ctx_solver">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ctx_e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#d6a500;strokeWidth=2;" edge="1" parent="1" source="ctx_maps" target="ctx_mapf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

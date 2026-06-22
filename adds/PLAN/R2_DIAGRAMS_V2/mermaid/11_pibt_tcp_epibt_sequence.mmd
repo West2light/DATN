@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant Scene as MapScenarioBootstrapPIBT_TCP
+    participant Relay as PIBTTcpClient or WebRelay
+    participant Server as PibtTcpServer
+    participant Session as PlannerSession
+    participant Agent as GridEnemyAgentPIBT_TCP
+
+    Scene->>Relay: hello(map, agents)
+    Relay->>Server: hello
+    Server->>Session: Create planner state
+
+    loop Planner tick
+        Scene->>Relay: plan_step(state, goal)
+        alt Native TCP
+            Relay->>Server: plan_step
+        else WebGL relay
+            Relay->>Server: relay plan_step
+        end
+        Server->>Session: Select action or operation
+        Session-->>Server: First action
+        Server-->>Relay: Action result
+        Relay-->>Scene: Action result
+        Scene->>Agent: Apply action
+    end
