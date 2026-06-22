@@ -271,8 +271,20 @@ class InviteRegistryHandler(BaseHTTPRequestHandler):
         try:
             if operation == "hello":
                 remove_pibt_connection(session_id)
-                tcp_socket = socket.create_connection(
-                    (PIBT_TCP_HOST, PIBT_TCP_PORT), timeout=5)
+                tcp_socket = None
+                last_exc = None
+                for attempt in range(3):
+                    try:
+                        tcp_socket = socket.create_connection(
+                            (PIBT_TCP_HOST, PIBT_TCP_PORT), timeout=10)
+                        break
+                    except OSError as exc:
+                        last_exc = exc
+                        if attempt < 2:
+                            time.sleep(1)
+                if tcp_socket is None:
+                    self.write_json(502, {"error": f"Could not connect to PIBT server after 3 attempts: {last_exc}"})
+                    return
                 connection = PibtRelayConnection(tcp_socket)
                 response = connection.exchange(raw_body, PIBT_HELLO_TIMEOUT)
                 if "\"hello_ack\"" not in response:

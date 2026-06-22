@@ -67,6 +67,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
     [SerializeField] private LayerMask obstacleContactMask;
 
+    [Header("Reconnect")]
+    [Min(1)] public int   maxReconnectAttempts = 3;
+    [Min(0f)] public float reconnectDelaySec   = 2f;
+
     // ── Runtime ────────────────────────────────────────────────────────────
     private Transform       scenarioRoot;
     private GameObject      eagleBase;
@@ -84,6 +88,9 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private float _nextTickTime;
     private bool  _serverReady;
     private bool  _stepInFlight;
+    private int   _reconnectAttempts;
+
+    private System.Threading.CancellationTokenSource _cancelSource;
 
     public GameObject            EagleBase => eagleBase;
     public IReadOnlyList<GameObject> Enemies => _enemyGOs;
@@ -136,18 +143,27 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _sessionId     = $"unity-{System.Guid.NewGuid():N}";
         ResetAgentOrientations();
 
+        _cancelSource?.Cancel();
+        _cancelSource?.Dispose();
+        _cancelSource = new System.Threading.CancellationTokenSource();
+
         Debug.Log($"[PIBT_TCP] ConnectAndHello start. endpoint={_client.host}:{_client.port}, agents={_agents.Count}, map={width}x{height}, helloTimeoutMs={_client.helloTimeoutMs}");
-        StartCoroutine(ConnectAndHelloAsync(_client, _sessionId, width, height, symbols, _agents.Count));
+        StartCoroutine(ConnectAndHelloAsync(_client, _sessionId, width, height, symbols, _agents.Count, _cancelSource.Token));
     }
 
-    private IEnumerator ConnectAndHelloAsync(PIBTTcpClient client, string sessionId, int width, int height, string symbols, int agentCount)
+    private IEnumerator ConnectAndHelloAsync(
+        PIBTTcpClient client, string sessionId,
+        int width, int height, string symbols, int agentCount,
+        System.Threading.CancellationToken cancel)
     {
         bool done    = false;
         bool success = false;
 
         var thread = new System.Threading.Thread(() =>
         {
-            if (!client.Connect()) { done = true; return; }
+            if (cancel.IsCancellationRequested) { done = true; return; }
+            if (!client.Connect())              { done = true; return; }
+            if (cancel.IsCancellationRequested) { client.Disconnect(); done = true; return; }
             success = client.Hello(sessionId, width, height, symbols, agentCount);
             done = true;
         });
@@ -155,7 +171,16 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         thread.Start();
 
         while (!done)
+        {
+            if (cancel.IsCancellationRequested) yield break;
             yield return null;
+        }
+
+        if (cancel.IsCancellationRequested)
+        {
+            client?.Disconnect();
+            yield break;
+        }
 
         if (!success)
         {
@@ -248,7 +273,20 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(response))
         {
-            StopAgentsForConnectionFailure($"Web relay plan_step failed: {error}");
+            if (_reconnectAttempts < maxReconnectAttempts)
+            {
+                _reconnectAttempts++;
+                _serverReady = false;
+                Debug.LogWarning($"[PIBT_WEB] plan_step failed ({error}). Reconnect {_reconnectAttempts}/{maxReconnectAttempts}...");
+                ShowToast($"PIBT lost. Reconnecting ({_reconnectAttempts}/{maxReconnectAttempts})...", reconnectDelaySec + 1f);
+                yield return new WaitForSeconds(reconnectDelaySec);
+                yield return StartCoroutine(ConnectAndHelloWeb());
+            }
+            else
+            {
+                _reconnectAttempts = 0;
+                StopAgentsForConnectionFailure($"Web relay plan_step failed after {maxReconnectAttempts} attempts: {error}");
+            }
             yield break;
         }
 
@@ -259,6 +297,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             yield break;
         }
 
+        _reconnectAttempts = 0;
         ApplyStepActions(actions, rows, cols);
     }
 #endif
@@ -301,11 +340,25 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             string reason = client != null && !string.IsNullOrEmpty(client.LastError)
                 ? client.LastError
                 : "Unknown plan_step failure.";
-            Debug.LogWarning($"[PIBT_TCP] Server plan_step failed — stopping agents. {reason}");
-            StopAgentsForConnectionFailure(reason);
+
+            if (_reconnectAttempts < maxReconnectAttempts)
+            {
+                _reconnectAttempts++;
+                _serverReady = false;
+                Debug.LogWarning($"[PIBT_TCP] plan_step failed ({reason}). Reconnect {_reconnectAttempts}/{maxReconnectAttempts}...");
+                ShowToast($"PIBT lost. Reconnecting ({_reconnectAttempts}/{maxReconnectAttempts})...", reconnectDelaySec + 1f);
+                yield return new WaitForSeconds(reconnectDelaySec);
+                ConnectAndHello();
+            }
+            else
+            {
+                _reconnectAttempts = 0;
+                StopAgentsForConnectionFailure($"Lost connection after {maxReconnectAttempts} reconnect attempts: {reason}");
+            }
             yield break;
         }
 
+        _reconnectAttempts = 0;
         ApplyStepActions(actions, rows, cols);
         _stepInFlight = false;
     }
@@ -806,11 +859,20 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private void ClearScenario()
     {
-        _serverReady = false;
+        // Cancel any in-flight connect/hello coroutine and its background thread.
+        _cancelSource?.Cancel();
+        _cancelSource?.Dispose();
+        _cancelSource = null;
+
+        StopAllCoroutines();
+        _client?.Disconnect();
+
+        _serverReady        = false;
         _webRequestInFlight = false;
-        _stepInFlight = false;
-        _firstStepLogged = false;
-        _frame = 0;
+        _stepInFlight       = false;
+        _firstStepLogged    = false;
+        _frame              = 0;
+        _reconnectAttempts  = 0;
         _agents.Clear();
         _agentOrientations.Clear();
         _enemyGOs.Clear();
@@ -818,6 +880,13 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         if (existing == null) return;
         if (Application.isPlaying) Destroy(existing.gameObject);
         else DestroyImmediate(existing.gameObject);
+    }
+
+    private void OnDestroy()
+    {
+        _cancelSource?.Cancel();
+        _cancelSource?.Dispose();
+        _cancelSource = null;
     }
 
     private Sprite CreateWhiteSprite()

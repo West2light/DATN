@@ -31,6 +31,7 @@ public class PIBTTcpClient : MonoBehaviour
 
     public bool Connect()
     {
+        Disconnect();  // Close any existing connection before opening a new one.
         try
         {
             LastError = null;
