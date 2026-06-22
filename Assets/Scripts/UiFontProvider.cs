@@ -3,7 +3,7 @@ using UnityEngine;
 public static class UiFontProvider
 {
     private const string DefaultFontResourcePath = "Fonts/NotoSans-Regular";
-    private static readonly string GlyphSmokeTest = "LAN — SELECT MAP & MODE ← BACK Chọn map và chế độ AI · số enemy = 6 × số người chơi";
+    private static readonly string GlyphSmokeTest = "LAN — SELECT MAP & MODE ← BACK Choose a map and AI mode · enemies = 6 × player count";
 
     private static Font cachedFont;
     private static bool warnedMissingFont;

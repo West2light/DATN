@@ -115,7 +115,7 @@ public static class BacktestConfigUI
         tRt.anchoredPosition = new Vector2(0f, -14f);
         tRt.sizeDelta = new Vector2(-PadX * 2f, 30f);
         var tTxt = title.AddComponent<Text>();
-        tTxt.text = "CHỌN MAP ĐỂ BACKTEST";
+        tTxt.text = "SELECT MAPS TO BACKTEST";
         tTxt.font = Fnt(); tTxt.fontSize = 20; tTxt.fontStyle = FontStyle.Bold;
         tTxt.alignment = TextAnchor.MiddleCenter; tTxt.color = AccentGold;
 
@@ -127,7 +127,7 @@ public static class BacktestConfigUI
         sRt.anchoredPosition = new Vector2(0f, -48f);
         sRt.sizeDelta = new Vector2(-PadX * 2f, 18f);
         var sTxt = sub.AddComponent<Text>();
-        sTxt.text = $"A*, PIBT và PIBT-C++  •  Timeout {BacktestRunner.RunTimeoutSec:F0}s";
+        sTxt.text = $"A*, PIBT and PIBT-C++  •  Timeout {BacktestRunner.RunTimeoutSec:F0}s";
         sTxt.font = Fnt(); sTxt.fontSize = 12; sTxt.fontStyle = FontStyle.Normal;
         sTxt.alignment = TextAnchor.MiddleCenter; sTxt.color = TextMuted;
 
@@ -240,19 +240,19 @@ public static class BacktestConfigUI
 
         // Left cluster ─────────────────────────────────────────────────────
         // Anchor left buttons to left edge of footer
-        FootBtn(foot, layer, "BtnAll",  "CHỌN TẤT",   BtnSlate, TextBlue,
+        FootBtn(foot, layer, "BtnAll",  "SELECT ALL", BtnSlate, TextBlue,
             new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
             new Vector2(PadX, 0f), new Vector2(112f, btnH),
             () => SetAll(true));
 
-        FootBtn(foot, layer, "BtnNone", "BỎ CHỌN",    BtnSlate, TextMuted,
+        FootBtn(foot, layer, "BtnNone", "CLEAR",      BtnSlate, TextMuted,
             new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
             new Vector2(PadX + 112f + 8f, 0f), new Vector2(104f, btnH),
             () => SetAll(false));
 
         // Right cluster ────────────────────────────────────────────────────
         // Anchor right buttons to right edge of footer
-        FootBtn(foot, layer, "BtnCancel", "HỦY",      BtnSlate, TextMuted,
+        FootBtn(foot, layer, "BtnCancel", "CANCEL",   BtnSlate, TextMuted,
             new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
             new Vector2(-PadX - 148f - 8f, 0f), new Vector2(88f, btnH),
             Close);
@@ -304,7 +304,7 @@ public static class BacktestConfigUI
         bool ok = cnt > 0;
         if (_startBtn != null) _startBtn.interactable = ok;
         if (_startLbl != null)
-            _startLbl.text = ok ? $"BẮT ĐẦU  ({cnt * _reps * 3})" : "BẮT ĐẦU";
+            _startLbl.text = ok ? $"START  ({cnt * _reps * 3})" : "START";
     }
 
     private static void StartBacktest()
@@ -334,7 +334,7 @@ public static class BacktestConfigUI
         lRt.pivot = new Vector2(0f, 0.5f);
         lRt.anchoredPosition = Vector2.zero; lRt.sizeDelta = new Vector2(128f, 0f);
         var lTxt = lbl.AddComponent<Text>();
-        lTxt.text = "Số lần / map:"; lTxt.font = Fnt(); lTxt.fontSize = 13;
+        lTxt.text = "Runs per map:"; lTxt.font = Fnt(); lTxt.fontSize = 13;
         lTxt.color = TextMuted; lTxt.alignment = TextAnchor.MiddleLeft;
 
         // [−] button
@@ -375,7 +375,7 @@ public static class BacktestConfigUI
         lRt.pivot = new Vector2(0f, 0.5f);
         lRt.anchoredPosition = Vector2.zero; lRt.sizeDelta = new Vector2(220f, 0f);
         var lt = lbl.AddComponent<Text>();
-        lt.text = "Thùng sắt động (stress test):";
+        lt.text = "Dynamic metal crates (stress test):";
         lt.font = Fnt(); lt.fontSize = 12; lt.color = TextMuted;
         lt.alignment = TextAnchor.MiddleLeft;
 
@@ -401,7 +401,7 @@ public static class BacktestConfigUI
         tlRt.anchorMin = Vector2.zero; tlRt.anchorMax = Vector2.one;
         tlRt.offsetMin = Vector2.zero; tlRt.offsetMax = Vector2.zero;
         _dynToggleTxt = tl.AddComponent<Text>();
-        _dynToggleTxt.text = _dynamicObstacles ? "BẬT" : "TẮT";
+        _dynToggleTxt.text = _dynamicObstacles ? "ON" : "OFF";
         _dynToggleTxt.font = Fnt(); _dynToggleTxt.fontSize = 11;
         _dynToggleTxt.fontStyle = FontStyle.Bold;
         _dynToggleTxt.color = TextWhite; _dynToggleTxt.alignment = TextAnchor.MiddleCenter;
@@ -411,7 +411,7 @@ public static class BacktestConfigUI
     {
         _dynamicObstacles = !_dynamicObstacles;
         if (_dynToggleBg  != null) _dynToggleBg.color  = _dynamicObstacles ? BtnGreen : BtnSlate;
-        if (_dynToggleTxt != null) _dynToggleTxt.text   = _dynamicObstacles ? "BẬT" : "TẮT";
+        if (_dynToggleTxt != null) _dynToggleTxt.text   = _dynamicObstacles ? "ON" : "OFF";
     }
 
     private static void StepBtn(GameObject parent, int layer,

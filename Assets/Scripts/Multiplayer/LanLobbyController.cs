@@ -258,7 +258,7 @@ public class LanLobbyController : MonoBehaviour
 
         // Map · algorithm line
         string map = System.IO.Path.GetFileNameWithoutExtension(_mapFile);
-        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  tối đa {MaxPlayers} người",
+        TLbl(_panel, "Sub", $"{map}  ·  {_algorithm}  ·  up to {MaxPlayers} players",
             12, FontStyle.Normal, Muted, new Vector2(0f, -48f), new Vector2(FullW, 18f));
 
         HSep(-72f, L);
@@ -298,7 +298,7 @@ public class LanLobbyController : MonoBehaviour
         accent.AddComponent<Image>().color = Gold;
 
         TLbl(_ipBox, "IpLbl",
-            "IP của bạn  —  share cho người chơi khác:",
+            "Your IP — share it with other players:",
             11, FontStyle.Normal, Muted, new Vector2(0f, -6f), new Vector2(FullW - 16f, 18f));
 
         var ivGo = Mk(_ipBox, "IpVal", L);
@@ -357,7 +357,7 @@ public class LanLobbyController : MonoBehaviour
             y1, PH1, DoStartGame);
 
         // JOIN — Choose screen
-        _btnJoin = BtnFull("BtnJoin", "→  JOIN  (nhập IP host)", Slate, White,
+        _btnJoin = BtnFull("BtnJoin", "→  JOIN  (enter host IP)", Slate, White,
             y2, PH2, ShowJoinRow);
 
         // JOIN ROW — Joining screen (same Y, replaces _btnJoin)
@@ -370,7 +370,7 @@ public class LanLobbyController : MonoBehaviour
         SetVis(_btnStartLobby, false);
 
         // READY toggle (Lobby screen) — same Y as join.
-        _btnReadyLobby = BtnFull("BtnReadyLobby", "✔  SẴN SÀNG", Blue, White,
+        _btnReadyLobby = BtnFull("BtnReadyLobby", "✔  READY", Blue, White,
             y2, PH2, DoToggleReady);
         _btnReadyLabel = _btnReadyLobby.GetComponentInChildren<Text>();
         SetVis(_btnReadyLobby, false);
@@ -431,7 +431,7 @@ public class LanLobbyController : MonoBehaviour
         _lobbySlotsTxt = slots.AddComponent<Text>();
         _lobbySlotsTxt.font = F(); _lobbySlotsTxt.fontSize = 13;
         _lobbySlotsTxt.color = BlueTint; _lobbySlotsTxt.alignment = TextAnchor.UpperLeft;
-        _lobbySlotsTxt.text = "Đang tải danh sách người chơi…";
+        _lobbySlotsTxt.text = "Loading player list…";
 
         var pickLbl = Mk(_lobbyBox, "PickLbl", L);
         var plRt = pickLbl.GetComponent<RectTransform>();
@@ -440,7 +440,7 @@ public class LanLobbyController : MonoBehaviour
         plRt.anchoredPosition = new Vector2(0f, -100f); plRt.sizeDelta = new Vector2(0f, 16f);
         var plTxt = pickLbl.AddComponent<Text>();
         plTxt.font = F(); plTxt.fontSize = 11; plTxt.color = Muted;
-        plTxt.alignment = TextAnchor.MiddleLeft; plTxt.text = "Chọn màu tank:";
+        plTxt.alignment = TextAnchor.MiddleLeft; plTxt.text = "Choose tank color:";
 
         var picker = Mk(_lobbyBox, "Picker", L);
         var pkRt = picker.GetComponent<RectTransform>();
@@ -606,7 +606,7 @@ public class LanLobbyController : MonoBehaviour
         var phTxt = phGo.AddComponent<Text>();
         phTxt.font = F(); phTxt.fontSize = 13; phTxt.color = Muted;
         phTxt.alignment = TextAnchor.MiddleLeft;
-        phTxt.text = "Nhập IP, IP:port, invite link, hoặc session code";
+        phTxt.text = "Enter an IP, IP:port, invite link, or session code";
         phTxt.fontStyle = FontStyle.Italic;
         _ipInput.placeholder = phTxt;
 
@@ -670,7 +670,7 @@ public class LanLobbyController : MonoBehaviour
                 break;
             case Screen.Hosting:
                 HideAllScreenWidgets();
-                SetStatus($"Đang chờ người chơi kết nối…", Gold);
+                SetStatus("Waiting for players to connect…", Gold);
                 SetVis(_btnStart, true);
                 SetVis(_btnJoin,  true);
                 _ipBox?.SetActive(true);
@@ -679,7 +679,7 @@ public class LanLobbyController : MonoBehaviour
                 break;
             case Screen.Joining:
                 HideAllScreenWidgets();
-                SetStatus("Nhập IP, IP:port, invite link, hoặc session code:", Muted);
+                SetStatus("Enter an IP, IP:port, invite link, or session code:", Muted);
                 if (_statusTxt != null)
                 {
                     var srt = _statusTxt.GetComponent<RectTransform>();
@@ -688,7 +688,7 @@ public class LanLobbyController : MonoBehaviour
                     _statusTxt.fontSize = 15;
                 }
                 PositionJoinRowForJoinScreen();
-                SetStatus("Dán link mời hoặc nhập mã phòng\nvd: 43E98F hoặc https://luminx.io.vn/play?session=...", Muted);
+                SetStatus("Paste an invite link or enter a room code\ne.g. 43E98F or https://luminx.io.vn/play?session=...", Muted);
                 _joinRow.SetActive(true);
                 break;
             case Screen.Lobby:
@@ -700,7 +700,7 @@ public class LanLobbyController : MonoBehaviour
                     srt.sizeDelta = new Vector2(-PadX * 2f, 18f);
                     _statusTxt.fontSize = 12;
                 }
-                SetStatus("Phòng chờ — chọn tank & SẴN SÀNG", Green);
+                SetStatus("Lobby — choose a tank and mark READY", Green);
                 _lobbyBox?.SetActive(true);
                 SetVis(_btnReadyLobby, true);
                 // START (owner-only) visibility is managed each tick by RefreshLobby.
@@ -714,7 +714,7 @@ public class LanLobbyController : MonoBehaviour
         // Stop auto-discovery if user goes back from Joining screen
         if (_discovery != null) { _discovery.StopListening(); }
         HideAllScreenWidgets();
-        SetStatus("Chọn vai trò của bạn:", Muted);
+        SetStatus("Choose your role:", Muted);
 #if UNITY_WEBGL && !UNITY_EDITOR
         SetVis(_btnHost,  false);
 #else
@@ -739,7 +739,7 @@ public class LanLobbyController : MonoBehaviour
         ulong localId = local != null ? local.OwnerClientId : ulong.MaxValue;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Người chơi  ({bridges.Count}/{MaxPlayers})");
+        sb.AppendLine($"Players  ({bridges.Count}/{MaxPlayers})");
         int slot = 0, readyCount = 0;
         foreach (var b in bridges)
         {
@@ -748,9 +748,9 @@ public class LanLobbyController : MonoBehaviour
             bool ready   = b.Ready.Value;
             if (ready) readyCount++;
             string star = isOwner ? "★" : "  ";
-            string st   = ready ? "✓ sẵn sàng" : "… chưa";
-            string tag  = isOwner ? " [chủ phòng]" : "";
-            string you  = isLocal ? " (bạn)" : "";
+            string st   = ready ? "✓ ready" : "… not ready";
+            string tag  = isOwner ? " [owner]" : "";
+            string you  = isLocal ? " (you)" : "";
             sb.AppendLine($"{star} #{slot}  {VariantName(b.VariantIndex.Value)}   {st}{tag}{you}");
             slot++;
         }
@@ -758,12 +758,12 @@ public class LanLobbyController : MonoBehaviour
 
         string code = LanSessionManager.SessionCode;
         if (_lobbyCodeTxt != null)
-            _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Mã phòng: {code}";
+            _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Room code: {code}";
 
         if (local != null && _btnReadyLabel != null)
         {
             _localReady = local.Ready.Value;
-            _btnReadyLabel.text = _localReady ? "✖  HỦY SẴN SÀNG" : "✔  SẴN SÀNG";
+            _btnReadyLabel.text = _localReady ? "✖  CANCEL READY" : "✔  READY";
         }
 
         if (local != null && local.VariantIndex.Value != _shownVariant)
@@ -785,7 +785,7 @@ public class LanLobbyController : MonoBehaviour
             if (_btnStartLabel != null)
                 _btnStartLabel.text = allReady
                     ? "▶  START GAME"
-                    : $"START  ({readyCount}/{bridges.Count} · cần ≥{minStart})";
+                    : $"START  ({readyCount}/{bridges.Count} · need ≥{minStart})";
         }
     }
 
@@ -801,7 +801,7 @@ public class LanLobbyController : MonoBehaviour
     private void DoToggleReady()
     {
         var local = LanNetworkBridge.Local;
-        if (local == null) { SetStatus("Đang vào phòng… thử lại sau giây lát.", Muted); return; }
+        if (local == null) { SetStatus("Joining room… please try again shortly.", Muted); return; }
         local.SubmitReady(!local.Ready.Value);
     }
 
@@ -815,7 +815,7 @@ public class LanLobbyController : MonoBehaviour
         string link = BuildInviteLink();
         if (string.IsNullOrEmpty(link)) return;
         WebClipboard.Copy(link);
-        SetStatus("Đã copy link mời!", Green);
+        SetStatus("Invite link copied!", Green);
     }
 
     private static string BuildInviteLink()
@@ -840,11 +840,11 @@ public class LanLobbyController : MonoBehaviour
     {
         switch (Mathf.Clamp(i, 0, 4))
         {
-            case 0:  return "[xanh]";
-            case 1:  return "[đỏ]";
-            case 2:  return "[lục]";
-            case 3:  return "[xám]";
-            default: return "[cát]";
+            case 0:  return "[blue]";
+            case 1:  return "[red]";
+            case 2:  return "[green]";
+            case 3:  return "[gray]";
+            default: return "[sand]";
         }
     }
 
@@ -880,11 +880,11 @@ public class LanLobbyController : MonoBehaviour
     {
         if (_discovery != null) { _discovery.Stop(); Destroy(_discovery); }
         _discovery = gameObject.AddComponent<LanDiscovery>();
-        SetStatus("Đang tự động tìm host trong mạng LAN…", Muted);
+        SetStatus("Searching for a host on the LAN…", Muted);
         _discovery.OnHostFound += ip =>
         {
             if (_ipInput != null) _ipInput.text = ip;
-            SetStatus($"Tìm thấy host: {ip}  —  bấm KẾT NỐI", new Color(0.3f, 0.9f, 0.4f));
+            SetStatus($"Host found: {ip} — press CONNECT", new Color(0.3f, 0.9f, 0.4f));
             _discovery.StopListening();
         };
         _discovery.StartListening();
@@ -901,7 +901,7 @@ public class LanLobbyController : MonoBehaviour
         if (!EnsureNetworkManager()) return;
         if (NetworkManager.Singleton.IsListening)
         {
-            SetStatus("Đang dừng session cũ…", Muted);
+            SetStatus("Stopping the previous session…", Muted);
             NetworkManager.Singleton.Shutdown();
             Invoke(nameof(RetryHost), 2f);
             return;
@@ -953,7 +953,7 @@ public class LanLobbyController : MonoBehaviour
 
         if (_hostRetryCount <= MaxRetries)
         {
-            SetStatus($"Port {GamePort} bận — thử lại ({_hostRetryCount}/{MaxRetries})…",
+            SetStatus($"Port {GamePort} is busy — retrying ({_hostRetryCount}/{MaxRetries})…",
                 new Color(1f, 0.65f, 0.1f));
             Debug.LogWarning($"[LAN] Transport bind failed (attempt {_hostRetryCount}). Retrying in 3 s.");
 
@@ -971,9 +971,9 @@ public class LanLobbyController : MonoBehaviour
                 Destroy(NetworkManager.Singleton.gameObject);
             }
             SetStatus(
-                $"Không thể mở port {GamePort}.\n" +
-                "Tiến trình khác đang chiếm port này.\n" +
-                "Thoát hết build đang chạy hoặc khởi động lại Unity rồi thử lại.",
+                $"Could not open port {GamePort}.\n" +
+                "Another process is already using this port.\n" +
+                "Close all running builds or restart Unity, then try again.",
                 new Color(1f, 0.3f, 0.3f));
             Debug.LogError($"[LAN] Port {GamePort} blocked after {MaxRetries} retries. Manual fix required.");
         }
@@ -985,7 +985,7 @@ public class LanLobbyController : MonoBehaviour
         LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
         _clients.Add($"Client {_clients.Count + 2}");
         RefreshPlayers();
-        SetStatus($"{LanSessionManager.PlayerCount}/{MaxPlayers}  người đã vào", Green);
+        SetStatus($"{LanSessionManager.PlayerCount}/{MaxPlayers} players joined", Green);
     }
 
     private void OnLeave(ulong id)
@@ -1021,7 +1021,7 @@ public class LanLobbyController : MonoBehaviour
         CancelInvoke(nameof(RetryConnect));
         _pendingIp = null;
         _connected = true;
-        SetStatus("Đã kết nối!  Chờ host bắt đầu…", Green);
+        SetStatus("Connected! Waiting for the host to start…", Green);
         Debug.Log("[LAN] Connected to host.");
         // When the host loads the game scene, NGO will trigger a scene load on this client.
         // Register so we can close the lobby overlay once the game scene is live.
@@ -1064,7 +1064,7 @@ public class LanLobbyController : MonoBehaviour
             Debug.LogWarning($"[LAN] Disconnected from host. Reason: {reason}");
             return;
         }
-        SetStatus("Mất kết nối với host.", new Color(1f, 0.4f, 0.4f));
+        SetStatus("Connection to the host was lost.", new Color(1f, 0.4f, 0.4f));
         Debug.LogWarning("[LAN] Disconnected from host.");
     }
 
@@ -1073,7 +1073,7 @@ public class LanLobbyController : MonoBehaviour
         if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsConnectedClient)
         {
             NetworkManager.Singleton.Shutdown();
-            SetStatus("Hết thời gian — không thể kết nối.\nKiểm tra IP và firewall.", new Color(1f, 0.4f, 0.3f));
+            SetStatus("Connection timed out.\nCheck the IP address and firewall.", new Color(1f, 0.4f, 0.3f));
             Debug.LogWarning($"[LAN] Connection timeout to {_pendingIp ?? "?"}:{GamePort}");
         }
     }
@@ -1162,7 +1162,7 @@ public class LanLobbyController : MonoBehaviour
 
         if (!EnsureNetworkManager()) return;
         var t = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        if (t == null) { SetStatus("Lỗi transport!", new Color(1f, 0.3f, 0.3f)); return; }
+        if (t == null) { SetStatus("Transport error!", new Color(1f, 0.3f, 0.3f)); return; }
 
         endpoint.mapFile = string.IsNullOrWhiteSpace(endpoint.mapFile) ? _mapFile : endpoint.mapFile;
         endpoint.algorithm = string.IsNullOrWhiteSpace(endpoint.algorithm) ? _algorithm : endpoint.algorithm;
@@ -1252,8 +1252,8 @@ public class LanLobbyController : MonoBehaviour
     {
         if (_playersTxt == null) return;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Người chơi  ({LanSessionManager.PlayerCount}/{MaxPlayers})");
-        sb.AppendLine("  ●  Host  (bạn)");
+        sb.AppendLine($"Players  ({LanSessionManager.PlayerCount}/{MaxPlayers})");
+        sb.AppendLine("  ●  Host  (you)");
         foreach (var n in _clients) sb.AppendLine($"  ●  {n}");
         _playersTxt.text = sb.ToString();
     }

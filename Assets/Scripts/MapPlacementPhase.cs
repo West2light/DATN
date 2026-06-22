@@ -222,15 +222,15 @@ public class MapPlacementPhase : MonoBehaviour
         topBar.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
 
         string hint1 = hasBarriers
-            ? "Đặt thùng gỗ / rào chắn để bảo vệ Base  |  Chuột trái: Đặt  •  Chuột phải: Xóa"
-            : "Đặt tối đa 2 thùng gỗ để bảo vệ Base  |  Chuột trái: Đặt  •  Chuột phải: Xóa";
+            ? "Place wooden crates / barriers to protect the Base  |  Left click: Place  •  Right click: Remove"
+            : "Place up to 2 wooden crates to protect the Base  |  Left click: Place  •  Right click: Remove";
 
         MakeText(topBar, "Hint1", hint1, 16, FontStyle.Normal, Color.white,
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             new Vector2(0f, 20f), new Vector2(980f, 24f));
 
         MakeText(topBar, "Hint2",
-            "Giữ chuột phải kéo: Di chuyển  •  Cuộn chuột: Zoom",
+            "Hold right mouse button: Pan  •  Mouse wheel: Zoom",
             14, FontStyle.Normal, new Color(0.72f, 0.72f, 0.72f, 1f),
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             new Vector2(0f, -4f), new Vector2(700f, 20f));
@@ -274,12 +274,12 @@ public class MapPlacementPhase : MonoBehaviour
             MakeSeparator(botBar, uiLayer);
 
             // Row 2 (bottom) — action buttons: offset -29 from bar center
-            MakeButton(botBar, "StartBtn", "BẮT ĐẦU",
+            MakeButton(botBar, "StartBtn", "START",
                 new Color(0.11f, 0.50f, 0.25f, 1f), Color.white,
                 new Vector2(-142f, -29f), new Vector2(250f, 42f),
                 () => Finish(false, canvasObj));
 
-            MakeButton(botBar, "SkipBtn", "BỎ QUA (không đặt)",
+            MakeButton(botBar, "SkipBtn", "SKIP (place nothing)",
                 new Color(0.18f, 0.18f, 0.20f, 1f), new Color(0.78f, 0.78f, 0.78f, 1f),
                 new Vector2(+142f, -29f), new Vector2(250f, 42f),
                 () => Finish(true, canvasObj));
@@ -287,12 +287,12 @@ public class MapPlacementPhase : MonoBehaviour
         else
         {
             // Single row centered in 64px bar (offset 0 from center = centred)
-            MakeButton(botBar, "StartBtn", "BẮT ĐẦU",
+            MakeButton(botBar, "StartBtn", "START",
                 new Color(0.11f, 0.50f, 0.25f, 1f), Color.white,
                 new Vector2(-142f, 0f), new Vector2(250f, 44f),
                 () => Finish(false, canvasObj));
 
-            MakeButton(botBar, "SkipBtn", "BỎ QUA (không đặt)",
+            MakeButton(botBar, "SkipBtn", "SKIP (place nothing)",
                 new Color(0.18f, 0.18f, 0.20f, 1f), new Color(0.78f, 0.78f, 0.78f, 1f),
                 new Vector2(+142f, 0f), new Vector2(250f, 44f),
                 () => Finish(true, canvasObj));
@@ -497,12 +497,12 @@ public class MapPlacementPhase : MonoBehaviour
     private string GetStatusString()
     {
         if (maxBarriers > 0)
-            return $"Thùng: {placedCrates.Count}/{maxCrates}  •  Rào: {placedBarriers.Count}/{maxBarriers}";
-        return $"Đã đặt: {placedCrates.Count} / {maxCrates}";
+            return $"Crates: {placedCrates.Count}/{maxCrates}  •  Barriers: {placedBarriers.Count}/{maxBarriers}";
+        return $"Placed: {placedCrates.Count} / {maxCrates}";
     }
 
-    private string CrateModeLabel()   => $"THÙNG GO ({placedCrates.Count}/{maxCrates})";
-    private string BarrierModeLabel() => $"RAO CHAN ({placedBarriers.Count}/{maxBarriers})";
+    private string CrateModeLabel()   => $"WOODEN CRATES ({placedCrates.Count}/{maxCrates})";
+    private string BarrierModeLabel() => $"BARRIERS ({placedBarriers.Count}/{maxBarriers})";
 
     private void RefreshStatus()
     {

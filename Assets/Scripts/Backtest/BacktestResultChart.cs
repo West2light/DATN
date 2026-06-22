@@ -62,9 +62,9 @@ public class BacktestResultChart : MonoBehaviour
 
     private static readonly Metric[] Metrics =
     {
-        new Metric { label="Thời gian trung bình (s)", get=r=>r.duration,    maxHint=120f, lowerBetter=true  },
-        new Metric { label="Số lần replan tổng",       get=r=>r.totalReplans,maxHint=0,    lowerBetter=false },
-        new Metric { label="Tổng số shot",             get=r=>r.totalShots,  maxHint=0,    lowerBetter=false },
+        new Metric { label="Average time (s)", get=r=>r.duration,    maxHint=120f, lowerBetter=true  },
+        new Metric { label="Total replans",    get=r=>r.totalReplans,maxHint=0,    lowerBetter=false },
+        new Metric { label="Total shots",      get=r=>r.totalShots,  maxHint=0,    lowerBetter=false },
     };
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ public class BacktestResultChart : MonoBehaviour
 
         // Title — anchor top-left + pos (30,-18) so rect spans [30, PanelW-30], text centered within
         Lbl("Title", panel, new Vector2(0f,1f), new Vector2(30f,-18f),
-            new Vector2(PanelW-60f, 26f), "KẾT QUẢ BACKTEST — A* vs PIBT vs PIBT-C++",
+            new Vector2(PanelW-60f, 26f), "BACKTEST RESULTS — A* vs PIBT vs PIBT-C++",
             18, FontStyle.Bold, C_Gold, TextAnchor.MiddleCenter);
 
         // Legend
@@ -211,7 +211,7 @@ public class BacktestResultChart : MonoBehaviour
         eb.targetGraphic = exitImg;
         eb.onClick.AddListener(ExitToMenu);
         Lbl("ExitTxt", exitGo, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(240f, 34f),
-            "Thoát & Về Menu", 13, FontStyle.Bold, C_White, TextAnchor.MiddleCenter, fill: true);
+            "EXIT TO MENU", 13, FontStyle.Bold, C_White, TextAnchor.MiddleCenter, fill: true);
 
         // ── Save scroll references ─────────────────────────────────────────
         _contentRt = contentRt;
@@ -364,7 +364,7 @@ public class BacktestResultChart : MonoBehaviour
         System.Func<string, string, int, float> avg, float startY)
     {
         Lbl("SumTitle", panel, new Vector2(0f,1f), new Vector2(PadX, startY - 8f),
-            new Vector2(300f, 18f), "Tổng kết", 11, FontStyle.Bold, C_Gold, TextAnchor.MiddleLeft);
+            new Vector2(300f, 18f), "Summary", 11, FontStyle.Bold, C_Gold, TextAnchor.MiddleLeft);
 
         float rowY = startY - 28f;
         float colW = (PanelW - PadX*2f) / (Metrics.Length + 1);

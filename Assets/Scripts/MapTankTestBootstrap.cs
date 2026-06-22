@@ -19,24 +19,24 @@ public class MapTankTestBootstrap : MonoBehaviour
     public Vector2Int playerSpawnCell = new Vector2Int(1, 1);
     private readonly List<Vector2Int> _lanPlayerSpawnCells = new List<Vector2Int>();
     [Min(3)]
-    [Tooltip("Số ô walkable liên thông tối thiểu tại điểm spawn, tránh player bị kẹt trong hốc.")]
+    [Tooltip("Minimum connected walkable region size at the spawn point, preventing players from getting trapped.")]
     public int playerSpawnMinRegionSize = 9;
     [Range(1, 4)]
-    [Tooltip("Số lối thoát trực tiếp (4 hướng) tối thiểu tại ô spawn. Giá trị 2 đảm bảo không phải ngõ cụt.")]
+    [Tooltip("Minimum number of direct exits (4 directions) at the spawn cell. A value of 2 avoids dead ends.")]
     public int playerSpawnMinNeighbors = 2;
 
     [Range(0.5f, 3f)]
-    [Tooltip("Hệ số phóng to tank người chơi so với 1 ô map")]
+    [Tooltip("Player tank scale relative to one map cell.")]
     public float playerScale = 1.3f;
     [Min(1)]
-    [Tooltip("Máu player trong các scene MapF, khớp với Lvl1.")]
+    [Tooltip("Player health in MapF scenes, matching Lvl1.")]
     public int playerMaxHealth = 20;
-    [Tooltip("Hiện thanh máu player ở HUD góc trái trong các scene MapF.")]
+    [Tooltip("Show the player health bar in the top-left HUD in MapF scenes.")]
     public bool showPlayerHealthBar = true;
     public Camera mainCamera;
 
     [Range(0.3f, 1f)]
-    [Tooltip("Hệ số zoom: 1 = viewport vừa khít cạnh ngắn của map, nhỏ hơn = zoom gần hơn")]
+    [Tooltip("Zoom factor: 1 fits the map's shorter edge; lower values zoom in.")]
     public float cameraZoom = 0.7f;
     public Vector3 cameraOffset = new Vector3(0f, 0f, -10f);
 

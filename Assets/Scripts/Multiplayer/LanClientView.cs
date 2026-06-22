@@ -794,12 +794,12 @@ public class LanClientView : MonoBehaviour
         bg.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
 
         // "BẠN ĐÃ CHẾT" title.
-        AddOverlayText(bg, "DeadTitle", "BẠN ĐÃ CHẾT",
+        AddOverlayText(bg, "DeadTitle", "YOU DIED",
             34, FontStyle.Bold, new Color(1f, 0.25f, 0.25f),
             new Vector2(0.5f, 0.7f));
 
         // Hint text.
-        AddOverlayText(bg, "Hint", "Dùng WASD để kéo camera xem tiếp",
+        AddOverlayText(bg, "Hint", "Use WASD to move the spectator camera",
             16, FontStyle.Italic, new Color(0.85f, 0.85f, 0.85f),
             new Vector2(0.5f, 0.3f));
 

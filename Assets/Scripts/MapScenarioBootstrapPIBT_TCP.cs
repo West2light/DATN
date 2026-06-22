@@ -31,7 +31,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     public string serverHost          = "110.172.28.110";
     public int    serverPort          = 7777;
     [Min(0.05f)]
-    [Tooltip("Khoảng thời gian (giây) giữa các lần gọi server. 0.5s ≈ 2 tick/s.")]
+    [Tooltip("Interval in seconds between server calls. 0.5s is approximately 2 ticks/s.")]
     public float  tcpTickInterval     = 0.5f;
 
     [Header("Eagle Base")]

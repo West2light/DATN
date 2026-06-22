@@ -55,11 +55,11 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
     public float enemyEagleShootingRange = 5f;
     public float enemyPlayerShootingRange = 7f;
     [Min(1)]
-    [Tooltip("Máu enemy trong scene PIBT, khớp với Lvl1.")]
+    [Tooltip("Enemy health in the PIBT scene, matching Lvl1.")]
     public int enemyMaxHealth = 20;
 
     [Header("PIBT")]
-    [Tooltip("Time budget (ms) cho Frank-Wolfe iterations mỗi lần replan.")]
+    [Tooltip("Time budget (ms) for Frank-Wolfe iterations on each replan.")]
     [Min(1f)] public float frankWolfeMs = 15f;
 
     [Header("Stuck recovery")]

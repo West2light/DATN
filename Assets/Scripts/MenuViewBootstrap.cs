@@ -773,7 +773,7 @@ public class MenuViewBootstrap : MonoBehaviour
             30, FontStyle.Bold, new Color(0.75f, 0.90f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(720f, 48f));
 
-        MakeText(_screenLan.transform, "Hint", "Chọn map và chế độ AI · số enemy = 6 × số người chơi",
+        MakeText(_screenLan.transform, "Hint", "Choose a map and AI mode · enemies = 6 × player count",
             13, FontStyle.Italic, TextMuted,
             new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(720f, 22f));
 
@@ -938,18 +938,18 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(720f, 52f));
 
         MakeText(_screenInternet.transform, "Hint",
-            "Tạo phòng mới, hoặc tham gia bằng mã phòng / link mời",
+            "Create a new room or join with a room code / invite link",
             15, FontStyle.Italic, TextMuted,
             new Vector2(0.5f, 1f), new Vector2(0f, -108f), new Vector2(760f, 24f));
 
         Button btnHostGame = MakeButton(_screenInternet.transform, "BtnHostGame",
-            "●  HOST GAME  —  Tạo phòng", new Vector2(0f, 40f), new Vector2(440f, 72f),
+            "●  HOST GAME  —  Create Room", new Vector2(0f, 40f), new Vector2(440f, 72f),
             new Color(0.18f, 0.48f, 0.90f, 1f));
         SetTextColor(btnHostGame.transform, TextLight);
         btnHostGame.onClick.AddListener(() => ShowScreen(Screen.LanMapSelect));
 
         Button btnJoinRoom = MakeButton(_screenInternet.transform, "BtnJoinRoom",
-            "→  JOIN ROOM  —  Nhập mã / link", new Vector2(0f, -52f), new Vector2(440f, 72f),
+            "→  JOIN ROOM  —  Enter Code / Link", new Vector2(0f, -52f), new Vector2(440f, 72f),
             new Color(0.20f, 0.55f, 0.32f, 1f));
         SetTextColor(btnJoinRoom.transform, TextLight);
         btnJoinRoom.onClick.AddListener(OpenJoinPrompt);

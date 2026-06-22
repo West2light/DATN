@@ -728,7 +728,7 @@ public class BacktestRunner : MonoBehaviour
             return sums[k][i] / cnts[k][i];
         }
 
-        string[] metLabels    = { "Thời gian TB (s)", "Replan tổng", "Tổng số shot", "Cells đã đi" };
+        string[] metLabels    = { "Average time (s)", "Total replans", "Total shots", "Cells traveled" };
         bool[]   lowerBetter  = { true, false, false, false };
 
         string BestAlgo(string map, int mi)
@@ -785,7 +785,7 @@ public class BacktestRunner : MonoBehaviour
 
         // ── Title ──────────────────────────────────────────────────────────
         sb.AppendLine($"<h1>Backtest Report — A* vs PIBT vs PIBT-C++</h1>");
-        sb.AppendLine($"<p class='subtitle'>Ngày chạy: {DateTime.Now:dd/MM/yyyy HH:mm}  •  {results.Count} runs  •  {maps.Count} map(s)</p>");
+        sb.AppendLine($"<p class='subtitle'>Run date: {DateTime.Now:dd/MM/yyyy HH:mm}  •  {results.Count} runs  •  {maps.Count} map(s)</p>");
 
         // ── One bar-chart section per metric ───────────────────────────────
         for (int mi = 0; mi < NM; mi++)
@@ -833,8 +833,8 @@ public class BacktestRunner : MonoBehaviour
         }
 
         // ── Summary table ──────────────────────────────────────────────────
-        sb.AppendLine("<div class='section'><h2>Bảng tổng kết (trung bình)</h2>");
-        sb.AppendLine("<table><tr><th>Map</th><th>Thuật toán</th>");
+        sb.AppendLine("<div class='section'><h2>Summary (averages)</h2>");
+        sb.AppendLine("<table><tr><th>Map</th><th>Algorithm</th>");
         foreach (var ml in metLabels) sb.AppendLine($"<th>{ml}</th>");
         sb.AppendLine("</tr>");
 

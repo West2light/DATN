@@ -15,7 +15,7 @@ public class Bullet : MonoBehaviour
 
     public BulletData bulletData;
 
-    [Tooltip("Các lớp mà đạn được phép va chạm. Để trống = tự động dùng các lớp vật cản + xe tăng.")]
+    [Tooltip("Layers that bullets may collide with. Leave empty to automatically use obstacle and tank layers.")]
     public LayerMask hitDetectionMask;
 
     private Vector2 startPosition;
