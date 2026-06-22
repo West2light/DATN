@@ -23,7 +23,8 @@ public class LanClientView : MonoBehaviour
 
     private readonly List<Transform>    _playerGhosts = new List<Transform>();
     private readonly List<GameObject>   _bulletGhosts = new List<GameObject>();  // tracked so explosions can stop them
-    private readonly List<Transform> _enemyGhosts  = new List<Transform>();
+    private readonly List<Transform> _enemyGhosts    = new List<Transform>();
+    private readonly List<Slider>   _enemyHpSliders = new List<Slider>();
     private int _ownSlot = -1;
     private Transform _eagleGhost;
 
@@ -47,6 +48,7 @@ public class LanClientView : MonoBehaviour
     private Text   _enemyCountText;
     private const int OwnMaxHp   = 20;
     private const int EagleMaxHp = 500;
+    private const int EnemyMaxHp = 20;
 
     // Spectator mode — set true the first time own HP reaches 0.
     public  bool IsSpectating { get; private set; }
@@ -294,6 +296,8 @@ public class LanClientView : MonoBehaviour
                     g.position = new Vector3(e.px, e.py, 0f);
                     g.rotation = Quaternion.Euler(0f, 0f, e.bodyRot);
                     SetTurretRot(g, e.turretRot);
+                    if (e.idx < _enemyHpSliders.Count && _enemyHpSliders[e.idx] != null)
+                        _enemyHpSliders[e.idx].value = (float)e.hp / EnemyMaxHp;
                 }
             }
 
@@ -408,6 +412,7 @@ public class LanClientView : MonoBehaviour
         foreach (var b in _bulletGhosts) if (b != null) Destroy(b);
         _playerGhosts.Clear();
         _enemyGhosts.Clear();
+        _enemyHpSliders.Clear();
         _bulletGhosts.Clear();
         _ownSlot      = -1;
         OwnGhost      = null;
@@ -445,7 +450,12 @@ public class LanClientView : MonoBehaviour
         }
 
         for (int i = 0; i < enemyCount; i++)
-            _enemyGhosts.Add(SpawnDisplay(enemyPrefab, $"GhostEnemy_{i}", 0.72f, Color.white));
+        {
+            Transform ghost = SpawnDisplay(enemyPrefab, $"GhostEnemy_{i}", 0.72f, Color.white);
+            _enemyGhosts.Add(ghost);
+            Transform hb = ghost?.Find("Canvas/HealthBar");
+            _enemyHpSliders.Add(hb != null ? hb.GetComponent<Slider>() : null);
+        }
 
         _playerTargetPos       = new Vector3[playerCount];
         _playerTargetRot       = new Quaternion[playerCount];
@@ -554,7 +564,12 @@ public class LanClientView : MonoBehaviour
             src.enabled = false;
 
         foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))
-            if (mb != null) mb.enabled = false;
+        {
+            if (mb == null) continue;
+            // Keep Canvas-hierarchy components enabled so per-unit HP bars remain visible.
+            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is CanvasGroup) continue;
+            mb.enabled = false;
+        }
     }
 
     private static Transform MakeSquareGhost(string name, Color color, float size)

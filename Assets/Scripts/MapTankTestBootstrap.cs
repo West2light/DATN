@@ -236,6 +236,27 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
     }
 
+    // Returns one of 8 spread-out corner/midpoint cells for LAN player slot i.
+    // Avoids putting all players on the same edge column (old x=1 bug).
+    private Vector2Int ComputeMultiplayerPlayerCell(int playerIndex)
+    {
+        int c = mapLoader.BuildWidth;
+        int r = mapLoader.BuildHeight;
+        const int pad = 3;
+        var preferred = new Vector2Int[]
+        {
+            new Vector2Int(pad,         pad),
+            new Vector2Int(c - 1 - pad, pad),
+            new Vector2Int(pad,         r - 1 - pad),
+            new Vector2Int(c - 1 - pad, r - 1 - pad),
+            new Vector2Int(c / 4,       r / 2),
+            new Vector2Int(3 * c / 4,   r / 2),
+            new Vector2Int(c / 2,       r / 4),
+            new Vector2Int(c / 2,       3 * r / 4),
+        };
+        return preferred[playerIndex % preferred.Length];
+    }
+
     private List<Vector2Int> ComputeEnemySpawnCells()
     {
         if (mapLoader == null) return null;
@@ -264,10 +285,7 @@ public class MapTankTestBootstrap : MonoBehaviour
         {
             int n = LanSessionManager.PlayerCount;
             for (int i = 0; i < n; i++)
-            {
-                int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, r - 2);
-                playerCells.Add(new Vector2Int(playerSpawnCell.x, row));
-            }
+                playerCells.Add(ComputeMultiplayerPlayerCell(i));
             // Remove any base-set enemy cells that coincide with player cells.
             baseSet.RemoveAll(cell => playerCells.Contains(cell));
         }
@@ -312,8 +330,7 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         for (int i = 0; i < n; i++)
         {
-            int row = Mathf.Clamp(playerSpawnCell.y + i * 3, 1, mapLoader.BuildHeight - 2);
-            var cell = new Vector2Int(playerSpawnCell.x, row);
+            var cell = ComputeMultiplayerPlayerCell(i);
             if (!mapLoader.TryFindWalkableNear(cell, out Vector2Int spawnCell)) continue;
 
             GameObject prefab = ResolveTankPrefab();

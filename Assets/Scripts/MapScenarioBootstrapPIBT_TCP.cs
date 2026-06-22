@@ -160,14 +160,13 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         if (!success)
         {
             string err = client.LastError ?? "Unknown error";
-            Debug.LogError($"[PIBT_TCP] Connection/hello failed: {err}");
             client.Disconnect();
-            ShowToast($"Cannot connect to PIBT server\n({serverHost}:{serverPort})\n{err}", 5f);
+            StopAgentsForConnectionFailure($"Connection/hello failed: {err}");
             yield break;
         }
 
-        _serverReady  = true;
-        _nextTickTime = Time.time + tcpTickInterval;
+        _serverReady      = true;
+        _nextTickTime     = Time.time + tcpTickInterval;
         Debug.Log($"[PIBT_TCP] Connected and initialized. {agentCount} agents, map {width}×{height}. _serverReady=true");
     }
 
@@ -224,8 +223,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             yield break;
         }
 
-        _serverReady = true;
-        _nextTickTime = Time.time + tcpTickInterval;
+        _serverReady      = true;
+        _nextTickTime     = Time.time + tcpTickInterval;
         Debug.Log($"[PIBT_WEB] Connected and initialized through relay. {_agents.Count} agents, map {width}x{height}.");
     }
 
@@ -716,7 +715,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         c2.sortingOrder = 20;
         { var sc = canvas.AddComponent<CanvasScaler>(); sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; sc.referenceResolution = new Vector2(1280, 720); sc.matchWidthOrHeight = 0.5f; }
         canvas.AddComponent<GraphicRaycaster>();
-        CanvasGroup cg = canvas.AddComponent<CanvasGroup>(); cg.alpha = 0.8f;
+        CanvasGroup canvasGroupEh = canvas.AddComponent<CanvasGroup>(); canvasGroupEh.alpha = 0.8f;
+        RectTransform canvasRectEh = canvas.GetComponent<RectTransform>();
+        canvasRectEh.localScale = Vector3.one;
+        canvasRectEh.sizeDelta  = Vector2.zero;
 
         GameObject labelGO = new GameObject("BaseLabel");
         labelGO.layer = LayerMask.NameToLayer("UI");
@@ -725,7 +727,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         lr.anchorMin = new Vector2(0, 1); lr.anchorMax = new Vector2(0, 1);
         lr.pivot = new Vector2(0, 1); lr.anchoredPosition = new Vector2(24, -48); lr.sizeDelta = new Vector2(46, 18);
         Text label = labelGO.AddComponent<Text>();
-        label.text = "BASE"; label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.text = "BASE"; label.font = UiFontProvider.GetDefaultFont();
         label.fontSize = 14; label.alignment = TextAnchor.MiddleLeft; label.color = Color.white;
 
         GameObject hbGO = new GameObject("HealthBar");
@@ -761,7 +763,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         c2.sortingLayerName = "UI"; c2.sortingOrder = 20;
         { var sc = canvas.AddComponent<CanvasScaler>(); sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; sc.referenceResolution = new Vector2(1280, 720); sc.matchWidthOrHeight = 0.5f; }
         canvas.AddComponent<GraphicRaycaster>();
-        CanvasGroup cg = canvas.AddComponent<CanvasGroup>(); cg.alpha = 0.8f;
+        CanvasGroup canvasGroupEc = canvas.AddComponent<CanvasGroup>(); canvasGroupEc.alpha = 0.8f;
+        RectTransform canvasRectEc = canvas.GetComponent<RectTransform>();
+        canvasRectEc.localScale = Vector3.one;
+        canvasRectEc.sizeDelta  = Vector2.zero;
 
         GameObject textGO = new GameObject("EnemyCountText");
         textGO.layer = LayerMask.NameToLayer("UI");
@@ -770,7 +775,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         tr2.anchorMin = new Vector2(0, 1); tr2.anchorMax = new Vector2(0, 1);
         tr2.pivot = new Vector2(0, 1); tr2.anchoredPosition = new Vector2(24, -72); tr2.sizeDelta = new Vector2(172, 18);
         Text text = textGO.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UiFontProvider.GetDefaultFont();
         text.fontSize = 14; text.alignment = TextAnchor.MiddleLeft; text.color = Color.white;
         return text;
     }

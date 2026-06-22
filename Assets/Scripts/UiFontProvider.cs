@@ -11,6 +11,17 @@ public static class UiFontProvider
 
     public static Font GetDefaultFont()
     {
+#if UNITY_EDITOR
+        // NotoSans is packaged correctly for builds, but its dynamic atlas can fail
+        // to render legacy Unity UI.Text inside the Editor Game view. The built-in
+        // runtime font is always available in the Editor and avoids blank HUD text.
+        Font editorFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (editorFont != null)
+        {
+            return editorFont;
+        }
+#endif
+
         if (cachedFont == null)
         {
             cachedFont = Resources.Load<Font>(DefaultFontResourcePath);
