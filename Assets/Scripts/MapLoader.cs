@@ -194,6 +194,17 @@ public class MapLoader : MonoBehaviour
         int requiredSeparation = Mathf.Max(1, minSeparationCells);
         int separationSqr = requiredSeparation * requiredSeparation;
 
+        // Most precomputed spawn cells are already valid. Avoid a full-map scan for
+        // them (important on the 251x180 production maps with up to 48 enemies).
+        if (IsInsideBuildWindow(preferredCell)
+            && IsWalkable(preferredCell)
+            && CountWalkableBuildNeighbors(preferredCell) >= 2
+            && !ConflictsWithReserved(preferredCell, reservedCells, separationSqr))
+        {
+            result = preferredCell;
+            return true;
+        }
+
         // Prefer open cells, but progressively allow corridors on dense maze maps.
         for (int requiredNeighbors = 2; requiredNeighbors >= 0; requiredNeighbors--)
         {
@@ -211,19 +222,7 @@ public class MapLoader : MonoBehaviour
                     if (!IsWalkable(candidate)) continue;
                     if (CountWalkableBuildNeighbors(candidate) < requiredNeighbors) continue;
 
-                    bool conflicts = false;
-                    if (reservedCells != null)
-                    {
-                        foreach (Vector2Int reserved in reservedCells)
-                        {
-                            if ((candidate - reserved).sqrMagnitude < separationSqr)
-                            {
-                                conflicts = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (conflicts) continue;
+                    if (ConflictsWithReserved(candidate, reservedCells, separationSqr)) continue;
 
                     int distance = (candidate - preferredCell).sqrMagnitude;
                     if (!found || distance < bestDistance)
@@ -408,14 +407,24 @@ public class MapLoader : MonoBehaviour
     private int CountWalkableBuildNeighbors(Vector2Int cell)
     {
         int count = 0;
-        Vector2Int[] neighbors =
-        {
-            cell + Vector2Int.up, cell + Vector2Int.down,
-            cell + Vector2Int.left, cell + Vector2Int.right
-        };
-        foreach (Vector2Int neighbor in neighbors)
-            if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
+        Vector2Int neighbor = cell + Vector2Int.up;
+        if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
+        neighbor = cell + Vector2Int.down;
+        if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
+        neighbor = cell + Vector2Int.left;
+        if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
+        neighbor = cell + Vector2Int.right;
+        if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
         return count;
+    }
+
+    private static bool ConflictsWithReserved(Vector2Int candidate,
+        ICollection<Vector2Int> reservedCells, int separationSqr)
+    {
+        if (reservedCells == null) return false;
+        foreach (Vector2Int reserved in reservedCells)
+            if ((candidate - reserved).sqrMagnitude < separationSqr) return true;
+        return false;
     }
 
     // BFS flood-fill đếm số ô walkable liên thông, dừng sớm khi đạt maxCount.
