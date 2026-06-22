@@ -17,6 +17,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     public AudioClip playerEngineClip;
     public string playerEngineClipPath = "Assets/Audio/Kenny Assets/Si-fi sounds/Audio/spaceEngineSmall_001.ogg";
     public Vector2Int playerSpawnCell = new Vector2Int(1, 1);
+    private readonly List<Vector2Int> _lanPlayerSpawnCells = new List<Vector2Int>();
     [Min(3)]
     [Tooltip("Số ô walkable liên thông tối thiểu tại điểm spawn, tránh player bị kẹt trong hốc.")]
     public int playerSpawnMinRegionSize = 9;
@@ -242,19 +243,23 @@ public class MapTankTestBootstrap : MonoBehaviour
     // Avoids putting all players on the same edge column (old x=1 bug).
     private Vector2Int ComputeMultiplayerPlayerCell(int playerIndex)
     {
+        int sx = mapLoader.BuildStartX;
+        int sy = mapLoader.BuildStartY;
         int c = mapLoader.BuildWidth;
         int r = mapLoader.BuildHeight;
-        const int pad = 3;
+        int pad = Mathf.Clamp(3, 1, Mathf.Max(1, (Mathf.Min(c, r) - 1) / 2));
+        int right = sx + c - 1 - pad;
+        int bottom = sy + r - 1 - pad;
         var preferred = new Vector2Int[]
         {
-            new Vector2Int(pad,         pad),
-            new Vector2Int(c - 1 - pad, pad),
-            new Vector2Int(pad,         r - 1 - pad),
-            new Vector2Int(c - 1 - pad, r - 1 - pad),
-            new Vector2Int(c / 4,       r / 2),
-            new Vector2Int(3 * c / 4,   r / 2),
-            new Vector2Int(c / 2,       r / 4),
-            new Vector2Int(c / 2,       3 * r / 4),
+            new Vector2Int(sx + pad,       sy + pad),
+            new Vector2Int(right,          sy + pad),
+            new Vector2Int(sx + pad,       bottom),
+            new Vector2Int(right,          bottom),
+            new Vector2Int(sx + c / 4,     sy + r / 2),
+            new Vector2Int(sx + 3 * c / 4, sy + r / 2),
+            new Vector2Int(sx + c / 2,     sy + r / 4),
+            new Vector2Int(sx + c / 2,     sy + 3 * r / 4),
         };
         return preferred[playerIndex % preferred.Length];
     }
@@ -262,18 +267,20 @@ public class MapTankTestBootstrap : MonoBehaviour
     private List<Vector2Int> ComputeEnemySpawnCells()
     {
         if (mapLoader == null) return null;
-        int c = mapLoader.BuildWidth;
-        int r = mapLoader.BuildHeight;
+        int sx = mapLoader.BuildStartX;
+        int sy = mapLoader.BuildStartY;
+        int c  = mapLoader.BuildWidth;
+        int r  = mapLoader.BuildHeight;
 
         // Base 6 spawn positions (corners + mid-edges)
         var baseSet = new List<Vector2Int>
         {
-            new Vector2Int(c - 2, 1),
-            new Vector2Int(1,     r - 2),
-            new Vector2Int(c - 2, r - 2),
-            new Vector2Int(c / 2, 1),
-            new Vector2Int(1,     r / 2),
-            new Vector2Int(c - 2, r / 2),
+            new Vector2Int(sx + c - 2, sy + 1),
+            new Vector2Int(sx + 1,     sy + r - 2),
+            new Vector2Int(sx + c - 2, sy + r - 2),
+            new Vector2Int(sx + c / 2, sy + 1),
+            new Vector2Int(sx + 1,     sy + r / 2),
+            new Vector2Int(sx + c - 2, sy + r / 2),
         };
 
         // In LAN mode, need 6 * playerCount cells
@@ -281,30 +288,32 @@ public class MapTankTestBootstrap : MonoBehaviour
             ? LanSessionManager.EnemyCount
             : baseSet.Count;
 
-        // Collect player spawn cells so we can keep enemies away from them.
-        var playerCells = new System.Collections.Generic.HashSet<Vector2Int>();
-        if (LanSessionManager.IsActive)
+        // Reserve a 3-cell radius around every ACTUAL allocated player spawn.
+        var reserved = new HashSet<Vector2Int>();
+        foreach (Vector2Int playerCell in _lanPlayerSpawnCells)
         {
-            int n = LanSessionManager.PlayerCount;
-            for (int i = 0; i < n; i++)
-                playerCells.Add(ComputeMultiplayerPlayerCell(i));
-            // Remove any base-set enemy cells that coincide with player cells.
-            baseSet.RemoveAll(cell => playerCells.Contains(cell));
+            for (int dy = -2; dy <= 2; dy++)
+                for (int dx = -2; dx <= 2; dx++)
+                    if (dx * dx + dy * dy < 9)
+                        reserved.Add(playerCell + new Vector2Int(dx, dy));
         }
 
-        if (needed <= baseSet.Count) return baseSet.GetRange(0, needed);
-
-        // Generate additional random walkable cells for extra enemies.
-        var result = new List<Vector2Int>(baseSet);
+        // Allocate every enemy spawn through the same reservation-aware path. This
+        // prevents blocked preferred cells from all resolving to one common tile.
+        var result = new List<Vector2Int>(needed);
         var rng = new System.Random(42);
-        int attempts = 0;
-        while (result.Count < needed && attempts < 10000)
+        for (int i = 0; i < needed; i++)
         {
-            attempts++;
-            var cell = new Vector2Int(rng.Next(1, c - 1), rng.Next(1, r - 1));
-            if (mapLoader.IsWalkable(cell) && !result.Contains(cell)
-                && !playerCells.Contains(cell))
-                result.Add(cell);
+            Vector2Int preferred = i < baseSet.Count
+                ? baseSet[i]
+                : new Vector2Int(rng.Next(sx + 1, sx + c - 1), rng.Next(sy + 1, sy + r - 1));
+            if (!mapLoader.TryFindAvailableSpawnNear(preferred, reserved, 1, out Vector2Int allocated))
+            {
+                Debug.LogError($"[MapTankTestBootstrap] Could not allocate unique enemy spawn {i + 1}/{needed}.");
+                break;
+            }
+            result.Add(allocated);
+            reserved.Add(allocated);
         }
         return result;
     }
@@ -314,6 +323,8 @@ public class MapTankTestBootstrap : MonoBehaviour
     private List<TankController> SpawnAllLanPlayers()
     {
         var tanks = new List<TankController>();
+        _lanPlayerSpawnCells.Clear();
+        var reservedSpawnCells = new HashSet<Vector2Int>();
         // Read live connected-client count from NGO rather than the cached
         // LanSessionManager.PlayerCount, which can be stale if a client joins
         // during the scene-load transition.
@@ -333,7 +344,13 @@ public class MapTankTestBootstrap : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             var cell = ComputeMultiplayerPlayerCell(i);
-            if (!mapLoader.TryFindWalkableNear(cell, out Vector2Int spawnCell)) continue;
+            if (!mapLoader.TryFindAvailableSpawnNear(cell, reservedSpawnCells, 3, out Vector2Int spawnCell))
+            {
+                Debug.LogError($"[MapTankTestBootstrap] Could not allocate a unique spawn for LAN player slot {i}.");
+                continue;
+            }
+            reservedSpawnCells.Add(spawnCell);
+            _lanPlayerSpawnCells.Add(spawnCell);
 
             GameObject prefab = ResolveTankPrefab();
             if (prefab == null) continue;

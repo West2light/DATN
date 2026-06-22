@@ -524,7 +524,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         if (spawnEagleNearPlayer)
         {
-            Transform player = GameObject.Find("Player")?.transform;
+            Transform player = GameObject.Find("Player")?.transform
+                ?? GameObject.Find("Player_0")?.transform;
             if (player != null && TryFindRandomWalkableNearPlayer(player, out spawnCell))
                 return true;
         }
@@ -535,21 +536,16 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private bool TryFindRandomWalkableNearPlayer(Transform player, out Vector2Int spawnCell)
     {
         Vector2Int playerCell = mapLoader.WorldToCell(player.position);
-        int minSqr = eagleMinPlayerDistanceCells * eagleMinPlayerDistanceCells;
-        int maxSqr = Mathf.Max(eagleMinPlayerDistanceCells, eagleMaxPlayerDistanceCells);
-        maxSqr *= maxSqr;
-        var candidates = new List<Vector2Int>();
-        for (int y = playerCell.y - eagleMaxPlayerDistanceCells; y <= playerCell.y + eagleMaxPlayerDistanceCells; y++)
-            for (int x = playerCell.x - eagleMaxPlayerDistanceCells; x <= playerCell.x + eagleMaxPlayerDistanceCells; x++)
-            {
-                Vector2Int c = new Vector2Int(x, y);
-                int d = (c - playerCell).sqrMagnitude;
-                if (d < minSqr || d > maxSqr || !mapLoader.IsWalkable(c)) continue;
-                candidates.Add(c);
-            }
-        if (candidates.Count == 0) { spawnCell = default; return false; }
-        spawnCell = candidates[Random.Range(0, candidates.Count)];
-        return true;
+        int minDistance = Mathf.Max(1, eagleMinPlayerDistanceCells);
+        int maxDistance = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
+        var allPlayerCells = new HashSet<Vector2Int>();
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                allPlayerCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
+        allPlayerCells.Add(playerCell);
+
+        return mapLoader.TryFindAvailableSpawnInRange(
+            playerCell, allPlayerCells, minDistance, maxDistance, out spawnCell);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -563,10 +559,18 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         enemiesAlive    = 0;
         enemyCountText  = EnsureEnemyCountText();
+        var occupiedSpawnCells = new HashSet<Vector2Int>();
+        if (eagleBase != null)
+            occupiedSpawnCells.Add(mapLoader.WorldToCell(eagleBase.transform.position));
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
         for (int i = 0; i < enemySpawnCells.Count; i++)
         {
-            if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell)) continue;
+            if (!mapLoader.TryFindAvailableSpawnNear(
+                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+            occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell),
                                            Quaternion.identity, scenarioRoot);

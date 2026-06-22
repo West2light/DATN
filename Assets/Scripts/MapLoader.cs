@@ -175,6 +175,127 @@ public class MapLoader : MonoBehaviour
         return grid != null && cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height;
     }
 
+    public bool IsInsideBuildWindow(Vector2Int cell)
+    {
+        return IsInside(cell)
+            && cell.x >= buildStartX && cell.x < buildStartX + buildWidth
+            && cell.y >= buildStartY && cell.y < buildStartY + buildHeight;
+    }
+
+    /// <summary>
+    /// Finds a unique, usable spawn inside the visible build window. Unlike
+    /// TryFindWalkableNear, this method respects already-reserved cells and never lets
+    /// independent spawn requests collapse onto the same nearest walkable tile.
+    /// </summary>
+    public bool TryFindAvailableSpawnNear(Vector2Int preferredCell,
+        ICollection<Vector2Int> reservedCells, int minSeparationCells,
+        out Vector2Int result)
+    {
+        int requiredSeparation = Mathf.Max(1, minSeparationCells);
+        int separationSqr = requiredSeparation * requiredSeparation;
+
+        // Prefer open cells, but progressively allow corridors on dense maze maps.
+        for (int requiredNeighbors = 2; requiredNeighbors >= 0; requiredNeighbors--)
+        {
+            bool found = false;
+            int bestDistance = int.MaxValue;
+            Vector2Int best = default;
+
+            int endX = buildStartX + buildWidth;
+            int endY = buildStartY + buildHeight;
+            for (int y = buildStartY; y < endY; y++)
+            {
+                for (int x = buildStartX; x < endX; x++)
+                {
+                    Vector2Int candidate = new Vector2Int(x, y);
+                    if (!IsWalkable(candidate)) continue;
+                    if (CountWalkableBuildNeighbors(candidate) < requiredNeighbors) continue;
+
+                    bool conflicts = false;
+                    if (reservedCells != null)
+                    {
+                        foreach (Vector2Int reserved in reservedCells)
+                        {
+                            if ((candidate - reserved).sqrMagnitude < separationSqr)
+                            {
+                                conflicts = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (conflicts) continue;
+
+                    int distance = (candidate - preferredCell).sqrMagnitude;
+                    if (!found || distance < bestDistance)
+                    {
+                        found = true;
+                        bestDistance = distance;
+                        best = candidate;
+                    }
+                }
+            }
+
+            if (found)
+            {
+                result = best;
+                return true;
+            }
+        }
+
+        result = default;
+        return false;
+    }
+
+    public bool TryFindAvailableSpawnInRange(Vector2Int referenceCell,
+        ICollection<Vector2Int> reservedCells, int minDistanceCells,
+        int maxDistanceCells, out Vector2Int result)
+    {
+        int minDistance = Mathf.Max(1, minDistanceCells);
+        int maxDistance = Mathf.Max(minDistance, maxDistanceCells);
+        int minSqr = minDistance * minDistance;
+        int maxSqr = maxDistance * maxDistance;
+        var candidates = new List<Vector2Int>();
+
+        int startX = Mathf.Max(buildStartX, referenceCell.x - maxDistance);
+        int endX   = Mathf.Min(buildStartX + buildWidth - 1, referenceCell.x + maxDistance);
+        int startY = Mathf.Max(buildStartY, referenceCell.y - maxDistance);
+        int endY   = Mathf.Min(buildStartY + buildHeight - 1, referenceCell.y + maxDistance);
+        for (int y = startY; y <= endY; y++)
+        {
+            for (int x = startX; x <= endX; x++)
+            {
+                Vector2Int candidate = new Vector2Int(x, y);
+                int referenceDistance = (candidate - referenceCell).sqrMagnitude;
+                if (referenceDistance < minSqr || referenceDistance > maxSqr) continue;
+                if (!IsWalkable(candidate)) continue;
+
+                bool conflicts = false;
+                if (reservedCells != null)
+                {
+                    foreach (Vector2Int reserved in reservedCells)
+                    {
+                        if ((candidate - reserved).sqrMagnitude < minSqr)
+                        {
+                            conflicts = true;
+                            break;
+                        }
+                    }
+                }
+                if (!conflicts) candidates.Add(candidate);
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            result = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            return true;
+        }
+
+        // Dense maps may not have a valid cell inside the requested ring. Search the
+        // full build window while preserving separation from every reserved player.
+        return TryFindAvailableSpawnNear(referenceCell, reservedCells, minDistance, out result);
+    }
+
     public Vector3 CellToWorld(Vector2Int cell)
     {
         float totalWidth = buildWidth * tileSize;
@@ -281,6 +402,19 @@ public class MapLoader : MonoBehaviour
         if (IsWalkable(cell + Vector2Int.down))  count++;
         if (IsWalkable(cell + Vector2Int.left))  count++;
         if (IsWalkable(cell + Vector2Int.right)) count++;
+        return count;
+    }
+
+    private int CountWalkableBuildNeighbors(Vector2Int cell)
+    {
+        int count = 0;
+        Vector2Int[] neighbors =
+        {
+            cell + Vector2Int.up, cell + Vector2Int.down,
+            cell + Vector2Int.left, cell + Vector2Int.right
+        };
+        foreach (Vector2Int neighbor in neighbors)
+            if (IsInsideBuildWindow(neighbor) && IsWalkable(neighbor)) count++;
         return count;
     }
 

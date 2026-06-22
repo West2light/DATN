@@ -227,7 +227,8 @@ public class MapScenarioBootstrap : MonoBehaviour
 
         if (spawnEagleNearPlayer)
         {
-            Transform player = GameObject.Find("Player")?.transform;
+            Transform player = GameObject.Find("Player")?.transform
+                ?? GameObject.Find("Player_0")?.transform;
             if (player != null && TryFindRandomWalkableNearPlayer(player, out spawnCell))
             {
                 return true;
@@ -242,42 +243,15 @@ public class MapScenarioBootstrap : MonoBehaviour
         Vector2Int playerCell = mapLoader.WorldToCell(player.position);
         int minDistance    = Mathf.Max(1, eagleMinPlayerDistanceCells);
         int maxDistance    = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
-        int minDistanceSqr = minDistance * minDistance;
-        int maxDistanceSqr = maxDistance * maxDistance;
 
-        // Collect cells occupied by ALL players so the eagle doesn't spawn on any of them.
-        // In LAN mode there are multiple player tanks ("Player", "Player_1", …) and the
-        // reference player (tank 0) is 3+ cells away from tank 1 — exactly the minimum
-        // distance — which would previously allow the eagle to land on tank 1's cell.
-        var allPlayerCells = new System.Collections.Generic.HashSet<Vector2Int>();
+        var allPlayerCells = new HashSet<Vector2Int>();
         foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
             if (fm.CurrentFaction == Faction.Player)
                 allPlayerCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
+        allPlayerCells.Add(playerCell);
 
-        List<Vector2Int> candidates = new List<Vector2Int>();
-        for (int y = playerCell.y - maxDistance; y <= playerCell.y + maxDistance; y++)
-        {
-            for (int x = playerCell.x - maxDistance; x <= playerCell.x + maxDistance; x++)
-            {
-                Vector2Int candidate = new Vector2Int(x, y);
-                Vector2Int delta = candidate - playerCell;
-                int distanceSqr = delta.sqrMagnitude;
-                if (distanceSqr < minDistanceSqr || distanceSqr > maxDistanceSqr) continue;
-                if (!mapLoader.IsWalkable(candidate)) continue;
-                if (allPlayerCells.Contains(candidate)) continue; // don't land on any player
-
-                candidates.Add(candidate);
-            }
-        }
-
-        if (candidates.Count == 0)
-        {
-            spawnCell = default;
-            return false;
-        }
-
-        spawnCell = candidates[Random.Range(0, candidates.Count)];
-        return true;
+        return mapLoader.TryFindAvailableSpawnInRange(
+            playerCell, allPlayerCells, minDistance, maxDistance, out spawnCell);
     }
 
     private Slider EnsureEagleHealthBar()
@@ -374,13 +348,21 @@ public class MapScenarioBootstrap : MonoBehaviour
 
         enemiesAlive = 0;
         enemyCountText = EnsureEnemyCountText();
+        var occupiedSpawnCells = new HashSet<Vector2Int>();
+        if (eagleBase != null)
+            occupiedSpawnCells.Add(mapLoader.WorldToCell(eagleBase.transform.position));
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
         for (int i = 0; i < enemySpawnCells.Count; i++)
         {
-            if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell))
+            if (!mapLoader.TryFindAvailableSpawnNear(
+                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell))
             {
                 continue;
             }
+            occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
             enemy.name = $"Enemy_{i + 1}";

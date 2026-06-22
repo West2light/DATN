@@ -167,7 +167,8 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
         if (spawnEagleNearPlayer)
         {
-            Transform player = GameObject.Find("Player")?.transform;
+            Transform player = GameObject.Find("Player")?.transform
+                ?? GameObject.Find("Player_0")?.transform;
             if (player != null && TryFindRandomWalkableNearPlayer(player, out spawnCell))
             {
                 return true;
@@ -182,32 +183,14 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
         Vector2Int playerCell = mapLoader.WorldToCell(player.position);
         int minDistance = Mathf.Max(1, eagleMinPlayerDistanceCells);
         int maxDistance = Mathf.Max(minDistance, eagleMaxPlayerDistanceCells);
-        int minDistanceSqr = minDistance * minDistance;
-        int maxDistanceSqr = maxDistance * maxDistance;
+        var allPlayerCells = new HashSet<Vector2Int>();
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                allPlayerCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
+        allPlayerCells.Add(playerCell);
 
-        List<Vector2Int> candidates = new List<Vector2Int>();
-        for (int y = playerCell.y - maxDistance; y <= playerCell.y + maxDistance; y++)
-        {
-            for (int x = playerCell.x - maxDistance; x <= playerCell.x + maxDistance; x++)
-            {
-                Vector2Int candidate = new Vector2Int(x, y);
-                Vector2Int delta = candidate - playerCell;
-                int distanceSqr = delta.sqrMagnitude;
-                if (distanceSqr < minDistanceSqr || distanceSqr > maxDistanceSqr) continue;
-                if (!mapLoader.IsWalkable(candidate)) continue;
-
-                candidates.Add(candidate);
-            }
-        }
-
-        if (candidates.Count == 0)
-        {
-            spawnCell = default;
-            return false;
-        }
-
-        spawnCell = candidates[Random.Range(0, candidates.Count)];
-        return true;
+        return mapLoader.TryFindAvailableSpawnInRange(
+            playerCell, allPlayerCells, minDistance, maxDistance, out spawnCell);
     }
 
     private Slider EnsureEagleHealthBar()
@@ -306,10 +289,18 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
         enemiesAlive = 0;
         enemyCountText = EnsureEnemyCountText();
+        var occupiedSpawnCells = new HashSet<Vector2Int>();
+        if (eagleBase != null)
+            occupiedSpawnCells.Add(mapLoader.WorldToCell(eagleBase.transform.position));
+        foreach (var fm in FindObjectsByType<FactionMember>(FindObjectsSortMode.None))
+            if (fm.CurrentFaction == Faction.Player)
+                occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
         for (int i = 0; i < enemySpawnCells.Count; i++)
         {
-            if (!mapLoader.TryFindWalkableNear(enemySpawnCells[i], out Vector2Int spawnCell)) continue;
+            if (!mapLoader.TryFindAvailableSpawnNear(
+                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+            occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
             enemy.name = $"EnemyPIBT_{i + 1}";
