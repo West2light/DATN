@@ -74,6 +74,8 @@ public class MapTankTestBootstrap : MonoBehaviour
         if (LanSessionManager.IsActive)
         {
             SetupCamera();
+            if (!LanSessionManager.IsDedicatedServer)
+                PauseMenuController.Ensure();
 
             if (LanSessionManager.IsServer)
             {
@@ -174,7 +176,7 @@ public class MapTankTestBootstrap : MonoBehaviour
     // Free-roam camera for spectators: WASD pans within map bounds.
     private void HandleSpectatorCamera()
     {
-        if (mainCamera == null) return;
+        if (mainCamera == null || PauseMenuController.IsLocalPauseActive) return;
         float speed = mainCamera.orthographicSize * 2f;
         _spectatorPos.x += Input.GetAxisRaw("Horizontal") * speed * Time.deltaTime;
         _spectatorPos.y += Input.GetAxisRaw("Vertical")   * speed * Time.deltaTime;

@@ -356,6 +356,12 @@ public class LanGameCoordinator : MonoBehaviour
         if (shoot) tank.HandleShoot();
     }
 
+    public void StopHostMovement()
+    {
+        if (_serverTanks.Count == 0 || _serverTanks[0] == null) return;
+        _serverTanks[0].HandleMoveWorldDirection(Vector2.zero);
+    }
+
     // ── Player-death tracking (called by MapTankTestBootstrap per player slot) ──
     //
     // Individual player deaths do NOT end the game.  Game over only triggers when

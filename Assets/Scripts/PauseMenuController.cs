@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class PauseMenuController : MonoBehaviour
 {
     public string menuSceneName = "Menu";
+    public static bool IsLocalPauseActive { get; private set; }
 
     private bool _paused;
     private GameObject _pauseOverlay;
@@ -23,13 +24,13 @@ public class PauseMenuController : MonoBehaviour
 
     private void Start()
     {
-        if (!BacktestMode.IsActive && !LanSessionManager.IsActive)
+        if (!BacktestMode.IsActive && !LanSessionManager.IsDedicatedServer)
             CreatePauseButton();
     }
 
     private void Update()
     {
-        if (BacktestMode.IsActive || LanSessionManager.IsActive) return;
+        if (BacktestMode.IsActive || LanSessionManager.IsDedicatedServer) return;
         if (Input.GetKeyDown(KeyCode.Escape))
             TogglePause();
     }
@@ -42,24 +43,63 @@ public class PauseMenuController : MonoBehaviour
 
     public void Pause()
     {
-        if (_paused) return;
-        _paused = true;
-        Time.timeScale = 0f;
-        ShowModal();
+        SetPaused(true, notifyNetwork: true);
     }
 
     public void Resume()
     {
-        if (!_paused) return;
-        _paused = false;
-        Time.timeScale = 1f;
-        if (_pauseOverlay != null) { Destroy(_pauseOverlay); _pauseOverlay = null; }
+        SetPaused(false, notifyNetwork: true);
+    }
+
+    public void ApplyNetworkPause(bool paused)
+    {
+        // Mirror the server pause locally so interpolation, bullet ghosts and other
+        // client-only visuals freeze at the same instant as the authoritative world.
+        Time.timeScale = paused ? 0f : 1f;
+        SetPaused(paused, notifyNetwork: false);
+    }
+
+    private void SetPaused(bool paused, bool notifyNetwork)
+    {
+        if (_paused == paused) return;
+        _paused = paused;
+        IsLocalPauseActive = paused;
+
+        if (LanSessionManager.IsActive)
+        {
+            if (notifyNetwork)
+                LanNetworkBridge.Local?.SubmitGamePause(paused);
+        }
+        else
+        {
+            Time.timeScale = paused ? 0f : 1f;
+        }
+
+        if (paused)
+            ShowModal();
+        else if (_pauseOverlay != null)
+        {
+            Destroy(_pauseOverlay);
+            _pauseOverlay = null;
+        }
     }
 
     private void GoToMenu()
     {
+        if (LanSessionManager.IsActive)
+            LanNetworkBridge.Local?.SubmitGamePause(false);
+        IsLocalPauseActive = false;
         Time.timeScale = 1f;
+        if (LanSessionManager.IsActive)
+            LanLobbyController.CleanupSession();
         SceneManager.LoadScene(menuSceneName);
+    }
+
+    private void OnDestroy()
+    {
+        if (!_paused) return;
+        IsLocalPauseActive = false;
+        Time.timeScale = 1f;
     }
 
     // ── Nút tạm dừng góc trên phải ────────────────────────────────────────────

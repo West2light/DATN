@@ -105,6 +105,11 @@ public class LanNetworkBridge : NetworkBehaviour
     private float _inputSendTimer;
     private bool  _pendingShoot;   // latches a shoot press between throttled sends
 
+    // Server-authoritative global pause. The owner is tracked so disconnecting the
+    // player who paused cannot leave a dedicated server frozen forever.
+    private static bool  _serverGamePaused;
+    private static ulong _serverPauseOwner = ulong.MaxValue;
+
     public override void OnNetworkSpawn()
     {
         enabled = true;
@@ -129,6 +134,9 @@ public class LanNetworkBridge : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        if (IsServer && _serverGamePaused && _serverPauseOwner == OwnerClientId)
+            ApplyServerGamePause(false, ulong.MaxValue);
+
         // Prevent Update/LateUpdate from running after NGO despawn — accessing IsOwner,
         // IsServer etc. would dereference the destroyed NetworkManager and throw
         // MissingReferenceException every frame until the GO is garbage-collected.
@@ -213,6 +221,36 @@ public class LanNetworkBridge : NetworkBehaviour
         }
     }
 
+    public void SubmitGamePause(bool paused)
+    {
+        if (!IsOwner) return;
+        if (IsServer)
+            ApplyServerGamePause(paused, OwnerClientId);
+        else
+            SetGamePausedServerRpc(paused);
+    }
+
+    [ServerRpc]
+    private void SetGamePausedServerRpc(bool paused, ServerRpcParams rpcParams = default)
+    {
+        ApplyServerGamePause(paused, rpcParams.Receive.SenderClientId);
+    }
+
+    private void ApplyServerGamePause(bool paused, ulong requester)
+    {
+        _serverGamePaused = paused;
+        _serverPauseOwner = paused ? requester : ulong.MaxValue;
+        Time.timeScale = paused ? 0f : 1f;
+        SyncGamePauseClientRpc(paused);
+    }
+
+    [ClientRpc]
+    private void SyncGamePauseClientRpc(bool paused)
+    {
+        if (LanSessionManager.IsDedicatedServer) return;
+        PauseMenuController.Ensure().ApplyNetworkPause(paused);
+    }
+
     // Owner asks the server to start the game. RequireOwnership=false because this bridge
     // is owned by the calling client (its own player object), and we validate the room-owner
     // identity by clientId rather than NetworkObject ownership.
@@ -239,6 +277,31 @@ public class LanNetworkBridge : NetworkBehaviour
     {
         // Chỉ owner của bridge mới xử lý input — tránh mọi bridge khác can thiệp.
         if (!IsOwner) return;
+
+        if (PauseMenuController.IsLocalPauseActive)
+        {
+            _pendingShoot = false;
+            if (IsServer)
+            {
+                LanGameCoordinator.Instance?.StopHostMovement();
+                return;
+            }
+
+            // Keep sending a neutral packet while the local pause menu is open so
+            // the authoritative server cannot retain the last movement command.
+            _inputSendTimer += Time.unscaledDeltaTime;
+            if (_inputSendTimer >= InputSendInterval)
+            {
+                _inputSendTimer = 0f;
+                SendInputServerRpc(new LanInputPacket
+                {
+                    move = Vector2.zero,
+                    turretAngle = GetCurrentTurretAngle(),
+                    shoot = false
+                });
+            }
+            return;
+        }
 
         if (_ownerCamera == null)
             _ownerCamera = Camera.main;
@@ -284,13 +347,20 @@ public class LanNetworkBridge : NetworkBehaviour
     private void LateUpdate()
     {
         // Only the owning client's bridge applies turret prediction.
-        if (!IsOwner || IsServer) return;
+        if (!IsOwner || IsServer || PauseMenuController.IsLocalPauseActive) return;
         if (_ownerCamera == null) _ownerCamera = Camera.main;
         Vector2 mouseWorld = _ownerCamera != null
             ? (Vector2)_ownerCamera.ScreenToWorldPoint(Input.mousePosition)
             : Vector2.zero;
         // Runs after ALL Update() calls — guarantees turret is correct before render.
         LanClientView.Instance?.PredictTurretAim(mouseWorld);
+    }
+
+    private static float GetCurrentTurretAngle()
+    {
+        Transform ghost = LanClientView.Instance?.OwnGhost;
+        AimTurret aim = ghost != null ? ghost.GetComponentInChildren<AimTurret>(true) : null;
+        return aim != null ? aim.transform.eulerAngles.z : 0f;
     }
 
     // Compute the desired turret rotation (degrees) for this client.
