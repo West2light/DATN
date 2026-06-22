@@ -172,6 +172,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          gcloud compute ssh "$GCP_VM_NAME" \
+            --zone "$GCP_ZONE" \
+            --tunnel-through-iap \
+            --command "sudo rm -f /tmp/app.py /tmp/create-room.sh"
           gcloud compute scp services/invite-registry/app.py infra/gcp/scripts/create-room.sh \
             "$GCP_VM_NAME:/tmp/" \
             --zone "$GCP_ZONE" \
