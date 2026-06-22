@@ -136,6 +136,13 @@ public static class NetworkManagerFactory
             return;
         }
 
+        if (DedicatedServerBootstrap.Instance != null && DedicatedServerBootstrap.Instance.IsSceneLoaded)
+        {
+            response.Approved = false;
+            response.Reason = "Game is already in progress.";
+            return;
+        }
+
         response.Approved = true;
     }
 

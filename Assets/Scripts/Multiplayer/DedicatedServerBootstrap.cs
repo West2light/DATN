@@ -14,6 +14,7 @@ public class DedicatedServerBootstrap : MonoBehaviour
     private NetworkLaunchArgs _launchArgs;
     private bool _started;
     private bool _sceneLoaded;
+    public bool IsSceneLoaded => _sceneLoaded;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoStart()

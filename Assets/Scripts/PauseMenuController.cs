@@ -24,13 +24,13 @@ public class PauseMenuController : MonoBehaviour
 
     private void Start()
     {
-        if (!BacktestMode.IsActive && !LanSessionManager.IsDedicatedServer)
+        if (!LanSessionManager.IsDedicatedServer)
             CreatePauseButton();
     }
 
     private void Update()
     {
-        if (BacktestMode.IsActive || LanSessionManager.IsDedicatedServer) return;
+        if (LanSessionManager.IsDedicatedServer) return;
         if (Input.GetKeyDown(KeyCode.Escape))
             TogglePause();
     }
@@ -88,6 +88,11 @@ public class PauseMenuController : MonoBehaviour
     {
         if (LanSessionManager.IsActive)
             LanNetworkBridge.Local?.SubmitGamePause(false);
+        if (BacktestMode.IsActive)
+        {
+            BacktestRunner.Cleanup();
+            BacktestMode.Deactivate();
+        }
         IsLocalPauseActive = false;
         Time.timeScale = 1f;
         if (LanSessionManager.IsActive)
@@ -112,7 +117,7 @@ public class PauseMenuController : MonoBehaviour
         canvasObj.layer = L;
         var cv = canvasObj.AddComponent<Canvas>();
         cv.renderMode = RenderMode.ScreenSpaceOverlay;
-        cv.sortingLayerName = "UI"; cv.sortingOrder = 50;
+        cv.sortingLayerName = "UI"; cv.sortingOrder = 250;
         var sc = canvasObj.AddComponent<CanvasScaler>();
         sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         sc.referenceResolution = new Vector2(1280f, 720f);
@@ -156,7 +161,7 @@ public class PauseMenuController : MonoBehaviour
         canvasObj.layer = L;
         var cv = canvasObj.AddComponent<Canvas>();
         cv.renderMode = RenderMode.ScreenSpaceOverlay;
-        cv.sortingLayerName = "UI"; cv.sortingOrder = 150;
+        cv.sortingLayerName = "UI"; cv.sortingOrder = 1000;
         var sc = canvasObj.AddComponent<CanvasScaler>();
         sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         sc.referenceResolution = new Vector2(1280f, 720f);

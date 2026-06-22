@@ -443,9 +443,22 @@ public class LanClientView : MonoBehaviour
             foreach (var b in bridges)
                 if (b.IsOwner && b.Slot.Value >= 0) { _ownSlot = b.Slot.Value; break; }
             if (_ownSlot < 0)
-                _ownSlot = LanSessionManager.IsDedicatedServer
-                    ? 0
-                    : Mathf.Min(1, playerCount - 1);
+            {
+                // Derive slot from sorted clientId order — mirrors TryLink() on the server.
+                var nm = NetworkManager.Singleton;
+                if (nm != null)
+                {
+                    ulong myId = nm.LocalClientId;
+                    var sortedBridges = new System.Collections.Generic.List<LanNetworkBridge>(bridges);
+                    sortedBridges.Sort((a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
+                    for (int fi = 0; fi < sortedBridges.Count; fi++)
+                    {
+                        if (sortedBridges[fi].OwnerClientId == myId) { _ownSlot = fi; break; }
+                    }
+                }
+            }
+            if (_ownSlot < 0)
+                _ownSlot = Mathf.Min(1, playerCount - 1);
         }
 
         // Spawn player ghosts with the correct tank body sprite per slot ──────

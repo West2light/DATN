@@ -173,6 +173,8 @@ public class BacktestRunner : MonoBehaviour
         yield return null; // Awake on new objects
         yield return null; // Start on new objects (Bootstrap spawns scenario here)
 
+        PauseMenuController.Ensure();
+
         _enemiesAliveCount = 0;
         InjectScene();
 
@@ -655,7 +657,7 @@ public class BacktestRunner : MonoBehaviour
         var panelRt = panel.AddComponent<RectTransform>();
         panelRt.anchorMin = new Vector2(1f, 1f); panelRt.anchorMax = new Vector2(1f, 1f);
         panelRt.pivot = new Vector2(1f, 1f);
-        panelRt.anchoredPosition = new Vector2(-12f, -12f);
+        panelRt.anchoredPosition = new Vector2(-12f, -76f);
         panelRt.sizeDelta = new Vector2(170f, 112f);
         var panelImg = panel.AddComponent<Image>();
         panelImg.color = new Color(0.05f, 0.06f, 0.08f, 0.88f);
