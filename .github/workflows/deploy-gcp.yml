@@ -172,18 +172,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcloud compute ssh "$GCP_VM_NAME" \
+          gcloud compute scp services/invite-registry/app.py \
+            "$GCP_VM_NAME:~/tank-mapf-registry-app.py" \
             --zone "$GCP_ZONE" \
-            --tunnel-through-iap \
-            --command "sudo rm -f /tmp/app.py /tmp/create-room.sh"
-          gcloud compute scp services/invite-registry/app.py infra/gcp/scripts/create-room.sh \
-            "$GCP_VM_NAME:/tmp/" \
+            --tunnel-through-iap
+          gcloud compute scp infra/gcp/scripts/create-room.sh \
+            "$GCP_VM_NAME:~/tank-mapf-create-room.sh" \
             --zone "$GCP_ZONE" \
             --tunnel-through-iap
           gcloud compute ssh "$GCP_VM_NAME" \
             --zone "$GCP_ZONE" \
             --tunnel-through-iap \
-            --command "sudo install -o tankmapf -g tankmapf -m 0644 /tmp/app.py /opt/tank-mapf/registry/app.py && sudo install -o root -g root -m 0755 /tmp/create-room.sh /usr/local/bin/tank-mapf-create-room && sudo systemctl daemon-reload && sudo systemctl restart tank-mapf-registry.service"
+            --command "sudo install -o tankmapf -g tankmapf -m 0644 ~/tank-mapf-registry-app.py /opt/tank-mapf/registry/app.py && sudo install -o root -g root -m 0755 ~/tank-mapf-create-room.sh /usr/local/bin/tank-mapf-create-room && sudo test -s /opt/tank-mapf/registry/app.py && sudo test -x /usr/local/bin/tank-mapf-create-room && rm -f ~/tank-mapf-registry-app.py ~/tank-mapf-create-room.sh && sudo systemctl restart tank-mapf-registry.service && sudo systemctl is-active --quiet tank-mapf-registry.service"
 
       - name: Deploy Linux dedicated server
         shell: bash
