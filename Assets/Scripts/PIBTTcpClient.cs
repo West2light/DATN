@@ -98,7 +98,10 @@ public class PIBTTcpClient : MonoBehaviour
         return false;
     }
 
-    private void OnDestroy() => Shutdown();
+    // OnDestroy just disconnects — avoids race with background threads that may still be
+    // reading the stream. Callers that need a graceful shutdown must call Shutdown() explicitly
+    // before the object is destroyed (e.g., MapScenarioBootstrapPIBT_TCP.ShutdownGracefully).
+    private void OnDestroy() => Disconnect();
 
     public bool Hello(string sessionId, int width, int height, string symbols, int teamSize)
     {

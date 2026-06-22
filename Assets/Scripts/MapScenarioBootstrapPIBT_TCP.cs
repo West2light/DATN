@@ -882,11 +882,29 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         else DestroyImmediate(existing.gameObject);
     }
 
+    // Graceful pre-scene-unload shutdown for backtest: wait for any in-flight plan_step
+    // background thread to finish, then send the shutdown message cleanly.
+    // BacktestRunner calls this before loading the next scene.
+    public IEnumerator ShutdownGracefully(float timeoutSec = 5f)
+    {
+        _serverReady = false;  // Stop Update() from starting new steps
+
+        float waitStart = Time.time;
+        while (_stepInFlight && Time.time - waitStart < timeoutSec)
+            yield return null;
+
+        // Background thread is done (or timed out). Safe to send shutdown now.
+        _client?.Shutdown();
+    }
+
     private void OnDestroy()
     {
         _cancelSource?.Cancel();
         _cancelSource?.Dispose();
         _cancelSource = null;
+        // Close the stream so any background thread blocked on RecvLine() gets an exception
+        // and exits, rather than racing with PIBTTcpClient.OnDestroy().
+        _client?.Disconnect();
     }
 
     private Sprite CreateWhiteSprite()

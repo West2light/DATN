@@ -209,6 +209,16 @@ public class BacktestRunner : MonoBehaviour
             yield return null;
         }
 
+        // For PIBT_TCP: wait for any in-flight plan_step thread to finish, then send a
+        // clean shutdown before the scene unloads. This avoids the stream race between
+        // the background read thread and PIBTTcpClient.OnDestroy().
+        if (job.algorithm == "PIBT_TCP")
+        {
+            var tcpBootstrap = FindFirstObjectByType<MapScenarioBootstrapPIBT_TCP>();
+            if (tcpBootstrap != null)
+                yield return tcpBootstrap.ShutdownGracefully();
+        }
+
         yield return new WaitForSeconds(0.5f);
     }
 
