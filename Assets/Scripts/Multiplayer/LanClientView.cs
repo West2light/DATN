@@ -453,8 +453,7 @@ public class LanClientView : MonoBehaviour
         {
             Transform ghost = SpawnDisplay(enemyPrefab, $"GhostEnemy_{i}", 0.72f, Color.white);
             _enemyGhosts.Add(ghost);
-            Transform hb = ghost?.Find("Canvas/HealthBar");
-            _enemyHpSliders.Add(hb != null ? hb.GetComponent<Slider>() : null);
+            _enemyHpSliders.Add(ConfigureEnemyGhostHealthBar(ghost));
         }
 
         _playerTargetPos       = new Vector3[playerCount];
@@ -548,6 +547,40 @@ public class LanClientView : MonoBehaviour
         return MakeSquareGhost(goName, tint, scale);
     }
 
+    private static Slider ConfigureEnemyGhostHealthBar(Transform ghost)
+    {
+        if (ghost == null) return null;
+
+        Transform canvasTransform = ghost.Find("Canvas");
+        Transform healthBar = canvasTransform?.Find("HealthBar");
+        if (canvasTransform == null || healthBar == null) return null;
+
+        // Match ConfigureEnemyHealthBar in all single-player bootstraps.
+        if (healthBar.TryGetComponent(out RectTransform rect))
+        {
+            rect.anchoredPosition = new Vector2(-0.42f, 0.34f);
+            rect.sizeDelta = new Vector2(0.84f, 0.18f);
+            rect.localRotation = Quaternion.identity;
+        }
+
+        canvasTransform.rotation = Quaternion.identity;
+        UiFollowTank follow = canvasTransform.GetComponent<UiFollowTank>();
+        if (follow != null) follow.enabled = true;
+
+        Canvas canvas = canvasTransform.GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.overrideSorting = true;
+            canvas.sortingLayerName = "UI";
+            canvas.sortingOrder = 20;
+        }
+
+        foreach (Graphic graphic in canvasTransform.GetComponentsInChildren<Graphic>(true))
+            graphic.raycastTarget = false;
+
+        return healthBar.GetComponent<Slider>();
+    }
+
     /// <summary>
     /// Removes all physics and disables every MonoBehaviour so nothing fights our position sync.
     /// SpriteRenderer inherits from Renderer (not MonoBehaviour) and is unaffected.
@@ -567,7 +600,7 @@ public class LanClientView : MonoBehaviour
         {
             if (mb == null) continue;
             // Keep Canvas-hierarchy components enabled so per-unit HP bars remain visible.
-            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is CanvasGroup) continue;
+            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is UiFollowTank) continue;
             mb.enabled = false;
         }
     }
