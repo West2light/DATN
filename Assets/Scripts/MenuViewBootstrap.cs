@@ -112,6 +112,24 @@ public class MenuViewBootstrap : MonoBehaviour
         new GameObject("MenuViewBootstrap").AddComponent<MenuViewBootstrap>().Apply();
     }
 
+    public static void ShowInternetEntry()
+    {
+        if (SceneManager.GetActiveScene().name != MenuSceneName)
+        {
+            SceneManager.LoadScene(MenuSceneName);
+            return;
+        }
+
+        var existing = FindFirstObjectByType<MenuViewBootstrap>();
+        if (existing == null)
+        {
+            existing = new GameObject("MenuViewBootstrap").AddComponent<MenuViewBootstrap>();
+            existing.Apply();
+        }
+
+        existing.ShowScreen(Screen.InternetEntry);
+    }
+
     private void Apply()
     {
         _selectedVariant = Mathf.Clamp(PlayerPrefs.GetInt(PrefKeyVariant, 0), 0, Variants.Length - 1);

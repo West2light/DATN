@@ -1286,9 +1286,13 @@ public class LanLobbyController : MonoBehaviour
 
     private void Close()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        ReturnToInternetEntryAfterCancel();
+        return;
+#else
         if (_screen == Screen.Lobby || !string.IsNullOrWhiteSpace(_autoJoinTarget))
         {
-            ReturnToEntryAfterCancel();
+            ReturnToInternetEntryAfterCancel();
             return;
         }
 
@@ -1306,9 +1310,10 @@ public class LanLobbyController : MonoBehaviour
         _root = null;
         _instance = null;
         Destroy(gameObject);
+#endif
     }
 
-    private void ReturnToEntryAfterCancel()
+    private void ReturnToInternetEntryAfterCancel()
     {
         CancelInvoke();
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
@@ -1327,11 +1332,11 @@ public class LanLobbyController : MonoBehaviour
         _autoJoinTarget = string.Empty;
         ClearInviteUrl();
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-        OpenJoinScreen();
-#else
-        SwitchTo(Screen.Choose);
-#endif
+        if (_root != null) Destroy(_root);
+        _root = null;
+        _instance = null;
+        Destroy(gameObject);
+        MenuViewBootstrap.ShowInternetEntry();
     }
 
     private void PositionCancelButton(bool compact)
