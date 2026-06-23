@@ -1106,6 +1106,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Text label = btn.GetComponentInChildren<Text>(true);
         if (label != null)
         {
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.color = TextLight;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
