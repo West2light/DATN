@@ -314,6 +314,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     }
 #endif
 
+    // F-U2/F-U3: geometry stall detection counters
+    private int _invalidNextLocCount;  // total invalid server nextLoc since session start
+    private int _geometryStallTicks;   // consecutive ticks where ALL agents' serverNextLoc was invalid
+
     private bool _firstStepLogged;
 
     private IEnumerator DoStepAsync()
@@ -404,6 +408,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private void ApplyStepActions(string[] actions, int[] nextLocs, int rows, int cols)
     {
+        int invalidBefore = _invalidNextLocCount;
         for (int i = 0; i < _agents.Count && i < actions.Length; i++)
         {
             if (_agents[i] == null) continue;
@@ -411,6 +416,24 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             Vector2Int nextCell = ApplyAction(i, actions[i], nextLoc, rows, cols);
             _agents[i].SetNextTarget(nextCell);
             _agents[i].NeedsForcedReplan = false;
+        }
+
+        // F-U3: geometry stall detection — all agents had invalid serverNextLoc this tick
+        int activeAgents = 0;
+        foreach (var a in _agents) if (a != null) activeAgents++;
+        int invalidThisTick = _invalidNextLocCount - invalidBefore;
+        if (nextLocs != null && activeAgents > 0 && invalidThisTick >= activeAgents)
+        {
+            _geometryStallTicks++;
+            if (_geometryStallTicks == 5 || _geometryStallTicks % 60 == 0)
+                Debug.LogWarning(
+                    $"[PIBT_TCP] GEOMETRY STALL detected on map {mapLoader.BuildWidth}x{mapLoader.BuildHeight}: " +
+                    $"{_geometryStallTicks} consecutive ticks all {activeAgents} server nextLoc invalid " +
+                    $"(total invalidNextLoc={_invalidNextLocCount}) — possible static delta bug in server");
+        }
+        else
+        {
+            _geometryStallTicks = 0;
         }
     }
 
@@ -510,6 +533,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             {
                 return serverCell;
             }
+            // F-U2: server geometry invalid — count for stall detection (F-U3)
+            _invalidNextLocCount++;
+            if (enableTcpTrace)
+                Debug.LogWarning($"[PIBT_TCP] F-U2 invalid serverNextLoc={serverNextLoc} agent={agentIdx} cell={cell} serverCell={FlatToCell(serverNextLoc, cols)} → dead-reckon (total={_invalidNextLocCount})");
         }
 
         // Fallback: previous dead-reckon behaviour.
@@ -981,6 +1008,8 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _firstStepLogged    = false;
         _frame              = 0;
         _reconnectAttempts  = 0;
+        _invalidNextLocCount = 0;
+        _geometryStallTicks  = 0;
         _agents.Clear();
         _agentOrientations.Clear();
         _enemyGOs.Clear();
@@ -1010,8 +1039,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _cancelSource?.Cancel();
         _cancelSource?.Dispose();
         _cancelSource = null;
-        // Close the stream so any background thread blocked on RecvLine() gets an exception
-        // and exits, rather than racing with PIBTTcpClient.OnDestroy().
+        // C-R2: send explicit shutdown so server resets state cleanly regardless of TCP timing.
+        // Fire-and-forget (no ack wait) to avoid blocking the main thread on scene unload.
+        // Disconnect() immediately after closes the stream, unblocking any background RecvLine().
+        _client?.SendShutdown();
         _client?.Disconnect();
     }
 

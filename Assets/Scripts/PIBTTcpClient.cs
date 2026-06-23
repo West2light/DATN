@@ -133,6 +133,24 @@ public class PIBTTcpClient : MonoBehaviour
         if (ok)
         {
             _helloAccepted = true;
+            // F-U1: validate echoed map dims if server supports F-S2
+            try
+            {
+                HelloAckDto ack = JsonUtility.FromJson<HelloAckDto>(resp);
+                if (ack != null && ack.width > 0 && ack.height > 0)
+                {
+                    if (ack.width != width || ack.height != height)
+                    {
+                        Debug.LogError($"[PIBTTcpClient] hello_ack map dims MISMATCH! sent={width}x{height} server_acked={ack.width}x{ack.height} — aborting session");
+                        LastError = $"hello_ack dims mismatch: sent={width}x{height} acked={ack.width}x{ack.height}";
+                        _helloAccepted = false;
+                        return false;
+                    }
+                    Debug.Log($"[PIBTTcpClient] hello_ack dims validated OK: {ack.width}x{ack.height} ({ack.cellCount} cells)");
+                }
+            }
+            catch (Exception) { /* server without F-S2 — skip validation */ }
+
             Debug.Log("[PIBTTcpClient] Hello OK");
             return true;
         }
@@ -140,6 +158,60 @@ public class PIBTTcpClient : MonoBehaviour
         Debug.LogError($"[PIBTTcpClient] Hello failed: {resp}");
         LastError = $"Hello failed: {resp}";
         return false;
+    }
+
+    // C-R1: explicit reset — reuse a live connection for a new game without reconnecting.
+    // Server (S-R2) clears all planner globals and returns reset_ack.
+    // Caller must call Hello() with a new sessionId after this returns true.
+    // Falls back gracefully if server does not support reset (pre-S-R2 build).
+    public bool Reset()
+    {
+        if (!IsConnected)
+        {
+            LastError = "Not connected.";
+            return false;
+        }
+
+        string sid = _sessionId ?? string.Empty;
+        if (!SendLine($"{{\"type\":\"reset\",\"sessionId\":\"{Escape(sid)}\"}}"))
+        {
+            LastError = "Failed to send reset.";
+            return false;
+        }
+
+        if (_client != null) _client.ReceiveTimeout = planTimeoutMs;
+        string resp = RecvLine();
+        if (resp == null)
+        {
+            LastError = "No reset_ack received; server closed connection or timed out.";
+            Debug.LogError($"[PIBTTcpClient] {LastError}");
+            return false;
+        }
+
+        _helloAccepted = false;
+        _sessionId = null;
+
+        bool ok = resp.Contains("\"reset_ack\"") && resp.Contains("\"status\":\"ok\"");
+        if (!ok)
+        {
+            LastError = $"Reset not acknowledged (old server without S-R2?): {resp}";
+            Debug.LogWarning($"[PIBTTcpClient] {LastError}");
+            return false;
+        }
+
+        Debug.Log("[PIBTTcpClient] Reset OK");
+        LastError = null;
+        return true;
+    }
+
+    // C-R2: fire-and-forget shutdown line — used from OnDestroy to give server an explicit
+    // reset signal without blocking the main thread waiting for shutdown_ack.
+    // Always call Disconnect() after this.
+    public void SendShutdown()
+    {
+        if (!_helloAccepted || string.IsNullOrEmpty(_sessionId)) return;
+        try { SendLine($"{{\"type\":\"shutdown\",\"sessionId\":\"{Escape(_sessionId)}\"}}"); }
+        catch { /* ignore errors during teardown */ }
     }
 
     public string[] PlanStep(int requestId, int timestep, (int id, int loc, int orientation, int goalLoc)[] agents)
@@ -289,6 +361,16 @@ public class PIBTTcpClient : MonoBehaviour
             connectHost = configuredHost.Substring(0, colon);
             connectPort = parsedPort;
         }
+    }
+
+    [Serializable]
+    private class HelloAckDto
+    {
+        public string type;
+        public string status;
+        public int width;
+        public int height;
+        public int cellCount;
     }
 
     [Serializable]
