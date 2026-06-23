@@ -33,6 +33,17 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     public LayerMask lineOfSightMask;
 
     // ── Runtime state ──────────────────────────────────────────────────────
+    [Header("Stuck recovery")]
+    [Min(0.5f)] public float stuckTimeout = 2.5f;     // no cell change while target differs → stuck
+    [Min(0.5f)] public float fallbackTimeout = 4.0f;  // longer → do a local greedy nudge
+    private Vector2Int _lastCell;
+    private float _lastCellChangeTime;
+    private bool  _stuckInit;
+    [System.NonSerialized] public bool   NeedsForcedReplan;
+    [System.NonSerialized] public string LastStallReason = "";
+    private static readonly Vector2Int[] Neighbors4 =
+        { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+
     private Vector2Int  _currentTarget;
     private bool        _hasTarget;
     private int         _lastSteeringDir = 1;
@@ -59,6 +70,7 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     private void Update()
     {
         if (mapLoader == null || tankController == null) return;
+        TrackStuckAndRecover();
 
         Transform shootTarget = GetShootingTarget();
         if (shootTarget != null)
@@ -91,12 +103,83 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     public void SetNextTarget(Vector2Int cell)
     {
         btReplanCount++;
-        if (cell != _currentTarget)
-        {
-            btCellsVisited++;
-        }
         _currentTarget = cell;
         _hasTarget = true;
+    }
+
+    private void TrackStuckAndRecover()
+    {
+        Vector2Int c = CurrentCell;
+        if (!_stuckInit) { _stuckInit = true; _lastCell = c; _lastCellChangeTime = Time.time; }
+        if (c != _lastCell)
+        {
+            _lastCell = c;
+            _lastCellChangeTime = Time.time;
+            btCellsVisited++;                 // count ACTUAL cell changes (was: target changes)
+            NeedsForcedReplan = false;
+            LastStallReason = "";
+            return;
+        }
+
+        // Stationary. Only "stuck" if we are *supposed* to be moving (target != current cell) and not shooting.
+        if (!_hasTarget || _currentTarget == c || GetShootingTarget() != null) return;
+
+        float still = Time.time - _lastCellChangeTime;
+        if (still > stuckTimeout && !NeedsForcedReplan)
+        {
+            NeedsForcedReplan = true;
+            LastStallReason = $"no-progress {still:F1}s (target={_currentTarget}, cell={c})";
+            Debug.LogWarning($"[PIBT_TCP] {name} stuck: {LastStallReason} → forced replan");
+        }
+        if (still > fallbackTimeout)
+        {
+            // Last-resort: local 1-step greedy toward the eagle so backtest still gets movement data.
+            // NOTE: this is a NON-PIBT fallback; logged so it is not mistaken for pure TCP-PIBT behaviour.
+            Vector2Int nudged = GreedyStepTowardEagle();
+            if (nudged != c)
+            {
+                _currentTarget = nudged;
+                _hasTarget = true;
+                btRecoveryCount++;
+                _lastCellChangeTime = Time.time; // give the nudge time to execute
+                Debug.LogWarning($"[PIBT_TCP] {name} FALLBACK greedy nudge → {nudged}");
+            }
+        }
+    }
+
+    private Vector2Int GreedyStepTowardEagle()
+    {
+        if (eagleTarget == null || mapLoader == null) return CurrentCell;
+        Vector2Int c = CurrentCell;
+        Vector2Int goal = mapLoader.WorldToCell(eagleTarget.position);
+        Vector2Int best = c;
+        int bestDist = int.MaxValue;
+        foreach (var d in Neighbors4)
+        {
+            Vector2Int nb = c + d;
+            if (!mapLoader.IsWalkable(nb)) continue;
+            int dist = Mathf.Abs(nb.x - goal.x) + Mathf.Abs(nb.y - goal.y);
+            if (dist < bestDist) { bestDist = dist; best = nb; }
+        }
+        return best;
+    }
+
+    // Used by the coordinator (M4) and for debugging.
+    public bool HasMovementTarget => _hasTarget;
+    public Vector2Int MovementTarget => _currentTarget;
+
+    // True when this agent has finished executing the last assigned action:
+    //  - shooting (not a movement action), or no target, or
+    //  - target == current cell (rotate/wait → instantly committed), or
+    //  - movement target reached (arrived within waypoint distance).
+    public bool HasCommittedAction()
+    {
+        if (GetShootingTarget() != null) return true;
+        if (!_hasTarget) return true;
+        if (_currentTarget == CurrentCell) return true;
+        Vector3 tw = mapLoader.CellToWorld(_currentTarget);
+        float dist = ((Vector2)tw - (Vector2)tankController.tankMover.transform.position).magnitude;
+        return dist <= waypointReachDistanceStraight;
     }
 
     public Vector2Int CurrentCell =>
@@ -142,7 +225,7 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
         else
         {
             _partialDriveAcc = 0f;
-            tankController.HandleMoveBody(new Vector2(rotation, 0.1f));
+            tankController.HandleMoveBody(new Vector2(rotation, 0f)); // rotate in place when badly misaligned
         }
     }
 

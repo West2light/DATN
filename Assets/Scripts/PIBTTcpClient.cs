@@ -14,8 +14,8 @@ using UnityEngine;
 public class PIBTTcpClient : MonoBehaviour
 {
     [Header("Server")]
-    [Tooltip("Raw TCP host name/IP or URL. Example: 110.172.28.110 or http://110.172.28.110:7777/")]
-    public string host = "110.172.28.110";
+    [Tooltip("Raw TCP host name/IP or URL. Example: 127.0.0.1 (local server, incl. WSL2 localhost forwarding) or http://110.172.28.110:7777/")]
+    public string host = "127.0.0.1";
     public int port = 7777;
     [Min(1)] public int connectTimeoutMs = 5000;
     [Min(1000)] public int helloTimeoutMs = 60000;
@@ -28,6 +28,10 @@ public class PIBTTcpClient : MonoBehaviour
 
     public bool IsConnected => _client != null && _client.Connected;
     public string LastError { get; private set; }
+
+    // Server-authoritative next cell (build-local flat index) per agent id from the last plan_result.
+    // -1 means the server did not provide a usable nextLoc for that agent.
+    public int[] LastNextLocs { get; private set; }
 
     public bool Connect()
     {
@@ -167,6 +171,7 @@ public class PIBTTcpClient : MonoBehaviour
         }
 
         string[] actions = ParseActions(resp, agents.Length);
+        LastNextLocs = ParseNextLocs(resp, agents.Length);
         if (actions == null)
         {
             Debug.LogError($"[PIBTTcpClient] Could not parse actions from plan_result: {resp}");
@@ -333,6 +338,28 @@ public class PIBTTcpClient : MonoBehaviour
         }
 
         return ParseStringArray(json, "actions", expectedLength);
+    }
+
+    internal static int[] ParseNextLocs(string json, int expectedLength)
+    {
+        var result = new int[expectedLength];
+        for (int i = 0; i < expectedLength; i++) result[i] = -1;
+        try
+        {
+            PlanResultDto dto = JsonUtility.FromJson<PlanResultDto>(json);
+            if (dto?.actions != null)
+            {
+                for (int i = 0; i < dto.actions.Length; i++)
+                {
+                    PlanActionDto entry = dto.actions[i];
+                    if (entry == null) continue;
+                    int idx = entry.id >= 0 && entry.id < expectedLength ? entry.id : i;
+                    if (idx >= 0 && idx < expectedLength) result[idx] = entry.nextLoc;
+                }
+            }
+        }
+        catch (System.Exception) { /* leave as -1 → coordinator falls back to dead-reckon */ }
+        return result;
     }
 
     private static string[] ParseStringArray(string json, string property, int expectedLength)
