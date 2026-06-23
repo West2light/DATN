@@ -6,6 +6,9 @@ using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using System.Runtime.InteropServices;
+#endif
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -63,6 +66,7 @@ public class LanLobbyController : MonoBehaviour
     private Text       _playersTxt;
 
     // Footer refs (hosted as overlapping pairs at same Y)
+    private Button     _btnCancel;     // Always visible; moves up for non-owner lobby.
     private Button     _btnHost;       // Choose screen
     private Button     _btnStart;      // Hosting screen (same Y as _btnHost)
     private Button     _btnJoin;       // Choose screen
@@ -98,6 +102,12 @@ public class LanLobbyController : MonoBehaviour
     private string _pendingIp;
     private string _autoJoinTarget;
     private bool   _connected;   // true between OnClientConnected and OnClientDisconnected
+    private Screen _screen = Screen.Choose;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [DllImport("__Internal")]
+    private static extern void JsClearInviteUrl();
+#endif
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -348,7 +358,7 @@ public class LanLobbyController : MonoBehaviour
         float y2 = y1 + PH1 + Gap;        // 118
 
         // CANCEL — always visible, subtle
-        BtnFull("BtnCancel", "CANCEL", Danger, new Color(1f, 0.55f, 0.55f),
+        _btnCancel = BtnFull("BtnCancel", "CANCEL", Danger, new Color(1f, 0.55f, 0.55f),
             y0, BH, Close);
 
         // HOST GAME — Choose screen
@@ -647,6 +657,7 @@ public class LanLobbyController : MonoBehaviour
     // CANCEL is intentionally not touched (always visible).
     private void HideAllScreenWidgets()
     {
+        PositionCancelButton(compact: false);
         if (_statusTxt != null)
         {
             _statusTxt.gameObject.SetActive(true);
@@ -666,6 +677,7 @@ public class LanLobbyController : MonoBehaviour
 
     private void SwitchTo(Screen s)
     {
+        _screen = s;
         switch (s)
         {
             case Screen.Choose:
@@ -775,6 +787,7 @@ public class LanLobbyController : MonoBehaviour
         // START: only the room owner sees it; enabled when everyone is ready.
         bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
         SetVis(_btnStartLobby, isRoomOwner);
+        PositionCancelButton(compact: !isRoomOwner);
         if (isRoomOwner && _btnStartLobby != null)
         {
             int minStart =
@@ -1273,6 +1286,12 @@ public class LanLobbyController : MonoBehaviour
 
     private void Close()
     {
+        if (_screen == Screen.Lobby || !string.IsNullOrWhiteSpace(_autoJoinTarget))
+        {
+            ReturnToEntryAfterCancel();
+            return;
+        }
+
         CancelInvoke();
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
         _discovery?.Stop();
@@ -1287,6 +1306,52 @@ public class LanLobbyController : MonoBehaviour
         _root = null;
         _instance = null;
         Destroy(gameObject);
+    }
+
+    private void ReturnToEntryAfterCancel()
+    {
+        CancelInvoke();
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
+        _discovery?.Stop();
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnJoin;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnLeave;
+            NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
+
+        CleanupSession();
+        _connected = false;
+        _pendingIp = null;
+        _autoJoinTarget = string.Empty;
+        ClearInviteUrl();
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        OpenJoinScreen();
+#else
+        SwitchTo(Screen.Choose);
+#endif
+    }
+
+    private void PositionCancelButton(bool compact)
+    {
+        if (_btnCancel == null)
+            return;
+
+        var rt = _btnCancel.GetComponent<RectTransform>();
+        if (rt == null)
+            return;
+
+        rt.anchoredPosition = new Vector2(0f, compact ? 74f : 14f);
+    }
+
+    private static void ClearInviteUrl()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        try { JsClearInviteUrl(); }
+        catch (Exception e) { Debug.LogWarning($"[LAN] Could not clear invite URL: {e.Message}"); }
+#endif
     }
 
     // ── UI builder micro-helpers ──────────────────────────────────────────────

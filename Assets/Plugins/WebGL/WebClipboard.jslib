@@ -25,5 +25,17 @@ mergeInto(LibraryManager.library, {
     } catch (e) {
       console.warn('[WebClipboard] copy failed', e);
     }
+  },
+
+  JsClearInviteUrl: function () {
+    try {
+      var path = window.location.pathname || '/';
+      if (/^\/play\/?$/i.test(path) || /^\/s\/[^\/]+\/?$/i.test(path)) {
+        path = '/';
+      }
+      window.history.replaceState(null, document.title, window.location.origin + path);
+    } catch (e) {
+      console.warn('[WebClipboard] clear invite URL failed', e);
+    }
   }
 });
