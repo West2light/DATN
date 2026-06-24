@@ -1,15 +1,93 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Chương này có độ dài không quá 10 trang. Nếu cần trình bày dài hơn, sinh viên đưa vào phần phụ lục. Chú ý đây là kiến thức đã có sẵn; SV sau khi tìm hiểu được thì phân tích và tóm tắt lại. Sinh viên không trình bày dài dòng, chi tiết. 
+Chương~2 đã xác định A* và PIBT là hai thuật toán cần triển khai, Unity Engine là
+nền tảng phát triển, và TCP là giao thức tích hợp máy chủ ngoài. Chương này trình bày
+cơ sở lý thuyết và lý do lựa chọn từng công nghệ.
 
-Với đồ án ứng dụng, sinh viên để tên chương là “Nền tảng lý thuyết và Công nghệ sử dụng”. Trong chương này, sinh viên giới thiệu về các công nghệ, nền tảng lý thuyết sử dụng trong đồ án. Sinh viên cũng có thể trình bày thêm nền tảng lý thuyết nào đó nếu cần dùng tới.
+% ============================================================
+\section{Bài toán MAPF}
+\label{section:3.1}
 
-Với từng công nghệ/nền tảng/lý thuyết được trình bày, sinh viên phải phân tích rõ công nghệ/nền tảng/lý thuyết đó dùng để để giải quyết vấn đề/yêu cầu cụ thể nào ở Chương 2. Hơn nữa, với từng vấn đề/yêu cầu, sinh viên phải liệt kê danh sách các công nghệ/hướng tiếp cận tương tự có thể dùng làm lựa chọn thay thế, rồi giải thích rõ sự lựa chọn của mình.
+MAPF được định nghĩa trên đồ thị $G = (V, E)$ với $k$ agent. Mỗi agent $i$ có vị trí
+xuất phát $s_i \in V$ và đích $g_i \in V$. Tại mỗi bước thời gian, agent di chuyển
+sang ô lân cận hoặc đứng yên. Ràng buộc: (i)~\textit{vertex conflict} -- hai agent
+không được ở cùng ô cùng bước; (ii)~\textit{edge conflict} -- hai agent không được
+đổi chỗ cho nhau trong cùng một bước. Mục tiêu: tìm tập kế hoạch $\pi_1, \ldots, \pi_k$
+tối thiểu hóa tổng chi phí (số bước di chuyển) và không vi phạm ràng buộc \cite{stern2019mapf}.
 
-Lưu ý: Nội dung ĐATN phải có tính chất liên kết, liền mạch, và nhất quán. Vì vậy, các công nghệ/thuật toán trình bày trong chương này phải khớp với nội dung giới thiệu của sinh viên ở phần trước đó. 
+Trong bối cảnh game thời gian thực, bài toán được đơn giản hóa: agent không cần đạt
+đích cố định mà liên tục tiến gần mục tiêu di động (Eagle Base), và phải tái lập kế
+hoạch khi bản đồ thay đổi (chướng ngại mới xuất hiện, agent bị tiêu diệt).
 
-Trong chương này, để tăng tính khoa học và độ tin cậy, sinh viên nên chỉ rõ nguồn kiến thức mình thu thập được ở tài liệu nào, đồng thời đưa tài liệu đó vào trong danh sách tài liệu tham khảo rồi tạo các tham chiếu chéo (xem hướng dẫn ở phụ lục A.7).
+\section{Thuật toán A*}
+\label{section:3.2}
 
+A* \cite{hart1968astar} tìm đường ngắn nhất trên đồ thị có trọng số bằng cách mở
+rộng các nút theo hàm ước lượng $f(n) = g(n) + h(n)$, trong đó $g(n)$ là chi phí
+thực từ điểm xuất phát đến nút $n$, và $h(n)$ là heuristic ước lượng chi phí từ $n$
+đến đích. Khi $h(n)$ nhất quán (consistent), A* đảm bảo tìm được đường ngắn nhất.
+
+Trong đồ án, heuristic Manhattan $h(n) = |x_n - x_g| + |y_n - y_g|$ được dùng cho
+lưới 4 láng giềng (lên, xuống, trái, phải), đảm bảo tính nhất quán và phù hợp với
+cấu trúc bản đồ dạng ô vuông. A* được chọn làm baseline vì: (i) đã được kiểm chứng
+rộng rãi trong game 2D; (ii) hiệu quả trên lưới thưa; (iii) dễ tích hợp và hiểu kết quả.
+
+Hạn chế của A* trong bối cảnh MAPF: mỗi agent tính đường độc lập, không có cơ chế
+phối hợp, dẫn đến va chạm và replan phản ứng liên tục.
+
+\section{Thuật toán PIBT}
+\label{section:3.3}
+
+PIBT (Priority Inheritance with Backtracking) \cite{okumura2022pibt} là thuật toán MAPF
+chạy theo bước thời gian (time-step based). Tại mỗi bước, các agent được xếp hạng ưu
+tiên; agent ưu tiên cao hơn di chuyển trước, agent ưu tiên thấp hơn kế thừa ưu tiên
+nếu bị chặn (\textit{priority inheritance}) và có thể hoàn tác bước di chuyển nếu
+không tìm được ô trống (\textit{backtracking}).
+
+Ưu điểm của PIBT: hoàn chỉnh trên bất kỳ bản đồ nào có đường đi tồn tại; thời gian
+tính toán thực tế tỷ lệ tuyến tính với số agent trong trường hợp trung bình; phù hợp
+với môi trường thời gian thực. PIBT được chọn vì nó cân bằng tốt giữa hiệu năng và
+khả năng phối hợp đa agent, và đã được dùng thành công trong cuộc thi MAPF quốc tế
+\cite{movingai2019benchmark}.
+
+Đồ án triển khai PIBT theo hai cách: (i) trực tiếp trong Unity~C\# (\texttt{GridEnemyAgentPIBT})
+để không phụ thuộc hạ tầng ngoài; (ii) qua giao tiếp TCP với máy chủ C++ tốc độ cao
+(\texttt{GridEnemyAgentPIBT\_TCP}) để thể hiện hướng tích hợp planner bên ngoài Unity.
+
+\section{Unity Engine và C\#}
+\label{section:3.4}
+
+Unity Engine \cite{unity2024engine} phiên bản 6000.3.10f1 (Unity~6) được lựa chọn vì:
+(i) hỗ trợ xuất bản đa nền tảng bao gồm WebGL; (ii) hệ thống vật lý 2D (Rigidbody2D,
+Collider2D) hoàn chỉnh; (iii) hệ sinh thái lớn và tài liệu đầy đủ; (iv) hỗ trợ
+scripting~C\# với IL2CPP cho hiệu năng tốt. Unity NavMesh không được dùng làm hệ thống
+điều hướng chính vì không tương thích với định dạng bản đồ \texttt{.map} và không
+hỗ trợ ràng buộc MAPF ở lớp lập kế hoạch.
+
+C\# được chọn (thay vì C++) vì tích hợp trực tiếp với Unity mà không cần lớp binding
+bổ sung, giúp code dễ đọc và kiểm tra trong quá trình nghiên cứu.
+
+Các lựa chọn thay thế đã xem xét: Godot Engine (thiếu hệ sinh thái C\# MAPF),
+Unreal Engine (quá phức tạp cho 2D top-down), pygame (thiếu vật lý và mạng).
+
+\section{Giao tiếp TCP giữa Unity và máy chủ C++}
+\label{section:3.5}
+
+Để tích hợp thuật toán PIBT viết bằng C++ (từ cuộc thi robot đua The League of Robot
+Runners 2024) vào Unity mà không cần port toàn bộ sang C\#, đồ án sử dụng kết nối
+TCP/IP theo mô hình client--server. Phía Unity đóng vai trò client: sau mỗi bước, Unity
+gửi trạng thái hiện tại gồm vị trí các agent và kích thước bản đồ, rồi nhận lại ô mục
+tiêu tiếp theo cho từng agent. Phía máy chủ C++ đóng vai trò server: chạy thuật toán
+PIBT, duy trì trạng thái lập kế hoạch và lắng nghe trên cổng~7777 (localhost).
+
+TCP được chọn thay vì UDP vì đảm bảo thứ tự và toàn vẹn gói tin -- yếu tố quan trọng khi
+mỗi gói lệnh di chuyển đều cần thiết và không chấp nhận mất mát. Giao tiếp qua mạng nội
+bộ (localhost/WSL) đảm bảo độ trễ thấp đủ cho ứng dụng thời gian thực.
+
+\textbf{Kết chương~3:} Chương này đã trình bày cơ sở lý thuyết của MAPF, A* và PIBT,
+đồng thời giải thích lý do lựa chọn từng công nghệ dựa trên yêu cầu xác định ở Chương~2.
+Các nền tảng lý thuyết và kỹ thuật này là cơ sở để Chương~4 trình bày chi tiết thiết
+kế và triển khai hệ thống.
 
 \end{document}

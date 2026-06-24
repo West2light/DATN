@@ -1,0 +1,4 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Gallows,AStar,1,Timeout,120.00,302,6,6,914,0,3650,446
+2,Gallows,PIBT,1,Timeout,120.00,287,6,6,911,0,5876,436
+3,Gallows,PIBT_TCP,1,Timeout,120.00,332,6,6,2814,0,2008,641

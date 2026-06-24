@@ -1,49 +1,240 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-Chương này có độ dài từ 9 đến 11 trang.
 
-Với phương pháp phân tích thiết kế hướng đối tượng, sinh viên sử dụng biểu đồ use case theo hướng dẫn của template này. Với các phương pháp khác, sinh viên trao đổi với giáo viên hướng dẫn để đổi tên và sắp xếp lại đề mục cho phù hợp. Ví dụ, thay vì sử dụng biểu đồ use case, sinh viên đi theo hướng tiếp cận Agile có thể dùng User Story.
+Chương~1 đã xác định bài toán MAPF và đề xuất định hướng giải pháp. Chương này phân
+tích chi tiết hiện trạng các giải pháp điều hướng đa agent trong game, từ đó xác định
+yêu cầu chức năng và phi chức năng của hệ thống cần xây dựng.
 
-
-\textbf{Lưu ý}: Mỗi chương nên có thêm 1 đoạn mở đầu chương và kết thúc chương, mở đầu giới thiệu những nội dung sẽ trình bày trong chương, kết thúc tổng kết lại các nội dung đã trình bày
-
+% ============================================================
 \section{Khảo sát hiện trạng}
 \label{section:2.1}
-Thông thường, khảo sát chi tiết về hiện trạng và yêu cầu của phần mềm sẽ được lấy từ ba nguồn chính, đó là (i) người dùng/khách hàng, (ii) các hệ thống đã có, (iii) và các ứng dụng tương tự.
-Sinh viên cần tiến hành phân tích, so sánh, đánh giá chi tiết ưu nhược điểm của các sản phẩm/nghiên cứu hiện có. Sinh viên có thể lập bảng so sánh nếu cần thiết. Kết hợp với khảo sát người dùng/khách hàng (nếu có), sinh viên nêu và mô tả sơ lược các tính năng phần mềm quan trọng cần phát triển.
 
+\subsection{Các giải pháp điều hướng trong game hiện tại}
+
+Các giải pháp điều hướng agent trong game thương mại và nghiên cứu học thuật có thể
+phân thành bốn nhóm chính:
+
+\textbf{(1) Unity NavMesh}: Unity Engine cung cấp hệ thống dẫn đường tự động dựa trên
+navigation mesh 3D. NavMesh tính toán đường đi cho từng agent độc lập và hỗ trợ tránh
+va chạm theo thời gian thực qua \textit{NavMeshAgent}. Ưu điểm: tích hợp sẵn, dễ sử
+dụng, hỗ trợ môi trường 3D phức tạp. Nhược điểm: không giải quyết bài toán MAPF (không
+đảm bảo tránh va chạm ở lớp lập kế hoạch cho môi trường lưới rời rạc), không tương
+thích với benchmark \texttt{.map} chuẩn MAPF.
+
+\textbf{(2) A* đơn agent}: Thuật toán A* \cite{hart1968astar} với heuristic Manhattan
+trên lưới ô vuông là giải pháp phổ biến nhất trong game 2D. Mỗi agent tìm đường độc
+lập mà không biết kế hoạch của agent khác. Ưu điểm: đơn giản, hiệu quả, dễ triển khai.
+Nhược điểm: va chạm giữa các agent phải xử lý ở lớp vật lý, không có phối hợp ở lớp
+lập kế hoạch, hiệu năng suy giảm khi số agent lớn do xử lý va chạm phản ứng.
+
+\textbf{(3) CBS và thuật toán MAPF tối ưu}: Conflict-Based Search \cite{sharon2015cbs}
+đảm bảo giải pháp tối ưu toàn cục (tổng số bước di chuyển nhỏ nhất). Ưu điểm: tối ưu,
+hoàn chỉnh. Nhược điểm: độ phức tạp tính toán tăng theo hàm mũ với số agent và mật độ
+va chạm, không thực tế cho game thời gian thực với nhiều agent.
+
+\textbf{(4) PIBT}: Priority Inheritance with Backtracking \cite{okumura2022pibt} là thuật
+toán MAPF chạy theo bước thời gian, hoàn chỉnh trên bản đồ có đường đi tồn tại, với
+độ phức tạp thực tế phù hợp cho môi trường thời gian thực. PIBT không đảm bảo tối ưu
+toàn cục nhưng thực hành cho kết quả tốt và đã được dùng trong các cuộc thi MAPF quốc
+tế \cite{movingai2019benchmark}.
+
+Bảng~\ref{tab:comparison} tổng hợp so sánh bốn giải pháp theo các tiêu chí phù hợp
+với yêu cầu của đồ án.
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh các giải pháp điều hướng đa agent}
+\label{tab:comparison}
+\small
+\begin{tabular}{lcccc}
+\hline
+\textbf{Tiêu chí}           & \textbf{NavMesh} & \textbf{A* đơn} & \textbf{CBS} & \textbf{PIBT} \\ \hline
+Tránh va chạm đa agent     & Vật lý           & Vật lý          & Lập kế hoạch & Lập kế hoạch  \\
+Tính tối ưu                & Không            & Không           & Có           & Không         \\
+Thời gian thực             & Có               & Có              & Không        & Có            \\
+Tương thích bản đồ .map    & Không            & Có              & Có           & Có            \\
+Tích hợp Unity             & Có sẵn           & Tự triển khai   & Tự triển khai & Tự triển khai \\
+Phù hợp đồ án              & Không            & Baseline        & Không        & Chính         \\ \hline
+\end{tabular}
+\end{table}
+
+Từ phân tích trên, đồ án lựa chọn A* làm baseline để có điểm so sánh quen thuộc,
+và PIBT làm thuật toán chính vì cân bằng tốt giữa hiệu quả và khả năng thực thi
+thời gian thực.
+
+\subsection{Khảo sát bản đồ benchmark MAPF}
+
+MovingAI MAPF benchmark \cite{sturtevant2012benchmarks} cung cấp hàng nghìn bản đồ
+với định dạng \texttt{.map} chuẩn, phân loại theo môi trường (mê cung, trong nhà, game).
+Đồ án sử dụng 5 bản đồ đại diện cho 5 kịch bản điển hình (Bảng~\ref{tab:maps}).
+
+\begin{table}[htbp]
+\centering
+\caption{Năm bản đồ benchmark sử dụng trong đồ án}
+\label{tab:maps}
+\small
+\begin{tabular}{llrrl}
+\hline
+\textbf{Nhãn} & \textbf{Tệp bản đồ}            & \textbf{Kích thước} & \textbf{Ô đi được} & \textbf{Đặc điểm} \\ \hline
+Alpha32   & random-32-32-10.map       & 32×32     & 922  (90\%)  & Thoáng, ít tường  \\
+Mansion   & ht\_mansion\_n.map        & 133×270   & 8959 (25\%)  & Hành lang hẹp     \\
+Chantry   & ht\_chantry.map           & 162×141   & 7461 (33\%)  & Phòng kín         \\
+Gallows   & lt\_gallowstemplar\_n.map & 251×180   & 10021 (22\%) & Vùng hẹp nhiều     \\
+Maze128   & maze-128-128-10.map       & 128×128   & 14818 (90\%) & Mê cung lớn       \\ \hline
+\end{tabular}
+\end{table}
+
+% ============================================================
 \section{Tổng quan chức năng}
 \label{section:2.2}
-Phần \ref{section:2.2} này có nhiệm vụ tóm tắt các chức năng của phần mềm. Trong phần này, sinh viên lưu ý chỉ mô tả chức năng mức cao (tổng quan) mà không đặc tả chi tiết cho từng chức năng. Đặc tả chi tiết được trình bày trong phần \ref{section:2.3}.
 
-\subsection{Biểu đồ use case tổng quát}
+\subsection{Biểu đồ use case tổng quan}
 \label{subsection:2.2.1}
-Sinh viên vẽ biểu đồ use case tổng quan và giải thích các tác nhân tham gia là gì, nêu vai trò của từng tác nhân, và mô tả ngắn gọn các use case chính.
 
-\subsection{Biểu đồ use case phân rã XYZ}
+Hệ thống có hai tác nhân chính. Tác nhân thứ nhất là người chơi (Player), trực tiếp
+điều khiển xe tăng, bắn đạn, chọn chế độ chơi, cũng như cấu hình và khởi động backtest.
+Tác nhân thứ hai là agent AI (Enemy), được điều khiển bởi thuật toán MAPF để tự động tìm
+đường và tấn công Eagle Base. Hai tác nhân này tương tác trong cùng một môi trường lưới,
+nơi người chơi cố gắng bảo vệ Eagle Base còn các agent AI phối hợp tấn công.
+
+Các chức năng chính của hệ thống gồm: (UC1)~Chơi đơn một người chống lại các agent AI,
+(UC2)~chơi mạng LAN nhiều người cùng chống AI, (UC3)~chọn thuật toán AI (A*, PIBT,
+PIBT TCP), (UC4)~chạy backtest tự động, và (UC5)~xem kết quả backtest. Trong đó UC1,
+UC3 và UC4 được đặc tả chi tiết tại Mục~\ref{section:2.3}; UC2 và UC5 được đặc tả trong
+Phụ lục~\ref{tab:uc2} và~\ref{tab:uc5}.
+
+Hình~\ref{fig:activity_single} mô tả luồng hoạt động trong kịch bản chơi đơn,
+từ khi tải bản đồ đến khi kết thúc ván chơi.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/activity_single_play.pdf}
+    \caption{Biểu đồ hoạt động kịch bản chơi đơn}
+    \label{fig:activity_single}
+\end{figure}
+
+Hình~\ref{fig:activity_internet} mô tả luồng hoạt động trong kịch bản chơi mạng LAN,
+bao gồm bước tạo/tham gia phòng và đồng bộ trạng thái giữa các máy.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/activity_internet.pdf}
+    \caption{Biểu đồ hoạt động kịch bản chơi mạng LAN}
+    \label{fig:activity_internet}
+\end{figure}
+
+\subsection{Quy trình nghiệp vụ backtest}
 \label{subsection:2.2.2}
-Với mỗi use case mức cao trong biểu đồ use case tổng quan, sinh viên tạo một mục riêng như mục \ref{subsection:2.2.2} và tiến hành phân rã use case đó. Lưu ý tên use case cần phân rã trong biểu đồ use case tổng quan phải khớp với tên đề mục.
 
-Trong mỗi mục như vậy, sinh viên vẽ và giải thích ngắn gọn các use case phân rã.
+Backtest là quy trình nghiệp vụ quan trọng nhất từ góc độ nghiên cứu. Luồng hoạt động:
+người dùng cấu hình tham số (chọn bản đồ, thuật toán, số lần lặp, bật/tắt chướng ngại
+động), hệ thống tự động lặp qua tất cả tổ hợp, mỗi run thu thập chỉ số thời gian thực,
+sau đó xuất CSV và chart tổng hợp. Quy trình này được mô tả chi tiết trong Chương~4
+tại Hình~\ref{fig:backtest_workflow}.
 
-\subsection{Quy trình nghiệp vụ}
-\label{subsection:2.2.3}
-Nếu sản phẩm/hệ thống cần xây dựng có quy trình nghiệp vụ quan trọng/đáng chú ý, sinh viên cần mô tả và vẽ biểu đồ hoạt động minh họa quy trình nghiệp vụ đó. Sinh viên lưu ý đây không phải là luồng sự kiện của từng use case, mà là luồng hoạt động kết hợp nhiều use case để thực hiện một nghiệp vụ nào đó.
-
-Ví dụ, một hệ thống quản lý thư viện có quy trình nghiệp vụ mượn trả với mô tả sơ bộ như sau: Sinh viên làm thẻ mượn, sau đó sinh viên đăng ký mượn sách, thủ thư cho mượn, và cuối cùng sinh viên trả lại sách cho thư viện. Một hệ thống có thể có một vài quy trình nghiệp vụ quan trọng như vậy.
+% ============================================================
 \section{Đặc tả chức năng}
 \label{section:2.3}
-Sinh viên lựa chọn từ 4 đến 7 use case quan trọng nhất của đồ án để đặc tả chi tiết. Mỗi đặc tả bao gồm ít nhất các thông tin sau: (i) Tên use case, (ii) Luồng sự kiện (chính và phát sinh), (iii) Tiền điều kiện, và (iv) Hậu điều kiện. Sinh viên chỉ vẽ bổ sung biểu đồ hoạt động khi đặc tả use case phức tạp.
-\subsection{Đặc tả use case A}
-\hfill
-\subsection{Đặc tả use case B}
-\hfill
 
+\subsection{Đặc tả UC1 -- Chơi đơn một người}
+
+\begin{table}[htbp]
+\centering
+\caption{Đặc tả UC1 -- Chơi đơn}
+\label{tab:uc1}
+\small
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Tên use case}   & Chơi đơn (Single Play) \\
+\textbf{Tác nhân}       & Người chơi \\
+\textbf{Tiền điều kiện} & Người chơi đã mở ứng dụng và chọn chế độ chơi đơn \\
+\textbf{Luồng chính}    &
+1. Người chơi chọn bản đồ và thuật toán AI từ menu. \newline
+2. Hệ thống đọc tệp \texttt{.map}, dựng bản đồ và spawn xe tăng người chơi + Eagle Base. \newline
+3. \texttt{MapScenarioBootstrap} spawn các agent AI theo thuật toán đã chọn. \newline
+4. Người chơi điều khiển xe tăng qua bàn phím/chuột; agent AI tự động di chuyển và tấn công Eagle. \newline
+5. Ván chơi kết thúc khi Eagle bị phá hủy (agent thắng) hoặc người chơi tiêu diệt hết agent. \\
+\textbf{Luồng phát sinh} &
+2a. Tệp \texttt{.map} không tìm thấy → hệ thống dùng bản đồ mặc định Alpha32. \newline
+5a. Không có agent sống, Eagle còn HP → người chơi thắng. \\
+\textbf{Hậu điều kiện}  & Màn hình kết quả hiển thị điểm máu Eagle và thời gian ván chơi \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả UC4 -- Chạy backtest tự động}
+
+\begin{table}[htbp]
+\centering
+\caption{Đặc tả UC4 -- Chạy backtest tự động}
+\label{tab:uc4}
+\small
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Tên use case}   & Chạy backtest tự động \\
+\textbf{Tác nhân}       & Người dùng (nghiên cứu viên) \\
+\textbf{Tiền điều kiện} & Ứng dụng đang ở menu chính; nếu chọn PIBT\_TCP, server C++ đang chạy \\
+\textbf{Luồng chính}    &
+1. Người dùng mở UI Backtest, chọn bản đồ, thuật toán, số lần lặp, bật/tắt chướng ngại động. \newline
+2. Người dùng bấm Start. \newline
+3. \texttt{BacktestRunner} lặp qua từng tổ hợp (map × algorithm × rep). \newline
+4. Mỗi run: spawn agent, chạy kịch bản đến khi Eagle bị phá hoặc timeout, ghi nhận chỉ số. \newline
+5. Sau khi hết tất cả run: xuất \texttt{backtest\_summary\_*.csv}, \texttt{backtest\_agents\_*.csv}, \texttt{backtest\_chart\_*.html}. \\
+\textbf{Luồng phát sinh} &
+3a. PIBT\_TCP: nếu kết nối TCP thất bại, run đó ghi \texttt{Outcome=ConnectionError} và tiếp tục. \newline
+4a. Run chạm timeout (mặc định 120\,s) → ghi \texttt{Outcome=Timeout}. \\
+\textbf{Hậu điều kiện}  & Tệp CSV và HTML chart xuất hiện trong thư mục \texttt{BacktestResults/} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả UC3 -- Chọn thuật toán AI}
+
+\begin{table}[htbp]
+\centering
+\caption{Đặc tả UC3 -- Chọn thuật toán AI}
+\label{tab:uc3}
+\small
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Tên use case}   & Chọn thuật toán AI \\
+\textbf{Tác nhân}       & Người chơi hoặc nghiên cứu viên \\
+\textbf{Tiền điều kiện} & Ứng dụng đang ở menu chọn chế độ chơi \\
+\textbf{Luồng chính}    &
+1. Người dùng chọn một trong ba thuật toán: A*, PIBT, PIBT\_TCP. \newline
+2. Hệ thống ghi nhận lựa chọn vào \texttt{BacktestMode.Algorithm}. \newline
+3. Khi bắt đầu ván: \texttt{MapScenarioBootstrap} spawn đúng loại agent tương ứng (\texttt{GridEnemyAgent}, \texttt{GridEnemyAgentPIBT}, hoặc \texttt{GridEnemyAgentPIBT\_TCP}). \newline
+4. Nếu chọn PIBT\_TCP: hệ thống gửi lệnh \texttt{Hello} đến server, xác nhận kết nối trước khi spawn agent. \\
+\textbf{Luồng phát sinh} &
+4a. Server C++ không phản hồi trong 5\,s → báo lỗi và quay lại menu. \\
+\textbf{Hậu điều kiện}  & Agent AI trong kịch bản dùng thuật toán đã chọn \\
+\hline
+\end{tabular}
+\end{table}
+
+% ============================================================
 \section{Yêu cầu phi chức năng}
 \label{section:2.4}
-Trong phần này, sinh viên đưa ra các yêu cầu khác nếu có, bao gồm các yêu cầu phi chức năng như hiệu năng, độ tin cậy, tính dễ dùng, tính dễ bảo trì, hoặc các yêu cầu về mặt kỹ thuật như về CSDL, công nghệ sử dụng, v.v.
 
+\textbf{Hiệu năng}: Thuật toán A* phải hoàn thành tìm đường cho mỗi agent trong dưới
+5\,ms trên bản đồ nhỏ (Alpha32), để tổng thời gian tính toán mỗi khung hình không vượt
+quá 16\,ms (60\,FPS). PIBT phải hoàn thành một bước phối hợp cho 6 agent trong dưới
+10\,ms.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\textbf{Tính ổn định}: Mỗi run backtest phải tái lập được với cùng seed; hệ thống không
+được crash trong suốt 90 run liên tiếp.
+
+\textbf{Tính tương thích}: Ứng dụng chạy trên Windows 10/11 với Unity 6000.3.x; chế
+độ WebGL tương thích Chrome và Firefox. Tệp \texttt{.map} phải đọc được theo chuẩn
+MovingAI không cần chỉnh sửa.
+
+\textbf{Khả năng mở rộng}: Thêm thuật toán mới chỉ cần tạo lớp agent mới kế thừa
+interface chung, không cần thay đổi \texttt{BacktestRunner} hay \texttt{TankController}.
+
+\textbf{Kết chương~2:} Chương này đã phân tích bốn nhóm giải pháp điều hướng đa agent
+và xác nhận A* (baseline) cùng PIBT (thuật toán chính) là lựa chọn phù hợp nhất với yêu
+cầu đồ án. Năm bản đồ benchmark chuẩn đã được chọn để đảm bảo tính so sánh được với
+nghiên cứu cộng đồng. Các use case và yêu cầu phi chức năng được đặc tả là cơ sở cho
+thiết kế hệ thống trong Chương~3 và Chương~4.
 
 \end{document}

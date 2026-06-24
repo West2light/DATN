@@ -1,0 +1,24 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Biểu đồ hoạt động kịch bản chơi đơn}}{6}{figure.caption.10}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Biểu đồ hoạt động kịch bản chơi mạng LAN}}{6}{figure.caption.11}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Biểu đồ gói UML của hệ thống Unity MAPF}}{13}{figure.caption.15}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Biểu đồ lớp các thành phần tìm đường và điều phối agent}}{14}{figure.caption.16}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}}{15}{figure.caption.17}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Biểu đồ trình tự tạo và tham gia phòng LAN}}{16}{figure.caption.18}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi LAN}}{17}{figure.caption.19}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces Quy trình thực nghiệm backtest tự động}}{19}{figure.caption.23}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}}{20}{figure.caption.25}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}}{20}{figure.caption.26}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}}{21}{figure.caption.28}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{25}{figure.caption.29}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}}{26}{figure.caption.30}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}}{28}{figure.caption.31}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsfinish 
+\contentsfinish 

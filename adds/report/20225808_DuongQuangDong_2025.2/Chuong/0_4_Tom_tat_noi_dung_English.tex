@@ -5,9 +5,33 @@
     \Large{\textbf{ABSTRACT}}\\
 \end{center}
 \vspace{1cm}
-Mục này khuyến khích sinh viên viết lại mục “Tóm tắt” đồ án tốt nghiệp ở trang trước bằng tiếng Anh. Phần này phải có đầy đủ các nội dung như trong phần tóm tắt bằng tiếng Việt.
-Sinh viên không nhất thiết phải trình bày mục này. 
 
-Nhưng nếu lựa chọn trình bày, sinh viên cần đảm bảo câu từ và ngữ pháp chuẩn tắc, nếu không sẽ có tác dụng ngược, gây phản cảm.
+Multi-Agent Pathfinding (MAPF) requires simultaneous path planning for multiple agents
+navigating from their start positions to designated goals without collisions. In real-time
+strategy games, this problem becomes particularly challenging due to continuously changing
+environments, demanding agents to replan within milliseconds each frame. Traditional
+single-agent solutions such as A* do not inherently prevent inter-agent collisions, while
+globally optimal approaches like CBS impose computational costs too high for real-time
+environments.
+
+This thesis studies and implements three MAPF algorithm tiers within a 2D multiplayer
+tank game built on Unity Engine: (1) single-agent A* as a baseline, (2) PIBT (Priority
+Inheritance with Backtracking) implemented directly in Unity~C\# for collision-free
+multi-agent coordination, and (3) PIBT C++/TCP integrating an external planning server
+over TCP, enabling the use of high-performance C++ algorithms alongside Unity's physics.
+The game uses standard MovingAI MAPF benchmark maps, ensuring results are comparable
+with community research.
+
+Key contributions include: (i) a runtime map loading system that constructs grid and
+physics colliders from the \texttt{.map} format without baking into the Unity scene;
+(ii) A* and PIBT implementations in C\# fully integrated with Unity physics and the
+shared tank control pipeline; (iii) a TCP protocol bridging Unity and an external
+PIBT C++ server; and (iv) an automated backtest system supporting static and
+dynamic-obstacle environments, exporting per-run CSV metrics. Experiments across
+5 maps, 3 algorithms, and 6 repetitions per combination (90 runs per condition)
+show all three algorithms successfully destroy the Eagle target on 4 of 5 maps;
+PIBT exhibits higher replanning counts than A* due to its cooperative coordination
+mechanism; and enabling dynamic obstacles increases replanning by 30--50\% on
+average while the overall mission success rate remains stable.
 
 \end{document}

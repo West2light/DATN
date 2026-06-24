@@ -5,11 +5,36 @@
     \Large{\textbf{TÓM TẮT NỘI DUNG ĐỒ ÁN}}\\
 \end{center}
 \vspace{1cm}
-Sinh viên viết tóm tắt ĐATN của mình trong mục này, với 200 đến 350 từ. Theo trình tự, các nội dung tóm tắt cần có: (i) Giới thiệu vấn đề (tại sao có vấn đề đó, hiện tại được giải quyết chưa, có những hướng tiếp cận nào, các hướng này giải quyết như thế nào, hạn chế là gì), (ii) Hướng tiếp cận sinh viên lựa chọn là gì, vì sao chọn hướng đó, (iii) Tổng quan giải pháp của sinh viên theo hướng tiếp cận đã chọn, và (iv) Đóng góp chính của ĐATN là gì, kết quả đạt được sau cùng là gì. Sinh viên cần viết thành đoạn văn, không được viết ý hoặc gạch đầu dòng.
+
+Bài toán tìm đường đa tác nhân (Multi-Agent Pathfinding -- MAPF) yêu cầu lập kế hoạch
+đồng thời cho nhiều agent di chuyển từ vị trí xuất phát đến đích mà không va chạm nhau.
+Trong bối cảnh game chiến thuật thời gian thực, bài toán này càng trở nên khó khăn hơn
+khi môi trường thay đổi liên tục, đòi hỏi các agent phải tái lập kế hoạch nhanh trong
+vài mili-giây mỗi khung hình. Các giải pháp tìm đường truyền thống cho agent đơn lẻ
+như A* không đảm bảo tránh va chạm giữa nhiều agent, trong khi các phương pháp tối ưu
+toàn cục như CBS đòi hỏi chi phí tính toán quá lớn cho môi trường thời gian thực.
+
+Đồ án này nghiên cứu và triển khai ba cấp độ thuật toán MAPF trong một game bắn xe tăng
+2D nhiều người chơi xây dựng trên nền tảng Unity Engine: (1) A* đơn agent làm baseline,
+(2) PIBT (Priority Inheritance with Backtracking) triển khai trực tiếp trong Unity~C\# để
+phối hợp đa agent không va chạm, và (3) PIBT C++/TCP tích hợp máy chủ lập kế hoạch
+bên ngoài Unity qua kết nối TCP, mở rộng khả năng tận dụng thuật toán hiệu năng cao
+viết bằng C++. Game sử dụng các bản đồ chuẩn MovingAI MAPF benchmark, đảm bảo kết quả
+thực nghiệm có thể so sánh với nghiên cứu cộng đồng.
+
+Đồ án đóng góp: (i) hệ thống đọc và dựng bản đồ động từ định dạng \texttt{.map} tại
+thời điểm chạy; (ii) triển khai A* và PIBT trong C\# tích hợp hoàn toàn với vật lý
+Unity; (iii) giao thức TCP kết nối Unity và máy chủ PIBT C++; (iv) hệ thống backtest
+tự động với môi trường tĩnh và chướng ngại động, xuất kết quả CSV để phân tích định
+lượng. Thực nghiệm trên 5 bản đồ với 3 thuật toán, 6 lần lặp mỗi tổ hợp (90 run mỗi
+bộ) cho thấy cả ba thuật toán đều hoàn thành nhiệm vụ trên 4/5 bản đồ; PIBT có số lần
+tái hoạch định cao hơn A* do cơ chế phối hợp đa agent; khi bật chướng ngại động, số
+lần replan tăng trung bình 30--50\% nhưng hệ thống vẫn duy trì được mục tiêu.
+
 \begin{flushright}
 Sinh viên thực hiện\\
 \begin{tabular}{@{}c@{}}
-\textit{(Ký và ghi rõ họ tên)}
+\textit{Dương Quang Đông}
 \end{tabular}
 \end{flushright}
 

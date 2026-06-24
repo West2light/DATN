@@ -1,7 +1,13 @@
-\documentclass[a4paper,13pt,3p,twoside]{report}
+\documentclass[a4paper,13pt,3p,oneside]{report}
 \usepackage{scrextend}
 \changefontsizes{13pt}
-\usepackage[utf8]{vietnam}
+% XeLaTeX: dùng fontspec thay vietnam+times để hỗ trợ Unicode tiếng Việt đầy đủ
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+% Việt hóa các nhãn mặc định (do không dùng gói vietnam nữa)
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\chaptername}{CHƯƠNG}
 \usepackage[top=2cm, bottom=2cm, left=3.5cm, right=2.5cm]{geometry}
 
 \usepackage{graphicx} % Cho phép chèn hỉnh ảnh
@@ -12,7 +18,7 @@
 \usepackage{amsmath} % Hỗ trợ một số biểu thức toán học
 \usepackage{amssymb} % Bổ sung thêm kí hiệu về toán học
 \usepackage{amsbsy} % Hỗ trợ các kí hiệu in đậm
-\usepackage{times} % Chọn font Time New Romans
+% times thay bằng fontspec/setmainfont ở trên
 \usepackage{array} % Tạo bảng array
 \usepackage{enumitem} % Cho phép thay đổi kí hiệu của list
 \usepackage{subfiles} % Chèn các file nhỏ, giúp chia các chapter ra nhiều file hơn
@@ -219,9 +225,9 @@
 
  % Tạo mục lục tự động
 \addtocontents{toc}{\protect\thispagestyle{empty}}
-\tableofcontents 
+\tableofcontents
 \thispagestyle{empty}
-\cleardoublepage
+\clearpage
 
 % \pagenumbering{roman}
 %Tạo danh mục hình vẽ.
@@ -261,9 +267,9 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[RE, LO]{\leftmark}
+\fancyhead[L]{\leftmark}
 %\fancyhead[LE]{\rightmark}
-\fancyfoot[RE, LO]{\thepage}
+\fancyfoot[R]{\thepage}
 
 \chapter{GIỚI THIỆU ĐỀ TÀI}
 \label{chapter:Introduction}
@@ -299,13 +305,6 @@
 \label{chapter:conclusion}
 \subfile{Chuong/6_Ket_luan}
 
-\newpage
-%\pagestyle{fancy} % Áp dụng header và footer
-\chapter*{MỘT SỐ LƯU Ý VỀ TÀI LIỆU THAM KHẢO} %Kết luận và hướng phát triển}
-\label{chapter:reference}
-\subfile{Chuong/7_Luu_y_tai_lieu_tham_khao}
-
-
 % ===================================================
 \newpage
 \renewcommand\bibname{TÀI LIỆU THAM KHẢO}
@@ -328,9 +327,9 @@
     {{\bfseries{\scshape} \thecontentslabel.\ }} % numbered format
     {}         % unnumbered format
     {\titlerule*[0.3pc]{.}\contentspage}         % filler-page-format, e.g dots
-\chapter{HƯỚNG DẪN VIẾT ĐỒ ÁN TỐT NGHIỆP}
+\chapter{KẾT QUẢ BACKTEST CHI TIẾT}
 \subfile{Chuong/Phu_luc_A}
 \newpage
-\chapter{ĐẶC TẢ USE CASE}
+\chapter{ĐẶC TẢ USE CASE BỔ SUNG}
 \subfile{Chuong/Phu_luc_B}
 \end{document}

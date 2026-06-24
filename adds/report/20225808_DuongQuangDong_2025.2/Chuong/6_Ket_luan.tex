@@ -1,12 +1,47 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-\section{Kết luận}
-Sinh viên so sánh kết quả nghiên cứu hoặc sản phẩm của mình với các nghiên cứu hoặc sản phẩm tương tự.
 
-Sinh viên phân tích trong suốt quá trình thực hiện ĐATN, mình đã làm được gì, chưa làm được gì, các đóng góp nổi bật là gì, và tổng hợp những bài học kinh nghiệm rút ra nếu có.
+\section{Kết luận}
+
+Đồ án đã nghiên cứu và triển khai thành công bài toán tìm đường đa tác nhân (MAPF)
+trong game bắn xe tăng 2D nhiều người chơi xây dựng trên Unity Engine. Ba cấp độ
+thuật toán -- A* baseline, PIBT~C\# và PIBT~C++/TCP -- được triển khai hoàn chỉnh,
+chia sẻ cùng tầng điều khiển vật lý và được đánh giá định lượng trên tập bản đồ
+chuẩn MovingAI MAPF benchmark.
+
+Về các kết quả chính, đồ án đã xây dựng được hệ thống đọc và dựng bản đồ động từ tệp
+\texttt{.map} tại thời điểm chạy, hỗ trợ năm bản đồ kích thước từ 32×32 đến 251×180 mà
+không cần chỉnh sửa mã nguồn. Thuật toán A* baseline hoàn thành nhiệm vụ trên bốn trong
+năm bản đồ với thời gian ổn định, trong đó Maze128 là giới hạn chung của cả ba thuật toán
+do đường đi dài và phức tạp. Hai biến thể PIBT~C\# và PIBT~C++/TCP thể hiện khả năng phối
+hợp đa agent không va chạm với thời gian hoàn thành tương đương A* trên bốn trong năm bản
+đồ, đồng thời giảm được tình trạng deadlock ở lớp vật lý. Cuối cùng, hệ thống backtest tự
+động chạy ổn định 180 run liên tiếp gồm 90 run tĩnh và 90 run động, xuất kết quả CSV và
+biểu đồ; kết quả xác nhận cả ba thuật toán duy trì được nhiệm vụ khi môi trường có chướng
+ngại động, với mức tăng replan từ 30\% đến 50\%.
+
+So với mục tiêu đề ra tại Mục~\ref{section:1.2}, cả bốn mục tiêu đều đã hoàn thành. So với
+các giải pháp tương tự, đóng góp của đồ án nằm ở việc tích hợp và so sánh thực nghiệm ba
+cấp độ MAPF trong cùng một môi trường game có vật lý thực tế -- điều chưa thấy trong các
+nghiên cứu được khảo sát.
 
 \section{Hướng phát triển}
-Trong phần này, sinh viên trình bày định hướng công việc trong tương lai để hoàn thiện sản phẩm hoặc nghiên cứu của mình.
 
-Trước tiên, sinh viên trình bày các công việc cần thiết để hoàn thiện các chức năng/nhiệm vụ đã làm. Sau đó sinh viên phân tích các hướng đi mới cho phép cải thiện và nâng cấp các chức năng/nhiệm vụ đã làm.
+Trong ngắn hạn, một số việc cần làm để hoàn thiện hệ thống hiện tại. Trước hết là bổ sung
+trường \texttt{replan\_count} vào giao thức TCP \texttt{plan\_result} để server C++ trả về
+số lần replan thật thay vì phải suy ra từ PIBT~C\#. Tiếp theo là mở rộng ma trận backtest
+với nhiều mức agent (6, 12, 24, 36 agent) nhằm phân tích khả năng scale và vẽ đường cong
+hiệu năng theo số agent. Cuối cùng là thêm seed tất định cho từng run để đảm bảo tái lập
+được hoàn toàn và loại bỏ nhiễu từ quá trình spawn ngẫu nhiên.
+
+Trong dài hạn, đồ án có thể được nâng cấp về cả thuật toán lẫn hệ thống. Hướng đầu tiên
+là tích hợp LNS2 \cite{li2021anytime}, một thuật toán MAPF anytime hiệu năng cao cho phép
+cải thiện dần chất lượng giải pháp theo thời gian tính toán còn lại. Hướng thứ hai là bổ
+sung cơ chế phối hợp tấn công theo đội hình, thay cho việc các agent tấn công Eagle một
+cách độc lập như hiện tại, nhằm tăng hiệu quả và tính hấp dẫn của gameplay. Hướng thứ ba
+là mở rộng hỗ trợ bản đồ động hoàn toàn, trong đó agent có thể phá hủy tường và thay đổi
+đồ thị bản đồ trong thời gian thực, đòi hỏi thuật toán MAPF có khả năng tái hoạch định
+toàn cục. Hướng cuối cùng là triển khai WebGL với PIBT server đặt trên cloud thay vì
+localhost, mở ra khả năng chạy backtest phân tán và demo trực tuyến không cần cài đặt.
+
 \end{document}

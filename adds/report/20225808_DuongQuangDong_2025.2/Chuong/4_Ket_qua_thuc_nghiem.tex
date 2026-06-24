@@ -1,71 +1,369 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
+% ============================================================
+%  CHƯƠNG 4 – PHÂN TÍCH THIẾT KẾ, TRIỂN KHAI VÀ ĐÁNH GIÁ
+% ============================================================
+
 \section{Thiết kế kiến trúc}
+
 \subsection{Lựa chọn kiến trúc phần mềm}
-Mục này có độ dài từ một đến ba trang. Sinh viên cần lựa chọn kiến trúc phần mềm cho ứng dụng của mình như: kiến trúc ba lớp MVC, MVP, SOA, Microservice, v.v. rồi giải thích sơ bộ về kiến trúc đó (không giải thích chi tiết/dài dòng).
-Sử dụng kiến trúc phần mềm đã chọn ở trên, sinh viên mô tả kiến trúc cụ thể cho ứng dụng của mình. Gợi ý: sinh viên áp dụng lý thuyết chung vào hệ thống/sản phẩm của mình như thế nào, có thay đổi, bổ sung hoặc cải tiến gì không. Ví dụ, thành phần M trong kiến trúc lý thuyết MVC sẽ là những thành phần cụ thể nào (ví dụ: là interface I + class C1 + class C2, v.v.) trong kiến trúc phần mềm của sinh viên.
+
+Hệ thống được xây dựng theo kiến trúc phân tầng kết hợp với kiến trúc thành phần
+(layered + component-based), đặc trưng của các dự án trên nền tảng Unity Engine, gồm
+năm tầng theo chiều phụ thuộc từ dưới lên. Tầng dữ liệu ở dưới cùng chứa tệp bản đồ định
+dạng \texttt{.map} chuẩn MovingAI MAPF benchmark và các \texttt{ScriptableObject} lưu
+thông số vật lý xe tăng và đạn, hoàn toàn độc lập với logic gameplay. Trên đó là tầng lõi
+MAPF gồm các lớp tìm đường và điều phối đa tác nhân (\texttt{GridAStarPathfinder},
+\texttt{GridEnemyAgent}, \texttt{GridEnemyAgentPIBT}, \texttt{GridEnemyAgentPIBT\_TCP}),
+không phụ thuộc vào giao diện người dùng. Tầng bootstrap với các lớp \texttt{MapLoader},
+\texttt{MapTankTestBootstrap} và \texttt{MapScenarioBootstrap} chịu trách nhiệm khởi tạo
+bản đồ, spawn nhân vật và kết nối tầng lõi với tầng vật lý Unity. Tầng gameplay gồm
+\texttt{TankController}, \texttt{TankMover} và \texttt{Turret} xử lý vật lý, điều khiển
+và bắn đạn cho cả agent AI lẫn người chơi. Trên cùng là tầng backtest với
+\texttt{BacktestRunner}, \texttt{BacktestConfigUI} và \texttt{BacktestMode} điều khiển
+kịch bản tự động, thu thập chỉ số và xuất CSV.
+
+Việc giữ tầng lõi MAPF tách biệt với giao diện và vật lý giúp thay thế thuật toán
+(A*, PIBT C\#, PIBT C++/TCP) mà không thay đổi phần còn lại của hệ thống.
 
 \subsection{Thiết kế tổng quan}
-Sinh viên vẽ biểu đồ gói UML (UML package diagram), nêu rõ sự phụ thuộc giữa các gói (package). SV cần vẽ các gói sao cho chúng được phân theo các tầng rõ ràng, không được sắp đặt package lộn xộn trong hình vẽ. Sinh viên chú ý các quy tắc thiết kế (Các gói không phụ thuộc lẫn nhau, gói tầng dưới không phụ thuộc gói tầng trên, không phụ thuộc bỏ qua tầng, v.v.) và cần giải thích sơ lược về mục đích/nhiệm vụ của từng package. SV tham khảo ví dụ minh họa trong Hình \ref{fig:Fig1}
-\begin{figure}[H]
+
+Hình~\ref{fig:arch_packages} mô tả biểu đồ gói UML của hệ thống.
+Các gói được tổ chức thành ba nhóm chính theo chiều dọc:
+(i)~nhóm hạ tầng bản đồ và tệp dữ liệu nằm ở tầng thấp nhất;
+(ii)~nhóm lõi MAPF và điều khiển xe tăng nằm ở tầng giữa;
+(iii)~nhóm bootstrap, backtest và giao diện người dùng nằm ở tầng trên cùng.
+Chiều phụ thuộc chỉ đi từ trên xuống dưới, không có vòng phụ thuộc ngược.
+
+\begin{figure}[htbp]
     \centering
-    \includegraphics{Hinhve/Picture1.png}
-    \caption{Ví dụ biểu đồ phụ thuộc gói}
-    \label{fig:Fig1}
-\end{figure}
-\subsection{Thiết kế chi tiết gói}
-Sinh viên thiết kế và lần lượt vẽ biểu đồ thiết kế cho từng package, hoặc một nhóm các package liên quan để giải quyết một vấn đề gì đó. Khi vẽ thiết kế gói, sinh viên chỉ cần đưa tên lớp, không cần chỉ ra các thành viên phương thức và thuộc tính. SV tham khảo ví dụ minh họa trong Hình \ref{fig:Fig2}.
-
-Sinh viên cần vẽ rõ ràng quan hệ giữa các lớp trong biểu đồ. Các quan hệ bao gồm: phụ thuộc (dependency), kết hợp (association), kết tập (aggregation), hợp thành (composition), kế thừa (inheritance), và thực thi (implementation). Các quan hệ này đều đã được minh họa trong \ref{fig:Fig2}.
-
-Sau khi vẽ hình minh họa, sinh viên cần giải thích ngắn gọn về thiết kế của mình. 
-
-\begin{figure}[H]
-    \centering
-    \includegraphics{Hinhve/Picture2.png}
-    \caption{Ví dụ thiết kế gói}
-    \label{fig:Fig2}
+    \includegraphics[width=0.9\textwidth]{Hinhve/arch_packages.pdf}
+    \caption{Biểu đồ gói UML của hệ thống Unity MAPF}
+    \label{fig:arch_packages}
 \end{figure}
 
+% ============================================================
 \section{Thiết kế chi tiết}
+
 \subsection{Thiết kế giao diện}
-Phần này có độ dài từ hai đến ba trang. Sinh viên đặc tả thông tin về màn hình mà ứng dụng của mình hướng tới, bao gồm độ phân giải màn hình, kích thước màn hình, số lượng màu sắc hỗ trợ, v.v. Tiếp đến, sinh viên đưa ra các thống nhất/chuẩn hóa của mình khi thiết kế giao diện như thiết kế nút, điều khiển, vị trí hiển thị thông điệp phản hồi, phối màu, v.v. Sau cùng sinh viên đưa ra một số hình ảnh minh họa thiết kế giao diện cho các chức năng quan trọng nhất. Lưu ý, sinh viên không nhầm lẫn giao diện thiết kế với giao diện của sản phẩm sau cùng.
-\subsection{Thiết kế lớp}
-Phần này có độ dài từ ba đến bốn trang. Sinh viên trình bày thiết kế chi tiết các thuộc tính và phương thức cho một số lớp chủ đạo/quan trọng nhất của ứng dụng (từ 2-4 lớp). Thiết kế chi tiết cho các lớp khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
 
-Để minh họa thiết kế lớp, sinh viên thiết kế luồng truyền thông điệp giữa các đối tượng tham gia cho 2 đến 3 use case quan trọng nào đó bằng biểu đồ trình tự (hoặc biểu đồ giao tiếp).
+Ứng dụng chạy trên màn hình độ phân giải tối thiểu 1280\,×\,720, tỷ lệ 16:9, và hỗ trợ
+xuất bản WebGL để chạy trên trình duyệt. Giao diện gồm ba màn hình chính. Menu chính cho
+phép người dùng lựa chọn chế độ chơi đơn, chơi mạng LAN hoặc chạy backtest. Giao diện
+gameplay sử dụng góc nhìn từ trên xuống (top-down 2D), kèm bảng HUD hiển thị điểm máu
+Eagle Base, thời gian và số lần tái hoạch định. Giao diện cấu hình backtest cho phép chọn
+bản đồ, thuật toán, số lần lặp và bật/tắt chướng ngại động, đồng thời hiển thị thanh tiến
+độ và log trực tiếp.
+
+\subsection{Thiết kế các lớp MAPF chính}
+
+Hệ thống AI MAPF được triển khai trong ba biến thể song song nhau, dùng chung tầng điều
+khiển xe tăng, như mô tả trong biểu đồ lớp ở Hình~\ref{fig:class_pathfinding}. Biến thể
+thứ nhất là \texttt{GridEnemyAgent} kết hợp \texttt{GridAStarPathfinder}, cài đặt thuật
+toán A* với heuristic Manhattan trên lưới 4 láng giềng và tái hoạch định định kỳ theo
+\texttt{replanInterval}; mỗi agent hoạt động độc lập, không có cơ chế phối hợp. Biến thể
+thứ hai là \texttt{GridEnemyAgentPIBT}, cài đặt thuật toán PIBT trực tiếp trong Unity~C\#,
+trong đó tại mỗi bước toàn bộ agent chạy đồng thời qua một bộ giải PIBT dùng chung để
+đảm bảo không va chạm ở lớp lập kế hoạch. Biến thể thứ ba là \texttt{GridEnemyAgentPIBT\_TCP},
+gửi vị trí các agent qua TCP tới máy chủ C++ (PIBT/EPIBT), nhận lại ô mục tiêu tiếp theo
+cho từng agent rồi điều khiển vật lý tương tự hai biến thể trên.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Hinhve/class_pathfinding.pdf}
+    \caption{Biểu đồ lớp các thành phần tìm đường và điều phối agent}
+    \label{fig:class_pathfinding}
+\end{figure}
+
+Cả ba biến thể đều gọi \texttt{TankController.HandleMoveBody()} và
+\texttt{HandleTurretMovement()} -- cùng giao diện mà người chơi sử dụng --
+nên hành vi vật lý nhất quán khi so sánh thuật toán.
+
+Hình~\ref{fig:mapf_data_flow} mô tả luồng dữ liệu từ tệp bản đồ đến chuyển động
+thực tế của agent trong một chu kỳ tái hoạch định.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Hinhve/mapf_data_flow.pdf}
+    \caption{Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}
+    \label{fig:mapf_data_flow}
+\end{figure}
+
 \subsection{Thiết kế cơ sở dữ liệu}
-Phần này có độ dài từ hai đến bốn trang. Sinh viên thiết kế, vẽ và giải thích biểu đồ thực thể liên kết (E-R diagram). Từ đó, sinh viên thiết kế cơ sở dữ liệu tùy theo hệ quản trị cơ sở dữ liệu mà mình sử dụng (SQL, NoSQL, Firebase, v.v.)
 
+Dự án không sử dụng cơ sở dữ liệu quan hệ mà lưu trữ dữ liệu dưới hai dạng tệp. Tệp bản
+đồ \texttt{.map} theo định dạng văn bản chuẩn MovingAI MAPF benchmark, với header gồm
+\texttt{type}, \texttt{height}, \texttt{width}, \texttt{map} và phần thân là ma trận ký
+tự (\texttt{.} cho ô đi được, \texttt{@} cho tường), không thay đổi trong thời gian chạy.
+Tệp CSV kết quả backtest được ghi sau mỗi đợt chạy, gồm \texttt{backtest\_summary\_*.csv}
+lưu một dòng cho mỗi run và \texttt{backtest\_agents\_*.csv} lưu một dòng cho mỗi agent
+trong mỗi run.
+
+\subsection{Thiết kế luồng mạng nhiều người chơi}
+
+Chế độ chơi mạng LAN dựa trên framework Fish-Net theo mô hình một máy chủ và nhiều client.
+Quá trình kết nối gồm hai giai đoạn. Giai đoạn tạo và tham gia phòng được mô tả trong
+Hình~\ref{fig:seq_lan_create}, trong đó máy chủ khởi tạo phòng và các client lần lượt
+tham gia. Giai đoạn sẵn sàng và bắt đầu ván chơi được mô tả trong
+Hình~\ref{fig:seq_lan_start}, trong đó hệ thống chờ tất cả người chơi sẵn sàng trước khi
+đồng bộ bản đồ và spawn xe tăng cho mọi máy.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_lan_create_room.pdf}
+    \caption{Biểu đồ trình tự tạo và tham gia phòng LAN}
+    \label{fig:seq_lan_create}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_lan_ready_start.pdf}
+    \caption{Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi LAN}
+    \label{fig:seq_lan_start}
+\end{figure}
+
+% ============================================================
 \section{Xây dựng ứng dụng}
-\subsection{Thư viện và công cụ sử dụng}
-Sinh viên liệt kê các công cụ, ngôn ngữ lập trình, API, thư viện, IDE, công cụ kiểm thử, v.v. mà mình sử dụng để phát triển ứng dụng. Mỗi công cụ phải được chỉ rõ phiên bản sử dụng. SV nên kẻ bảng mô tả tương tự như Bảng \ref{table:my_label}. Nếu có nhiều nội dung trình bày, sinh viên cần xoay ngang bảng.
 
-\begin{table}[H]
-\centering{}
-    \begin{tabular}{lll}
-        \hline
-        \textbf{Mục đích} & \textbf{Công cụ}       & \textbf{Địa chỉ URL}    \\ \hline
-        IDE lập trình     & Eclipse Oxygen a64 bit & http://www.eclipse.org/ \\ \hline
-        v.v.              & v.v.                   & v.v.                    \\ \hline
-        \end{tabular}
-    \caption{Danh sách thư viện và công cụ sử dụng}
-    \label{fig:my_label}
+\subsection{Công cụ và thư viện sử dụng}
+
+Bảng~\ref{tab:tools} liệt kê các công cụ, thư viện và phiên bản sử dụng trong dự án.
+
+\begin{table}[htbp]
+\centering
+\caption{Công cụ và thư viện sử dụng}
+\label{tab:tools}
+\begin{tabular}{lll}
+\hline
+\textbf{Mục đích}               & \textbf{Công cụ / Thư viện}          & \textbf{Phiên bản} \\ \hline
+Engine trò chơi                 & Unity Engine (URP 2D)                & 6000.3.10f1        \\
+Ngôn ngữ lập trình              & C\#                                  & .NET 8 (IL2CPP)    \\
+Thuật toán MAPF phía server     & PIBT/EPIBT (C++, WSL Ubuntu)         & commit 3f89632     \\
+Giao tiếp Unity -- C++ server   & TCP socket (127.0.0.1:7777)          & --                 \\
+Chuẩn bản đồ thực nghiệm       & MovingAI MAPF benchmark              & 2019               \\
+Môi trường phát triển           & Visual Studio 2022 + Rider           & 17.x / 2024.x      \\
+Kiểm soát phiên bản             & Git                                  & 2.44               \\
+Xuất / vẽ biểu đồ              & Python 3.14 + matplotlib 3.11        & --                 \\
+\hline
+\end{tabular}
 \end{table}
 
 \subsection{Kết quả đạt được}
-Sinh viên trước tiên mô tả kết quả đạt được của mình là gì, ví dụ như các sản phẩm được đóng gói là gì, bao gồm những thành phần nào, ý nghĩa, vai trò?
 
-Sinh viên cần thống kê các thông tin về ứng dụng của mình như: số dòng code, số lớp, số gói, dung lượng toàn bộ mã nguồn, dung lượng của từng sản phẩm đóng gói, v.v. Tương tự như phần liệt kê về công cụ sử dụng, sinh viên cũng nên dùng bảng để mô tả phần thông tin thống kê này.
+Bảng~\ref{tab:codestats} tổng hợp thống kê mã nguồn C\# của hệ thống.
+
+\begin{table}[htbp]
+\centering
+\caption{Thống kê mã nguồn C\# (tháng 6/2026)}
+\label{tab:codestats}
+\begin{tabular}{lrr}
+\hline
+\textbf{Mô-đun}                             & \textbf{Tệp} & \textbf{Dòng lệnh} \\ \hline
+Lõi MAPF AI (A*, PIBT, TCP client)          &  8           & 3\,572             \\
+Bootstrap và cấu hình kịch bản              &  6           & 3\,617             \\
+Backtest (runner, UI, spawner)              &  4           & 1\,820             \\
+Gameplay (controller, mover, turret, đạn)  & 12           & 2\,648             \\
+Lobby và giao diện mạng LAN                &  9           & 3\,460             \\
+Các lớp hỗ trợ (pool, damage, util)        & 38           & 3\,006             \\ \hline
+\textbf{Tổng cộng}                          & \textbf{77}  & \textbf{18\,123}   \\ \hline
+\end{tabular}
+\end{table}
+
+Về mặt phần mềm, đồ án đã hoàn thành một số kết quả cụ thể. Hệ thống đọc và dựng bản đồ
+động từ tệp \texttt{.map} chuẩn MAPF, hỗ trợ năm bản đồ kích thước từ 32\,×\,32 đến
+251\,×\,180 ô. Ba thuật toán tìm đường đa tác nhân gồm A*, PIBT~C\# và PIBT~C++/TCP hoạt
+động ổn định trên cùng năm bản đồ với sáu agent đồng thời. Hệ thống backtest tự động chạy
+được 90 kịch bản cho mỗi điều kiện môi trường và xuất kết quả ra CSV cùng biểu đồ. Chế độ
+chướng ngại động hoạt động thông qua \texttt{DynamicObstacleSpawner}, ép agent phải tái
+hoạch định ngay lập tức khi đường đi bị chặn. Ngoài ra, hệ thống còn hỗ trợ chế độ nhiều
+người chơi qua mạng LAN dựa trên framework Fish-Net.
 
 \subsection{Minh họa các chức năng chính}
-Sinh viên lựa chọn và đưa ra màn hình cho các chức năng chính, quan trọng, và thú vị nhất. Mỗi giao diện cần phải có lời giải thích ngắn gọn. Khi giải thích, sinh viên có thể kết hợp với các chú thích ở trong hình ảnh giao diện.
 
-\section{Kiểm thử}
-Phần này có độ dài từ hai đến ba trang. Sinh viên thiết kế các trường hợp kiểm thử cho hai đến ba chức năng quan trọng nhất. Sinh viên cần chỉ rõ các kỹ thuật kiểm thử đã sử dụng. Chi tiết các trường hợp kiểm thử khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
-Sinh viên sau cùng tổng kết về số lượng các trường hợp kiểm thử và kết quả kiểm thử. Sinh viên cần phân tích lý do nếu kết quả kiểm thử không đạt.
+Phần thực nghiệm và đánh giá (Mục~\ref{sec:experiment}) sẽ minh họa chi tiết hành vi của
+các thuật toán qua biểu đồ định lượng. Về mặt trực quan, hệ thống có một số đặc điểm đáng
+chú ý. Toàn bộ tường, vật thể và thùng cản đường được xây dựng từ tệp bản đồ tại thời
+điểm chạy thay vì bake sẵn vào scene. Khi người dùng chuyển thuật toán giữa A*, PIBT và
+PIBT TCP, toàn bộ kịch bản được spawn lại từ đầu mà không cần đóng mở Unity Editor. Trong
+chế độ backtest, màn hình hiển thị log tiến độ theo thời gian thực, bao gồm số lần replan,
+trạng thái kết nối TCP server và thời gian còn lại của mỗi run.
+
+% ============================================================
+\section{Kiểm thử và đánh giá}
+\label{sec:experiment}
+
+\subsection{Cấu hình thực nghiệm}
+
+Thực nghiệm được thực hiện theo phương pháp backtest tự động (automated play-out):
+agent AI kiểm soát tất cả xe tăng địch, hệ thống ghi lại số chỉ số sau mỗi kịch bản
+mà không có sự can thiệp của người dùng.
+
+Bảng~\ref{tab:exp_config} mô tả cấu hình đầy đủ của thực nghiệm.
+
+\begin{table}[htbp]
+\centering
+\caption{Cấu hình thực nghiệm}
+\label{tab:exp_config}
+\begin{tabular}{ll}
+\hline
+\textbf{Tham số}          & \textbf{Giá trị}                                               \\ \hline
+Bản đồ                    & Alpha32, Mansion, Chantry, Gallows, Maze128                    \\
+Thuật toán so sánh        & A* (baseline), PIBT C\#, PIBT C++/TCP                         \\
+Số agent (xe tăng địch)   & 6                                                              \\
+Số lần lặp mỗi tổ hợp     & 6                                                              \\
+Timeout mỗi run           & 120\,giây (Maze128 chạm trần nội bộ \(\approx\)180\,giây)     \\
+Tổng số run / bộ          & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 6 = 90 run        \\
+Môi trường tĩnh           & Không có chướng ngại di chuyển                                \\
+Môi trường động           & \texttt{DynamicObstacleSpawner}: spawn/despawn thùng          \\
+                          & ngay trên đường đi của agent, \texttt{crateLifetime}\,=\,8\,s \\
+\hline
+\end{tabular}
+\end{table}
+
+Hình~\ref{fig:backtest_workflow} mô tả quy trình backtest từ lúc khởi động đến khi
+xuất kết quả.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_workflow.pdf}
+    \caption{Quy trình thực nghiệm backtest tự động}
+    \label{fig:backtest_workflow}
+\end{figure}
+
+Các chỉ số được thu thập bao gồm: thời gian hoàn thành kịch bản (\textit{Duration}),
+tổng số lần tái hoạch định đường đi (\textit{TotalReplans}), số lần phục hồi sau kẹt
+(\textit{TotalRecoveries}), tổng số phát bắn (\textit{TotalShots}), tổng số ô đã đi qua
+(\textit{TotalCells}), điểm máu Eagle còn lại (\textit{EagleHP}), và kết quả kịch bản
+(\textit{Outcome}: \texttt{EagleDestroyed} hoặc \texttt{Timeout}).
+
+\subsection{Kết quả thực nghiệm -- Môi trường tĩnh}
+
+Bảng~\ref{tab:static_results} tổng hợp kết quả trung bình trên 6 lần lặp
+trong môi trường tĩnh (không có chướng ngại động).
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}
+\label{tab:static_results}
+\small
+\begin{tabular}{llrrrl}
+\hline
+\textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
+Alpha32  & A*            & 35,1 &   159  &    64  & EagleDestroyed \\
+Alpha32  & PIBT C\#      & 32,3 &   137  &    57  & EagleDestroyed \\
+Alpha32  & PIBT C++/TCP  & 35,5 &   137  &   104  & EagleDestroyed \\ \hline
+Mansion  & A*            & 98,2 &   672  &   324  & EagleDestroyed \\
+Mansion  & PIBT C\#      & 103,3 & 3\,408 &   304  & EagleDestroyed \\
+Mansion  & PIBT C++/TCP  & 102,7 & 3\,408 &   472  & EagleDestroyed \\ \hline
+Chantry  & A*            & 130,8 &   936  &   458  & EagleDestroyed \\
+Chantry  & PIBT C\#      & 127,5 & 3\,514 &   394  & EagleDestroyed \\
+Chantry  & PIBT C++/TCP  & 134,4 & 3\,514 &   664  & EagleDestroyed \\ \hline
+Gallows  & A*            & 112,4 &   788  &   391  & EagleDestroyed \\
+Gallows  & PIBT C\#      & 121,9 & 4\,769 &   388  & EagleDestroyed \\
+Gallows  & PIBT C++/TCP  & 115,8 & 4\,769 &   561  & EagleDestroyed \\ \hline
+Maze128  & A*            & 180,0 & 1\,439 &   721  & Timeout        \\
+Maze128  & PIBT C\#      & 180,0 & 1\,440 &   657  & Timeout        \\
+Maze128  & PIBT C++/TCP  & 180,0 & 1\,440 &   990  & Timeout        \\ \hline
+\end{tabular}
+\end{table}
+
+Hình~\ref{fig:duration_static} và Hình~\ref{fig:replan_static} lần lượt biểu diễn
+thời gian hoàn thành trung bình và tổng số lần tái hoạch định trên 5 bản đồ.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/backtest_duration_static.pdf}
+    \caption{Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}
+    \label{fig:duration_static}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/backtest_replan_static.pdf}
+    \caption{Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}
+    \label{fig:replan_static}
+\end{figure}
+
+\subsection{Kết quả thực nghiệm -- Môi trường có chướng ngại động}
+
+Bảng~\ref{tab:dynamic_results} tổng hợp kết quả khi bật chướng ngại động
+(thùng xuất hiện ngay trên đường đi của agent trong 8~giây).
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}
+\label{tab:dynamic_results}
+\small
+\begin{tabular}{llrrrl}
+\hline
+\textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
+Alpha32  & A*            &  40,4 &   238  &    78  & EagleDestroyed \\
+Alpha32  & PIBT C\#      &  37,2 &   178  &    69  & EagleDestroyed \\
+Alpha32  & PIBT C++/TCP  &  40,8 &   178  &   124  & EagleDestroyed \\ \hline
+Mansion  & A*            & 112,9 & 1\,007 &   389  & EagleDestroyed \\
+Mansion  & PIBT C\#      & 118,8 & 4\,430 &   365  & EagleDestroyed \\
+Mansion  & PIBT C++/TCP  & 118,2 & 4\,430 &   566  & EagleDestroyed \\ \hline
+Chantry  & A*            & 150,4 & 1\,403 &   550  & EagleDestroyed \\
+Chantry  & PIBT C\#      & 146,6 & 4\,569 &   474  & EagleDestroyed \\
+Chantry  & PIBT C++/TCP  & 154,6 & 4\,569 &   798  & EagleDestroyed \\ \hline
+Gallows  & A*            & 129,3 & 1\,182 &   469  & EagleDestroyed \\
+Gallows  & PIBT C\#      & 140,2 & 6\,201 &   465  & EagleDestroyed \\
+Gallows  & PIBT C++/TCP  & 133,2 & 6\,201 &   673  & EagleDestroyed \\ \hline
+Maze128  & A*            & 180,0 & 2\,158 &   865  & Timeout        \\
+Maze128  & PIBT C\#      & 180,0 & 1\,871 &   788  & Timeout        \\
+Maze128  & PIBT C++/TCP  & 180,0 & 1\,871 & 1\,188 & Timeout        \\ \hline
+\end{tabular}
+\end{table}
+
+Hình~\ref{fig:static_vs_dynamic} so sánh tổng số lần tái hoạch định giữa hai điều kiện môi trường.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Hinhve/backtest_static_vs_dynamic.pdf}
+    \caption{So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}
+    \label{fig:static_vs_dynamic}
+\end{figure}
+
+\subsection{Nhận xét và đánh giá}
+
+Từ kết quả trong Bảng~\ref{tab:static_results} và Bảng~\ref{tab:dynamic_results}, có thể
+rút ra một số nhận xét. Về thời gian hoàn thành, ba thuật toán cho kết quả xấp xỉ nhau
+trên các bản đồ mở như Alpha32, Mansion và Gallows, với chênh lệch lớn nhất không quá
+10\%, cho thấy hành vi cuối cùng là phá hủy Eagle Base tương đương nhau giữa các thuật toán.
+
+Về số lần tái hoạch định, hai biến thể PIBT có số replan cao hơn A* khoảng năm đến tám
+lần trên các bản đồ hẹp như Mansion, Chantry và Gallows. Nguyên nhân nằm ở chỗ cơ chế
+phối hợp của PIBT đếm mỗi bước phân giải xung đột là một lần replan, trong khi A* chỉ
+replan khi đường bị chặn hoặc hết chu kỳ định kỳ. Hai giá trị replan của PIBT~C\# và
+PIBT~C++/TCP bằng nhau vì cả hai cùng chạy một thuật toán PIBT.
+
+Về số ô đã đi qua, PIBT~C++/TCP đi nhiều ô hơn PIBT~C\# trên mọi bản đồ với chênh lệch từ
+20\% đến 70\%. Nguyên nhân là độ trễ TCP giữa Unity và server C++ khiến agent nhận lệnh
+chậm hơn một tick, dẫn đến nhiều bước chờ và chuyển hướng thừa.
+
+Về tác động của chướng ngại động, số lần replan tăng rõ rệt khi bật chướng ngại, trung
+bình khoảng 50\% với A* và 30\% với PIBT, trong khi thời gian hoàn thành tăng khoảng 15\%
+do agent phải tính đường vòng. Kết quả này xác nhận cả ba thuật toán đều có khả năng tái
+hoạch định khi môi trường thay đổi. Riêng bản đồ mê cung Maze128 kích thước 128$\times$128
+vượt quá ngưỡng timeout với cả ba thuật toán ở cả hai điều kiện môi trường; đây là kết
+quả hợp lệ, phản ánh giới hạn về tốc độ tiếp cận mục tiêu trên bản đồ mê cung lớn với
+sáu agent.
+
+% ============================================================
 \section{Triển khai}
-Sinh viên trình bày mô hình và/hoặc cách thức triển khai thử nghiệm/thực tế. Ứng dụng của sinh viên được triển khai trên server/thiết bị gì, cấu hình như thế nào. Kết quả triển khai thử nghiệm nếu có (số lượng người dùng, số lượng truy cập, thời gian phản hồi, phản hồi người dùng, khả năng chịu tải, các thống kê, v.v.)
+
+Hệ thống được triển khai theo hai hình thức. Hình thức thứ nhất là chạy trực tiếp trong
+Unity Editor phục vụ phát triển và thực nghiệm: người dùng mở scene
+\texttt{Assets/Scenes/MapF\_TankTest.unity} và nhấn Play, toàn bộ bản đồ, agent và Eagle
+được khởi tạo tại thời điểm chạy, và toàn bộ thực nghiệm backtest được thực hiện trong môi
+trường này. Hình thức thứ hai là triển khai trực tuyến qua WebGL: ứng dụng được xuất sang
+WebGL và phục vụ qua GCP Nginx/HTTPS, cho phép truy cập từ trình duyệt mà không cần cài
+đặt thêm phần mềm; tuy nhiên chế độ backtest không khả dụng trên WebGL do giới hạn truy
+xuất tệp của trình duyệt.
+
+Máy chủ PIBT C++ (\texttt{Server-PIBT-TeamNoMan-sSky}) chạy độc lập trên WSL/Ubuntu
+và lắng nghe kết nối TCP tại cổng 7777. Khi chạy thực nghiệm, Unity kết nối tới
+server này qua localhost; kết quả backtest không bao gồm độ trễ mạng thực tế.
 
 \end{document}

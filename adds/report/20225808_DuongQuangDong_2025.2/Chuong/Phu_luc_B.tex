@@ -1,11 +1,58 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-Nếu trong nội dung chính không đủ không gian cho các use case khác (ngoài các use case nghiệp vụ chính) thì đặc tả thêm cho các use case đó ở đây.
 
-\section{Đặc tả use case ``Thống kê tình hình mượn sách''}
-\ldots
+Phụ lục này đặc tả chi tiết hai use case bổ sung không trình bày trong Chương~2:
+chơi mạng LAN nhiều người (UC2) và xem kết quả backtest (UC5).
 
-\section{Đặc tả use case ``Đăng ký làm thẻ mượn''}
-\ldots
+\section{Đặc tả UC2 -- Chơi mạng LAN nhiều người}
+
+\begin{table}[htbp]
+\centering
+\caption{Đặc tả UC2 -- Chơi mạng LAN}
+\label{tab:uc2}
+\small
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Tên use case}   & Chơi mạng LAN nhiều người \\
+\textbf{Tác nhân}       & Người chơi chủ phòng (host), người chơi tham gia (client) \\
+\textbf{Tiền điều kiện} & Các máy cùng mạng LAN; một máy tạo phòng, các máy khác tham gia \\
+\textbf{Luồng chính}    &
+1. Host tạo phòng, hệ thống khởi tạo máy chủ Fish-Net và hiển thị mã/địa chỉ phòng. \newline
+2. Các client nhập địa chỉ và tham gia phòng. \newline
+3. Mỗi người chơi chọn xe tăng và bấm sẵn sàng (ready). \newline
+4. Khi tất cả sẵn sàng, host bấm bắt đầu; hệ thống đồng bộ bản đồ và spawn xe tăng cho mọi người chơi. \newline
+5. Số agent AI được tính theo công thức 6 agent mỗi người chơi; các agent tấn công Eagle Base chung. \newline
+6. Trạng thái xe tăng, đạn và Eagle được đồng bộ giữa các máy theo thời gian thực. \\
+\textbf{Luồng phát sinh} &
+2a. Client nhập sai địa chỉ → báo lỗi kết nối, quay lại màn hình nhập. \newline
+4a. Một client mất kết nối → host nhận thông báo và tiếp tục ván chơi với số người còn lại. \\
+\textbf{Hậu điều kiện}  & Ván chơi kết thúc đồng bộ trên mọi máy; hiển thị kết quả chung \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Đặc tả UC5 -- Xem kết quả backtest}
+
+\begin{table}[htbp]
+\centering
+\caption{Đặc tả UC5 -- Xem kết quả backtest}
+\label{tab:uc5}
+\small
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Tên use case}   & Xem kết quả backtest \\
+\textbf{Tác nhân}       & Người dùng (nghiên cứu viên) \\
+\textbf{Tiền điều kiện} & Đã chạy ít nhất một đợt backtest và sinh tệp kết quả \\
+\textbf{Luồng chính}    &
+1. Người dùng mở thư mục \texttt{BacktestResults/}. \newline
+2. Mở tệp \texttt{backtest\_summary\_*.csv} để xem kết quả tổng hợp theo từng run. \newline
+3. Mở tệp \texttt{backtest\_chart\_*.html} để xem biểu đồ trực quan trên trình duyệt. \newline
+4. Mở tệp \texttt{backtest\_agents\_*.csv} để xem chi tiết chỉ số từng agent. \\
+\textbf{Luồng phát sinh} &
+3a. Nếu môi trường thiếu Python/matplotlib, tệp PNG không sinh được nhưng HTML vẫn hiển thị bảng số liệu. \\
+\textbf{Hậu điều kiện}  & Người dùng nắm được kết quả định lượng của đợt thực nghiệm \\
+\hline
+\end{tabular}
+\end{table}
 
 \end{document}

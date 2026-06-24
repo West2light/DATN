@@ -1,0 +1,362 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated as
+% required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+\datalist[entry]{none/global//global/global/global}
+  \entry{stern2019mapf}{inproceedings}{}{}
+    \true{moreauthor}
+    \true{morelabelname}
+    \name{author}{10}{}{%
+      {{hash=SR}{%
+         family={Stern},
+         familyi={S\bibinitperiod},
+         given={Roni},
+         giveni={R\bibinitperiod},
+      }}%
+      {{hash=SN}{%
+         family={Sturtevant},
+         familyi={S\bibinitperiod},
+         given={Nathan},
+         giveni={N\bibinitperiod},
+      }}%
+      {{hash=FA}{%
+         family={Felner},
+         familyi={F\bibinitperiod},
+         given={Ariel},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=KS}{%
+         family={Koenig},
+         familyi={K\bibinitperiod},
+         given={Sven},
+         giveni={S\bibinitperiod},
+      }}%
+      {{hash=MH}{%
+         family={Ma},
+         familyi={M\bibinitperiod},
+         given={Hang},
+         giveni={H\bibinitperiod},
+      }}%
+      {{hash=WT}{%
+         family={Walker},
+         familyi={W\bibinitperiod},
+         given={Thayne},
+         giveni={T\bibinitperiod},
+      }}%
+      {{hash=LJ}{%
+         family={Li},
+         familyi={L\bibinitperiod},
+         given={Jiaoyang},
+         giveni={J\bibinitperiod},
+      }}%
+      {{hash=AD}{%
+         family={Atzmon},
+         familyi={A\bibinitperiod},
+         given={Dor},
+         giveni={D\bibinitperiod},
+      }}%
+      {{hash=CL}{%
+         family={Cohen},
+         familyi={C\bibinitperiod},
+         given={Liron},
+         giveni={L\bibinitperiod},
+      }}%
+      {{hash=KTKS}{%
+         family={Kumar},
+         familyi={K\bibinitperiod},
+         given={T.\bibnamedelima K.\bibnamedelima Satish},
+         giveni={T\bibinitperiod\bibinitdelim K\bibinitperiod\bibinitdelim
+  S\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{SR+1}
+    \strng{fullhash}{SRSNFAKSMHWTLJADCLKTKS+1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{Proceedings of the 12th International Symposium on
+  Combinatorial Search (SoCS)}
+    \field{pages}{151\bibrangedash 158}
+    \field{title}{Multi-agent pathfinding: Definitions, variants, and
+  benchmarks}
+    \field{year}{2019}
+  \endentry
+
+  \entry{hart1968astar}{article}{}{}
+    \name{author}{3}{}{%
+      {{hash=HPE}{%
+         family={Hart},
+         familyi={H\bibinitperiod},
+         given={Peter\bibnamedelima E.},
+         giveni={P\bibinitperiod\bibinitdelim E\bibinitperiod},
+      }}%
+      {{hash=NNJ}{%
+         family={Nilsson},
+         familyi={N\bibinitperiod},
+         given={Nils\bibnamedelima J.},
+         giveni={N\bibinitperiod\bibinitdelim J\bibinitperiod},
+      }}%
+      {{hash=RB}{%
+         family={Raphael},
+         familyi={R\bibinitperiod},
+         given={Bertram},
+         giveni={B\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {IEEE}%
+    }
+    \strng{namehash}{HPE+1}
+    \strng{fullhash}{HPENNJRB1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{number}{2}
+    \field{pages}{100\bibrangedash 107}
+    \field{title}{A formal basis for the heuristic determination of minimum
+  cost paths}
+    \field{volume}{4}
+    \field{journaltitle}{IEEE Transactions on Systems Science and Cybernetics}
+    \field{year}{1968}
+  \endentry
+
+  \entry{sharon2015cbs}{article}{}{}
+    \name{author}{4}{}{%
+      {{hash=SG}{%
+         family={Sharon},
+         familyi={S\bibinitperiod},
+         given={Guni},
+         giveni={G\bibinitperiod},
+      }}%
+      {{hash=SR}{%
+         family={Stern},
+         familyi={S\bibinitperiod},
+         given={Roni},
+         giveni={R\bibinitperiod},
+      }}%
+      {{hash=FA}{%
+         family={Felner},
+         familyi={F\bibinitperiod},
+         given={Ariel},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=SNR}{%
+         family={Sturtevant},
+         familyi={S\bibinitperiod},
+         given={Nathan\bibnamedelima R.},
+         giveni={N\bibinitperiod\bibinitdelim R\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {Elsevier}%
+    }
+    \strng{namehash}{SG+1}
+    \strng{fullhash}{SGSRFASNR1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{pages}{40\bibrangedash 66}
+    \field{title}{Conflict-based search for optimal multi-agent pathfinding}
+    \field{volume}{219}
+    \field{journaltitle}{Artificial Intelligence}
+    \field{year}{2015}
+  \endentry
+
+  \entry{okumura2022pibt}{inproceedings}{}{}
+    \name{author}{4}{}{%
+      {{hash=OK}{%
+         family={Okumura},
+         familyi={O\bibinitperiod},
+         given={Keisuke},
+         giveni={K\bibinitperiod},
+      }}%
+      {{hash=MM}{%
+         family={Machida},
+         familyi={M\bibinitperiod},
+         given={Manao},
+         giveni={M\bibinitperiod},
+      }}%
+      {{hash=DX}{%
+         family={D{\'e}fago},
+         familyi={D\bibinitperiod},
+         given={Xavier},
+         giveni={X\bibinitperiod},
+      }}%
+      {{hash=TY}{%
+         family={Tamura},
+         familyi={T\bibinitperiod},
+         given={Yasumasa},
+         giveni={Y\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {Elsevier}%
+    }
+    \strng{namehash}{OK+1}
+    \strng{fullhash}{OKMMDXTY1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{Artificial Intelligence}
+    \field{pages}{103752}
+    \field{title}{Priority inheritance with backtracking for iterative
+  multi-agent path finding}
+    \field{volume}{310}
+    \field{year}{2022}
+  \endentry
+
+  \entry{de2013cooperative}{inproceedings}{}{}
+    \name{author}{3}{}{%
+      {{hash=DWB}{%
+         family={De\bibnamedelima Wilde},
+         familyi={D\bibinitperiod\bibinitdelim W\bibinitperiod},
+         given={Bert},
+         giveni={B\bibinitperiod},
+      }}%
+      {{hash=TMAW}{%
+         family={Ter\bibnamedelima Mors},
+         familyi={T\bibinitperiod\bibinitdelim M\bibinitperiod},
+         given={Adriaan\bibnamedelima W.},
+         giveni={A\bibinitperiod\bibinitdelim W\bibinitperiod},
+      }}%
+      {{hash=WC}{%
+         family={Witteveen},
+         familyi={W\bibinitperiod},
+         given={Cees},
+         giveni={C\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{DWB+1}
+    \strng{fullhash}{DWBTMAWWC1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{Proceedings of the 5th International Conference on Agents
+  and Artificial Intelligence (ICAART)}
+    \field{pages}{186\bibrangedash 194}
+    \field{title}{Cooperative pathfinding}
+    \field{volume}{2}
+    \field{year}{2013}
+  \endentry
+
+  \entry{movingai2019benchmark}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=SN}{%
+         family={Sturtevant},
+         familyi={S\bibinitperiod},
+         given={Nathan},
+         giveni={N\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{SN1}
+    \strng{fullhash}{SN1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{{MovingAI} {MAPF} Benchmark}
+    \verb{url}
+    \verb https://movingai.com/benchmarks/mapf.html
+    \endverb
+    \field{year}{2019}
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{sturtevant2012benchmarks}{inproceedings}{}{}
+    \name{author}{1}{}{%
+      {{hash=SNR}{%
+         family={Sturtevant},
+         familyi={S\bibinitperiod},
+         given={Nathan\bibnamedelima R.},
+         giveni={N\bibinitperiod\bibinitdelim R\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{SNR1}
+    \strng{fullhash}{SNR1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{IEEE Transactions on Computational Intelligence and AI in
+  Games}
+    \field{number}{2}
+    \field{pages}{144\bibrangedash 148}
+    \field{title}{Benchmarks for Grid-Based Pathfinding}
+    \field{volume}{4}
+    \field{year}{2012}
+  \endentry
+
+  \entry{unity2024engine}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=U}{%
+         family={{Unity Technologies}},
+         familyi={U\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{U1}
+    \strng{fullhash}{U1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Unity Engine 6 Documentation}
+    \verb{url}
+    \verb https://docs.unity3d.com/6000.0/Documentation/Manual/
+    \endverb
+    \field{year}{2024}
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{li2021anytime}{inproceedings}{}{}
+    \name{author}{5}{}{%
+      {{hash=LJ}{%
+         family={Li},
+         familyi={L\bibinitperiod},
+         given={Jiaoyang},
+         giveni={J\bibinitperiod},
+      }}%
+      {{hash=CZ}{%
+         family={Chen},
+         familyi={C\bibinitperiod},
+         given={Zhe},
+         giveni={Z\bibinitperiod},
+      }}%
+      {{hash=HD}{%
+         family={Harabor},
+         familyi={H\bibinitperiod},
+         given={Daniel},
+         giveni={D\bibinitperiod},
+      }}%
+      {{hash=SNR}{%
+         family={Sturtevant},
+         familyi={S\bibinitperiod},
+         given={Nathan\bibnamedelima R.},
+         giveni={N\bibinitperiod\bibinitdelim R\bibinitperiod},
+      }}%
+      {{hash=KS}{%
+         family={Koenig},
+         familyi={K\bibinitperiod},
+         given={Sven},
+         giveni={S\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{LJ+1}
+    \strng{fullhash}{LJCZHDSNRKS1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{Proceedings of the 30th International Joint Conference on
+  Artificial Intelligence (IJCAI)}
+    \field{pages}{4127\bibrangedash 4135}
+    \field{title}{Anytime multi-agent path finding via large neighborhood
+  search}
+    \field{year}{2021}
+  \endentry
+\enddatalist
+\endinput
