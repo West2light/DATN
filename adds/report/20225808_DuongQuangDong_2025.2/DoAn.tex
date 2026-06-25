@@ -30,6 +30,7 @@
 \usepackage[ruled,vlined]{algorithm2e}  % Hỗ trợ viết các giải thuật
 \usepackage{capt-of} % Cho phép sử dụng caption lớn đối với landscape page
 \usepackage{multirow} % Merge cells
+\usepackage{longtable} % Bảng đặc tả use case in-flow, tự ngắt trang (tránh khoảng trắng do float)
 \usepackage{fancyhdr} % Cho phép tùy biến header và footer
 % \usepackage[natbib,backend=biber,style=ieee]{biblatex} % Giúp chèn tài liệu tham khảo
 \usepackage{appendix}
@@ -330,6 +331,7 @@
 \chapter{KẾT QUẢ BACKTEST CHI TIẾT}
 \subfile{Chuong/Phu_luc_A}
 \newpage
-\chapter{ĐẶC TẢ USE CASE BỔ SUNG}
+\chapter{NHÓM USE CASE TRIỂN KHAI VÀ VẬN HÀNH}
+\label{chapter:appendixB}
 \subfile{Chuong/Phu_luc_B}
 \end{document}

@@ -51,9 +51,14 @@ với môi trường thời gian thực. PIBT được chọn vì nó cân bằn
 khả năng phối hợp đa agent, và đã được dùng thành công trong cuộc thi MAPF quốc tế
 \cite{movingai2019benchmark}.
 
-Đồ án triển khai PIBT theo hai cách: (i) trực tiếp trong Unity~C\# (\texttt{GridEnemyAgentPIBT})
-để không phụ thuộc hạ tầng ngoài; (ii) qua giao tiếp TCP với máy chủ C++ tốc độ cao
-(\texttt{GridEnemyAgentPIBT\_TCP}) để thể hiện hướng tích hợp planner bên ngoài Unity.
+PIBT tiếp tục là nền tảng của nhiều phương pháp MAPF hiện đại. Gần đây, biến thể mở rộng
+EPIBT \cite{yukhnevich2025epibt} bổ sung các thao tác đa hành động (multi-action
+operations) kết hợp graph guidance và large neighborhood search, đạt kết quả tốt nhất
+hiện tại trên bài toán Lifelong MAPF trực tuyến có ràng buộc xoay hướng. Điều này cho
+thấy hướng tiếp cận PIBT mà đồ án lựa chọn vẫn đang được nghiên cứu tích cực và bám sát
+hiệu năng hàng đầu.
+
+Đồ án tiến hành triển khai thuật toán PIBT theo hai phương pháp tiếp cận khác nhau. Phương pháp thứ nhất là cài đặt trực tiếp trong môi trường Unity bằng ngôn ngữ C\# thông qua lớp \texttt{GridEnemyAgentPIBT}, giúp hệ thống hoạt động độc lập mà không cần phụ thuộc vào hạ tầng bên ngoài. Phương pháp thứ hai là giao tiếp qua giao thức TCP với một máy chủ C++ có tốc độ xử lý cao, được hiện thực hóa thông qua lớp \texttt{GridEnemyAgentPIBT\_TCP}, nhằm minh chứng cho khả năng tích hợp một hệ thống tìm đường (planner) độc lập bên ngoài Unity.
 
 \section{Unity Engine và C\#}
 \label{section:3.4}
@@ -80,6 +85,12 @@ TCP/IP theo mô hình client--server. Phía Unity đóng vai trò client: sau m�
 gửi trạng thái hiện tại gồm vị trí các agent và kích thước bản đồ, rồi nhận lại ô mục
 tiêu tiếp theo cho từng agent. Phía máy chủ C++ đóng vai trò server: chạy thuật toán
 PIBT, duy trì trạng thái lập kế hoạch và lắng nghe trên cổng~7777 (localhost).
+
+Hướng tiếp cận PIBT này vẫn đang được nghiên cứu tích cực: bản mở rộng EPIBT
+\cite{yukhnevich2025epibt} (phiên bản đầy đủ được chấp nhận tại hội nghị AAAI-26) còn
+vượt qua chính lời giải vô địch LoRR~2024 trên bài toán Lifelong MAPF có ràng buộc xoay
+hướng. Việc nhúng máy chủ PIBT~C++ vào Unity vì vậy không chỉ là giải pháp kỹ thuật mà
+còn là cách đưa một dòng thuật toán đang dẫn đầu vào trải nghiệm chơi trực quan.
 
 TCP được chọn thay vì UDP vì đảm bảo thứ tự và toàn vẹn gói tin -- yếu tố quan trọng khi
 mỗi gói lệnh di chuyển đều cần thiết và không chấp nhận mất mát. Giao tiếp qua mạng nội

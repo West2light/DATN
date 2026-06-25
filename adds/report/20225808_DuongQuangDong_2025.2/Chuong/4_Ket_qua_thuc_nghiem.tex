@@ -11,14 +11,16 @@
 
 Hệ thống được xây dựng theo kiến trúc phân tầng kết hợp với kiến trúc thành phần
 (layered + component-based), đặc trưng của các dự án trên nền tảng Unity Engine, gồm
-năm tầng theo chiều phụ thuộc từ dưới lên. Tầng dữ liệu ở dưới cùng chứa tệp bản đồ định
+năm tầng theo chiều phụ thuộc từ dưới lên (biểu đồ gói tổng thể ở
+Hình~\ref{fig:arch_packages}). Tầng dữ liệu ở dưới cùng chứa tệp bản đồ định
 dạng \texttt{.map} chuẩn MovingAI MAPF benchmark và các \texttt{ScriptableObject} lưu
 thông số vật lý xe tăng và đạn, hoàn toàn độc lập với logic gameplay. Trên đó là tầng lõi
 MAPF gồm các lớp tìm đường và điều phối đa tác nhân (\texttt{GridAStarPathfinder},
 \texttt{GridEnemyAgent}, \texttt{GridEnemyAgentPIBT}, \texttt{GridEnemyAgentPIBT\_TCP}),
-không phụ thuộc vào giao diện người dùng. Tầng bootstrap với các lớp \texttt{MapLoader},
-\texttt{MapTankTestBootstrap} và \texttt{MapScenarioBootstrap} chịu trách nhiệm khởi tạo
-bản đồ, spawn nhân vật và kết nối tầng lõi với tầng vật lý Unity. Tầng gameplay gồm
+không phụ thuộc vào giao diện người dùng. Tiếp nối là tầng bootstrap, đóng vai trò
+khởi tạo bản đồ thông qua lớp \texttt{MapLoader}. Tầng này còn đảm nhiệm việc sinh ra
+(spawn) các nhân vật và kết nối tầng lõi thuật toán với hệ thống vật lý của Unity,
+thông qua hai lớp \texttt{MapTankTestBootstrap} cùng \texttt{MapScenarioBootstrap}. Tầng gameplay gồm
 \texttt{TankController}, \texttt{TankMover} và \texttt{Turret} xử lý vật lý, điều khiển
 và bắn đạn cho cả agent AI lẫn người chơi. Trên cùng là tầng backtest với
 \texttt{BacktestRunner}, \texttt{BacktestConfigUI} và \texttt{BacktestMode} điều khiển
@@ -29,19 +31,22 @@ Việc giữ tầng lõi MAPF tách biệt với giao diện và vật lý giúp
 
 \subsection{Thiết kế tổng quan}
 
-Hình~\ref{fig:arch_packages} mô tả biểu đồ gói UML của hệ thống.
-Các gói được tổ chức thành ba nhóm chính theo chiều dọc:
-(i)~nhóm hạ tầng bản đồ và tệp dữ liệu nằm ở tầng thấp nhất;
-(ii)~nhóm lõi MAPF và điều khiển xe tăng nằm ở tầng giữa;
-(iii)~nhóm bootstrap, backtest và giao diện người dùng nằm ở tầng trên cùng.
-Chiều phụ thuộc chỉ đi từ trên xuống dưới, không có vòng phụ thuộc ngược.
+Hình~\ref{fig:arch_packages} mô tả biểu đồ gói UML của hệ thống. Kiến trúc tổng thể được xây dựng tuân thủ theo nguyên lý phân tầng nghiêm ngặt, đảm bảo tính đóng gói và dễ dàng bảo trì. Các gói thành phần được tổ chức thành ba nhóm chính theo chiều dọc, đi từ mức nền tảng hệ thống cho tới mức tương tác với người dùng:
+
+Thứ nhất, nhóm hạ tầng bản đồ và tệp dữ liệu nằm ở tầng thấp nhất. Nhóm này chịu trách nhiệm lưu trữ các tham số thiết lập môi trường, thông số vật lý của các thực thể (ScriptableObject), cũng như quản lý thao tác nạp bản đồ từ định dạng chuẩn của cộng đồng nghiên cứu MAPF.
+
+Thứ hai, nhóm lõi thuật toán MAPF và điều khiển xe tăng nằm ở tầng giữa, đóng vai trò cốt lõi của hệ thống. Tầng này chứa các thuật toán tìm đường (A*, PIBT) và các lớp xử lý hành vi của tác nhân. Nó hoạt động hoàn toàn độc lập, tiếp nhận dữ liệu từ tầng dưới và cung cấp các giao tiếp (API) điều khiển cho tầng trên.
+
+Thứ ba, nhóm bootstrap, backtest và giao diện người dùng nằm ở tầng trên cùng. Tầng bootstrap thực hiện chức năng khởi tạo và kết nối (wiring) các thành phần khi bắt đầu trò chơi. Tầng backtest hỗ trợ chạy tự động các kịch bản thử nghiệm để thu thập dữ liệu. Cuối cùng, tầng giao diện chịu trách nhiệm hiển thị thông tin trực quan và tiếp nhận thao tác điều khiển từ người chơi.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{Hinhve/arch_packages.pdf}
+    \includegraphics[width=0.85\textwidth]{Hinhve/arch_packages.png}
     \caption{Biểu đồ gói UML của hệ thống Unity MAPF}
     \label{fig:arch_packages}
 \end{figure}
+
+Đặc tính quan trọng của thiết kế này là chiều phụ thuộc chỉ đi một chiều từ trên xuống dưới. Các thành phần ở tầng thấp hoàn toàn không phụ thuộc hay cần biết về sự tồn tại của các thành phần ở tầng cao hơn. Điều này giúp loại bỏ triệt để vấn đề vòng phụ thuộc ngược (circular dependency), giúp mã nguồn dễ dàng nâng cấp hoặc tích hợp các thuật toán mới trong tương lai.
 
 % ============================================================
 \section{Thiết kế chi tiết}
@@ -50,11 +55,27 @@ Chiều phụ thuộc chỉ đi từ trên xuống dưới, không có vòng ph�
 
 Ứng dụng chạy trên màn hình độ phân giải tối thiểu 1280\,×\,720, tỷ lệ 16:9, và hỗ trợ
 xuất bản WebGL để chạy trên trình duyệt. Giao diện gồm ba màn hình chính. Menu chính cho
-phép người dùng lựa chọn chế độ chơi đơn, chơi mạng LAN hoặc chạy backtest. Giao diện
-gameplay sử dụng góc nhìn từ trên xuống (top-down 2D), kèm bảng HUD hiển thị điểm máu
-Eagle Base, thời gian và số lần tái hoạch định. Giao diện cấu hình backtest cho phép chọn
-bản đồ, thuật toán, số lần lặp và bật/tắt chướng ngại động, đồng thời hiển thị thanh tiến
-độ và log trực tiếp.
+phép người dùng lựa chọn chế độ chơi đơn, chơi nhiều người qua Internet hoặc chạy backtest.
+Giao diện gameplay sử dụng góc nhìn từ trên xuống (top-down 2D), kèm bảng HUD hiển thị điểm
+máu Eagle Base, thời gian và số lần tái hoạch định. Giao diện cấu hình backtest cho phép
+chọn bản đồ, thuật toán, số lần lặp và bật/tắt chướng ngại động, đồng thời hiển thị thanh
+tiến độ và log trực tiếp.
+
+Hình~\ref{fig:act_single} mô tả sơ đồ hoạt động của luồng giao diện chế độ chơi đơn
+đã được triển khai, trải qua bốn vùng trách nhiệm (swimlane): người chơi, lớp giao diện
+menu, runtime của Unity và lõi lập kế hoạch MAPF. Người chơi chọn chế độ và bản đồ, hệ
+thống nạp scene tương ứng, sau đó tùy theo thuật toán được chọn (A*, PIBT C\# hay PIBT~TCP)
+mà runtime gọi đúng nhánh lập kế hoạch để sinh đường đi hoặc hành động cho agent, rồi chạy
+trận đấu và hiển thị kết quả. Sơ đồ này cho thấy lựa chọn thuật toán được tách thành một
+điểm rẽ nhánh trong luồng, nhờ đó việc thay thuật toán không làm thay đổi các bước giao
+diện phía trước và phía sau.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/03_single_play_activity.drawio.png}
+    \caption{Sơ đồ hoạt động luồng giao diện chế độ chơi đơn đã triển khai}
+    \label{fig:act_single}
+\end{figure}
 
 \subsection{Thiết kế các lớp MAPF chính}
 
@@ -71,24 +92,39 @@ cho từng agent rồi điều khiển vật lý tương tự hai biến thể t
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{Hinhve/class_pathfinding.pdf}
+    \includegraphics[width=0.72\textwidth]{Hinhve/class_pathfinding.png}
     \caption{Biểu đồ lớp các thành phần tìm đường và điều phối agent}
     \label{fig:class_pathfinding}
 \end{figure}
 
-Cả ba biến thể đều gọi \texttt{TankController.HandleMoveBody()} và
-\texttt{HandleTurretMovement()} -- cùng giao diện mà người chơi sử dụng --
-nên hành vi vật lý nhất quán khi so sánh thuật toán.
+Biểu đồ lớp cho thấy ba biến thể agent đều kế thừa cùng một mạch điều khiển: chúng nhận
+lưới từ \texttt{MapLoader}, được \texttt{MapScenarioBootstrap} sinh ra, và ủy thác phần
+tính toán đường đi cho một bộ tìm đường tương ứng (\texttt{GridAStarPathfinder},
+\texttt{GridPIBTPathfinder} hoặc client TCP/WebRelay). Riêng biến thể TCP tách hẳn phần
+lập kế hoạch sang tiến trình ngoài: \texttt{PIBTTcpClient} dùng cho bản chạy gốc (native)
+và \texttt{PIBTWebRelayClient} dùng cho bản WebGL, cả hai cùng trao đổi với một
+\texttt{PlannerSession} ở phía máy chủ. Nhờ điểm chung là tất cả đều điều khiển xe tăng
+qua hai phương thức \texttt{HandleMoveBody} và \texttt{HandleTurretMovement} của lớp
+\texttt{TankController} -- hoàn toàn giống cơ chế điều khiển của người chơi -- hành vi vật
+lý luôn nhất quán và công bằng khi so sánh các thuật toán.
 
-Hình~\ref{fig:mapf_data_flow} mô tả luồng dữ liệu từ tệp bản đồ đến chuyển động
-thực tế của agent trong một chu kỳ tái hoạch định.
+Hình~\ref{fig:mapf_data_flow} mô tả chi tiết luồng dữ liệu MAPF, bắt đầu từ khâu nạp tệp bản đồ cho đến khi tạo ra chuyển động thực tế của từng agent trong một chu kỳ tái hoạch định. Đầu tiên, dữ liệu bản đồ được phân tích để trích xuất các ô lưới (grid) hợp lệ. Sau đó, hệ thống gán trạng thái cho các agent và đẩy vào lõi PIBT. Tại mỗi bước mô phỏng, thuật toán tính toán ô mục tiêu tiếp theo cho từng xe tăng sao cho không xảy ra va chạm. Cuối cùng, kết quả này được chuyển đổi thành tham số lực đẩy và góc xoay để truyền vào \texttt{TankController} thực thi chuyển động.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.88\textwidth]{Hinhve/mapf_data_flow.pdf}
+    \includegraphics[width=0.85\textwidth]{Hinhve/07_mapf_data_flow.drawio.png}
     \caption{Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}
     \label{fig:mapf_data_flow}
 \end{figure}
+
+Biểu đồ lớp (Hình~\ref{fig:class_pathfinding}) và luồng dữ liệu
+(Hình~\ref{fig:mapf_data_flow}) mô tả \emph{cấu trúc tĩnh} của ba biến thể. Phần
+\emph{hành vi động theo thời gian} của từng thuật toán -- thời điểm tái hoạch định, dữ
+liệu trao đổi ở mỗi bước và cách áp dụng hành động trả về -- được trình bày kèm phân tích
+đóng góp ở Chương~\ref{chapter:SolutionAndContribution}, gồm biểu đồ trình tự của A*
+(Hình~\ref{fig:seq_astar}), của PIBT~C\# (Hình~\ref{fig:seq_pibt}) và của cầu nối PIBT
+C++/TCP (Hình~\ref{fig:seq_pibt_tcp}). Cách bố trí này tránh lặp lại cùng một biểu đồ ở
+hai chương, đồng thời giữ cho mục thiết kế tập trung vào quan hệ giữa các lớp.
 
 \subsection{Thiết kế cơ sở dữ liệu}
 
@@ -96,32 +132,104 @@ Dự án không sử dụng cơ sở dữ liệu quan hệ mà lưu trữ dữ l
 đồ \texttt{.map} theo định dạng văn bản chuẩn MovingAI MAPF benchmark, với header gồm
 \texttt{type}, \texttt{height}, \texttt{width}, \texttt{map} và phần thân là ma trận ký
 tự (\texttt{.} cho ô đi được, \texttt{@} cho tường), không thay đổi trong thời gian chạy.
-Tệp CSV kết quả backtest được ghi sau mỗi đợt chạy, gồm \texttt{backtest\_summary\_*.csv}
-lưu một dòng cho mỗi run và \texttt{backtest\_agents\_*.csv} lưu một dòng cho mỗi agent
-trong mỗi run.
+Kết quả backtest được ghi ra hai tệp CSV sau mỗi đợt chạy, có cấu trúc trường tóm tắt
+trong Bảng~\ref{tab:csv_schema}: tệp \texttt{backtest\_summary\_*.csv} lưu một dòng cho
+mỗi run (mức kịch bản), còn tệp \texttt{backtest\_agents\_*.csv} lưu một dòng cho mỗi agent
+trong mỗi run (mức tác nhân). Bốn trường khóa \texttt{Run}, \texttt{Map}, \texttt{Algorithm},
+\texttt{Rep} xuất hiện ở cả hai tệp, cho phép ghép (join) dữ liệu hai mức khi phân tích.
+
+\begin{table}[htbp]
+\centering
+\caption{Cấu trúc trường của hai tệp CSV kết quả backtest}
+\label{tab:csv_schema}
+\small
+\begin{tabular}{lp{9.5cm}}
+\hline
+\textbf{Tệp} & \textbf{Các trường chính} \\ \hline
+\texttt{backtest\_summary} & \texttt{Run}, \texttt{Map}, \texttt{Algorithm}, \texttt{Rep},
+\texttt{Outcome}, \texttt{Duration\_s}, \texttt{EagleHP}, \texttt{EagleHPLostPct},
+\texttt{AgentCount}, \texttt{EnemiesAlive}, \texttt{TotalReplans}, \texttt{TotalRecoveries},
+\texttt{TotalShots}, \texttt{TotalCells} \\ \hline
+\texttt{backtest\_agents} & \texttt{Run}, \texttt{Map}, \texttt{Algorithm}, \texttt{Rep},
+\texttt{Outcome}, \texttt{AgentName}, \texttt{Replans}, \texttt{Recoveries}, \texttt{Shots},
+\texttt{CellsVisited}, \texttt{InitialPathLen}, \texttt{DeadAtEnd} \\ \hline
+\end{tabular}
+\end{table}
+
+Tệp tóm tắt phục vụ so sánh tổng thể giữa các thuật toán (các biểu đồ trong mục
+\ref{sec:experiment}), còn tệp mức agent phục vụ phân tích sâu hành vi từng xe tăng, ví dụ
+độ dài đường đi ban đầu so với số ô thực tế đã đi qua. Cách lưu phẳng bằng CSV giúp dữ liệu
+đọc trực tiếp được bằng các công cụ bảng tính và thư viện Python mà không cần thiết lập máy
+chủ cơ sở dữ liệu.
 
 \subsection{Thiết kế luồng mạng nhiều người chơi}
 
-Chế độ chơi mạng LAN dựa trên framework Fish-Net theo mô hình một máy chủ và nhiều client.
-Quá trình kết nối gồm hai giai đoạn. Giai đoạn tạo và tham gia phòng được mô tả trong
-Hình~\ref{fig:seq_lan_create}, trong đó máy chủ khởi tạo phòng và các client lần lượt
-tham gia. Giai đoạn sẵn sàng và bắt đầu ván chơi được mô tả trong
-Hình~\ref{fig:seq_lan_start}, trong đó hệ thống chờ tất cả người chơi sẵn sàng trước khi
-đồng bộ bản đồ và spawn xe tăng cho mọi máy.
+Chế độ nhiều người chơi được thiết kế theo hướng kết nối qua Internet để hai người chơi ở
+hai máy khác nhau có thể cùng tham gia một trận. Hình~\ref{fig:act_internet} mô tả sơ đồ
+hoạt động mức cao của luồng Host/Join: một người tạo phòng (Host) và người còn lại tham gia
+(Join) bằng mã phòng, sau đó cả hai vào phòng chờ trước khi trận bắt đầu. Bên cạnh đó, hệ
+thống vẫn giữ lại chế độ chơi mạng nội bộ (LAN) dựa trên framework Fish-Net cho trường hợp
+hai máy ở cùng mạng cục bộ; phần này tập trung mô tả nhánh Internet vì đây là luồng được
+sử dụng chính khi triển khai trực tuyến.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{Hinhve/seq_lan_create_room.pdf}
-    \caption{Biểu đồ trình tự tạo và tham gia phòng LAN}
-    \label{fig:seq_lan_create}
+    \includegraphics[width=0.92\textwidth]{Hinhve/04_internet_host_join_activity.drawio.png}
+    \caption{Sơ đồ hoạt động luồng Host/Join nhiều người chơi qua Internet}
+    \label{fig:act_internet}
 \end{figure}
+
+Quá trình kết nối qua Internet gồm hai giai đoạn. Giai đoạn tạo phòng được mô tả trong
+Hình~\ref{fig:seq_internet_create}: từ menu, lớp \texttt{InternetSessionClient} gửi yêu cầu
+tạo phòng tới dịch vụ đăng ký (Registry API); dịch vụ này yêu cầu thành phần GCP Helper
+khởi động một máy chủ trò chơi WebSocket với đúng bản đồ và chế độ. Nếu máy chủ sẵn sàng,
+hệ thống trả về mã phòng cùng đường liên kết và hiển thị phòng chờ cho Host; nếu thất bại,
+giao diện chuyển sang trạng thái cho phép thử lại.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{Hinhve/seq_lan_ready_start.pdf}
-    \caption{Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi LAN}
-    \label{fig:seq_lan_start}
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_internet_create_room.png}
+    \caption{Biểu đồ trình tự tạo phòng chơi nhiều người qua Internet}
+    \label{fig:seq_internet_create}
 \end{figure}
+
+Biểu đồ trong Hình~\ref{fig:seq_internet_create} có sáu thành phần tham gia: người chơi
+giữ vai trò Host, lớp giao diện Menu, \texttt{InternetSessionClient} ở phía client, dịch
+vụ Registry API, thành phần GCP Helper và máy chủ trò chơi WebSocket. Ở luồng thành công
+(nhánh \emph{Server ready}), yêu cầu tạo phòng đi tuần tự qua từng lớp: Host chọn bản đồ
+và chế độ trên Menu, \texttt{InternetSessionClient} gọi \texttt{POST /api/rooms} tới
+Registry API, Registry yêu cầu GCP Helper khởi động lại một phòng web, Helper ra lệnh cho
+máy chủ WebSocket nạp đúng bản đồ và chế độ; máy chủ báo \emph{Ready} ngược về Registry, và
+mã phòng cùng đường liên kết được trả về để client mở phòng chờ. Ở nhánh \emph{Create
+failed}, lỗi được đẩy ngược về client và giao diện chuyển sang trạng thái cho phép thử lại
+thay vì treo. Việc tách Registry và Helper khỏi máy chủ trò chơi giúp một dịch vụ đăng ký
+nhẹ quản lý được vòng đời nhiều phòng mà không phải giữ kết nối trận đấu, đồng thời cô lập
+phần cấp phát hạ tầng GCP khỏi logic gameplay.
+
+Giai đoạn sẵn sàng và bắt đầu ván chơi được mô tả trong Hình~\ref{fig:seq_internet_ready}.
+Sau khi người chơi tham gia phòng, danh sách người chơi được đồng bộ qua máy chủ; mỗi người
+chọn xe tăng và bấm sẵn sàng, trạng thái này được cập nhật liên tục. Khi tất cả đã sẵn sàng,
+Host bắt đầu trận: máy chủ nạp scene gameplay, sinh xe tăng người chơi và các agent đối thủ,
+sau đó liên tục đồng bộ (replicate) trạng thái thế giới về cho mọi máy để đảm bảo các bên
+nhìn thấy cùng một diễn biến trận đấu.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_internet_ready_start.png}
+    \caption{Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi nhiều người qua Internet}
+    \label{fig:seq_internet_ready}
+\end{figure}
+
+Biểu đồ trong Hình~\ref{fig:seq_internet_ready} tập trung vào pha đồng bộ trạng thái phòng
+chờ. Sau khi Host mở phòng và Guest tham gia, máy chủ trò chơi duy trì một danh sách người
+chơi chung và phát lại (broadcast) cho mọi máy. Vòng lặp \emph{Players choose tank and
+ready} cho thấy mỗi khi một người đổi xe tăng hoặc bật/tắt sẵn sàng, trạng thái được gửi lên
+máy chủ rồi cập nhật cho tất cả, nhờ đó hai máy luôn thấy cùng một danh sách. Điều kiện bắt
+đầu trận được kiểm soát ở nhánh \emph{All ready}: chỉ khi mọi người đã sẵn sàng, Host mới
+kích hoạt \texttt{Start match}; máy chủ nạp scene gameplay, Game Coordinator sinh xe tăng
+người chơi và các agent đối thủ, sau đó máy chủ liên tục đồng bộ (replicate) trạng thái thế
+giới về cả Host lẫn Guest. Nếu còn người chưa sẵn sàng (nhánh \emph{Not ready}), hệ thống
+tiếp tục chờ; đây cũng là cơ chế bảo đảm không máy nào vào trận sớm hơn máy khác.
 
 % ============================================================
 \section{Xây dựng ứng dụng}
@@ -164,7 +272,7 @@ Lõi MAPF AI (A*, PIBT, TCP client)          &  8           & 3\,572            
 Bootstrap và cấu hình kịch bản              &  6           & 3\,617             \\
 Backtest (runner, UI, spawner)              &  4           & 1\,820             \\
 Gameplay (controller, mover, turret, đạn)  & 12           & 2\,648             \\
-Lobby và giao diện mạng LAN                &  9           & 3\,460             \\
+Lobby và giao diện mạng                    &  9           & 3\,460             \\
 Các lớp hỗ trợ (pool, damage, util)        & 38           & 3\,006             \\ \hline
 \textbf{Tổng cộng}                          & \textbf{77}  & \textbf{18\,123}   \\ \hline
 \end{tabular}
@@ -177,17 +285,134 @@ Về mặt phần mềm, đồ án đã hoàn thành một số kết quả cụ
 được 90 kịch bản cho mỗi điều kiện môi trường và xuất kết quả ra CSV cùng biểu đồ. Chế độ
 chướng ngại động hoạt động thông qua \texttt{DynamicObstacleSpawner}, ép agent phải tái
 hoạch định ngay lập tức khi đường đi bị chặn. Ngoài ra, hệ thống còn hỗ trợ chế độ nhiều
-người chơi qua mạng LAN dựa trên framework Fish-Net.
+người chơi qua Internet (và mạng LAN nội bộ dựa trên framework Fish-Net).
 
 \subsection{Minh họa các chức năng chính}
 
-Phần thực nghiệm và đánh giá (Mục~\ref{sec:experiment}) sẽ minh họa chi tiết hành vi của
-các thuật toán qua biểu đồ định lượng. Về mặt trực quan, hệ thống có một số đặc điểm đáng
-chú ý. Toàn bộ tường, vật thể và thùng cản đường được xây dựng từ tệp bản đồ tại thời
-điểm chạy thay vì bake sẵn vào scene. Khi người dùng chuyển thuật toán giữa A*, PIBT và
-PIBT TCP, toàn bộ kịch bản được spawn lại từ đầu mà không cần đóng mở Unity Editor. Trong
-chế độ backtest, màn hình hiển thị log tiến độ theo thời gian thực, bao gồm số lần replan,
-trạng thái kết nối TCP server và thời gian còn lại của mỗi run.
+Phần này minh họa giao diện thực tế của sản phẩm qua ảnh chụp màn hình, theo trình tự từ
+menu, luồng chơi đơn, luồng chơi nhiều người đến màn hình kết thúc trận. Các use case đã
+được đặc tả ở Chương~\ref{chapter:Related_works}; phần này cho thấy hiện thực tương ứng.
+
+\textbf{Màn hình menu chính.} Hình~\ref{fig:ss_menu} là điểm vào của ứng dụng. Người chơi
+chọn \textbf{SINGLE PLAY} để vào chế độ chơi đơn (nhóm use case A) hoặc \textbf{MULTIPLAYER
+INTERNET} để vào chế độ nhiều người (nhóm use case B); nút mở backtest chỉ xuất hiện ở bản
+chạy local/Editor.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{Hinhve/Menu.png}
+\caption{Màn hình menu chính với hai chế độ SINGLE PLAY và MULTIPLAYER INTERNET}
+\label{fig:ss_menu}
+\end{figure}
+
+\textbf{Luồng chơi đơn.} Sau khi chọn SINGLE PLAY, người chơi lần lượt chọn mẫu xe tăng
+(Hình~\ref{fig:ss_single_tank}), sau đó chọn bản đồ và thuật toán AI
+(Hình~\ref{fig:ss_single_map}) -- đúng trình tự đặc tả ở use case UC-A1.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/Single_play_to_select_color_tank.png}
+\caption{Chế độ chơi đơn -- màn chọn mẫu/màu xe tăng}
+\label{fig:ss_single_tank}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/Single_play_select_map.png}
+\caption{Chế độ chơi đơn -- màn chọn bản đồ và thuật toán AI}
+\label{fig:ss_single_map}
+\end{figure}
+
+Màn hình trong Hình~\ref{fig:ss_single_map} gộp hai lựa chọn vào cùng một bước: mỗi thẻ bản
+đồ hiển thị ảnh thu nhỏ của một bản đồ benchmark MovingAI (Alpha-32, Mansion, Chantry,
+Gallows, Maze-128) kèm ngay bên dưới ba nút thuật toán A*, PIBT và PIBT-TCP, nên người chơi
+chọn đồng thời bản đồ và thuật toán điều khiển agent chỉ bằng một thao tác. Đây đúng là năm
+bản đồ và ba thuật toán được dùng trong thực nghiệm ở mục~\ref{sec:experiment}; nhờ vậy kịch
+bản chơi đơn và kịch bản backtest chạy trên cùng một tập cấu hình, người chơi có thể quan
+sát trực quan chính các tình huống mà phần đánh giá định lượng đo đạc.
+
+Khi vào trận (Hình~\ref{fig:ss_inround_single}), toàn bộ tường và vật cản được dựng từ
+tệp \texttt{.map} tại thời điểm chạy; người chơi điều khiển xe tăng phòng thủ Eagle Base
+trong khi các agent AI tự tìm đường tấn công.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/In_round_game.png}
+\caption{Một trận chơi đơn đang diễn ra}
+\label{fig:ss_inround_single}
+\end{figure}
+
+Trong cảnh trận ở Hình~\ref{fig:ss_inround_single}, các khối xám là tường và vật cản được
+dựng từ tệp \texttt{.map} tại thời điểm chạy theo đúng bố cục bản đồ đã chọn, còn ô vuông
+màu vàng là Eagle Base mà người chơi phải bảo vệ. Phần HUD ở góc trên hiển thị thanh máu
+của Eagle và thời gian trận. Các xe tăng địch do agent AI điều khiển tự tìm đường tiến về
+Eagle Base; đường đi dự kiến của chúng hiện lên thành các vệt nét đứt mờ trên sân, cho thấy
+thuật toán MAPF đang chạy theo thời gian thực. Người chơi điều khiển xe tăng của mình di
+chuyển và bắn để chặn các agent trước khi Eagle Base bị phá hủy.
+
+\textbf{Luồng chơi nhiều người.} Khi chọn MULTIPLAYER INTERNET, người chơi chọn vai trò
+Host hoặc Join (Hình~\ref{fig:ss_mp_role}), rồi cấu hình bản đồ và số agent đối thủ
+(Hình~\ref{fig:ss_mp_config}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{Hinhve/Multiple_Select_Role.png}
+\caption{Chế độ nhiều người -- chọn vai trò Host/Join}
+\label{fig:ss_mp_role}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/MultiplaySelect_countEnemyAgent_map.png}
+\caption{Chế độ nhiều người -- chọn bản đồ và số agent đối thủ}
+\label{fig:ss_mp_config}
+\end{figure}
+
+Chủ phòng quản lý phòng chờ và bắt đầu trận khi mọi người sẵn sàng
+(Hình~\ref{fig:ss_mp_host}). Hình~\ref{fig:ss_inround_mp} minh họa một trận nhiều người với
+trạng thái xe tăng, đạn và Eagle được đồng bộ giữa các máy.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/host_game_multiple.png}
+\caption{Phòng chờ nhiều người phía chủ phòng (Host)}
+\label{fig:ss_mp_host}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Hinhve/Inround_game_multiplayer.png}
+\caption{Một trận nhiều người đang diễn ra}
+\label{fig:ss_inround_mp}
+\end{figure}
+
+\textbf{Kết thúc trận.} Khi Eagle Base bị phá hủy, người chơi thua
+(Hình~\ref{fig:ss_lose}); khi tiêu diệt hết agent mà Eagle còn máu, người chơi thắng
+(Hình~\ref{fig:ss_win}) -- tương ứng các nhánh của use case UC-A3.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{Hinhve/lose_scene.png}
+    \caption{Thua trận khi Eagle Base bị phá hủy}
+    \label{fig:ss_lose}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{Hinhve/win_scene.png}
+    \caption{Thắng trận khi tiêu diệt hết agent}
+    \label{fig:ss_win}
+\end{subfigure}
+\caption{Hai màn hình kết thúc trận của chế độ chơi đơn}
+\label{fig:ss_endgame}
+\end{figure}
+
+Ngoài ra, khi người dùng chuyển thuật toán giữa A*, PIBT và PIBT~TCP, toàn bộ kịch bản
+được spawn lại từ đầu mà không cần đóng mở Unity Editor; trong chế độ backtest, màn hình
+hiển thị log tiến độ theo thời gian thực gồm số lần replan, trạng thái kết nối TCP server
+và thời gian còn lại của mỗi run.
 
 % ============================================================
 \section{Kiểm thử và đánh giá}
@@ -197,9 +422,9 @@ trạng thái kết nối TCP server và thời gian còn lại của mỗi run.
 
 Thực nghiệm được thực hiện theo phương pháp backtest tự động (automated play-out):
 agent AI kiểm soát tất cả xe tăng địch, hệ thống ghi lại số chỉ số sau mỗi kịch bản
-mà không có sự can thiệp của người dùng.
-
-Bảng~\ref{tab:exp_config} mô tả cấu hình đầy đủ của thực nghiệm.
+mà không có sự can thiệp của người dùng. Bảng~\ref{tab:exp_config} mô tả cấu hình đầy
+đủ của thực nghiệm, còn Hình~\ref{fig:backtest_workflow} mô tả quy trình backtest từ
+lúc khởi động đến khi xuất kết quả.
 
 \begin{table}[htbp]
 \centering
@@ -221,12 +446,9 @@ Môi trường động           & \texttt{DynamicObstacleSpawner}: spawn/despaw
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:backtest_workflow} mô tả quy trình backtest từ lúc khởi động đến khi
-xuất kết quả.
-
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_workflow.pdf}
+    \includegraphics[width=0.85\textwidth]{Hinhve/13_backtest_workflow.drawio.png}
     \caption{Quy trình thực nghiệm backtest tự động}
     \label{fig:backtest_workflow}
 \end{figure}
@@ -268,19 +490,25 @@ Maze128  & PIBT C++/TCP  & 180,0 & 1\,440 &   990  & Timeout        \\ \hline
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:duration_static} và Hình~\ref{fig:replan_static} lần lượt biểu diễn
-thời gian hoàn thành trung bình và tổng số lần tái hoạch định trên 5 bản đồ.
+Hình~\ref{fig:duration_static} biểu diễn thời gian hoàn thành trung bình trên 5 bản đồ.
+Có thể thấy ba thuật toán cho thời gian gần như trùng nhau trên các bản đồ mở, và cùng
+chạm trần timeout trên bản đồ mê cung Maze128.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth]{Hinhve/backtest_duration_static.pdf}
+    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_duration_static.png}
     \caption{Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}
     \label{fig:duration_static}
 \end{figure}
 
+Trong khi thời gian gần như tương đương, số lần tái hoạch định lại khác biệt rất lớn giữa
+A* và hai biến thể PIBT, như minh họa ở Hình~\ref{fig:replan_static} (vẽ theo thang
+logarit để thấy rõ chênh lệch nhiều lần). Nguyên nhân của khác biệt này được phân tích chi
+tiết ở phần nhận xét và đánh giá cuối mục này.
+
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth]{Hinhve/backtest_replan_static.pdf}
+    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_replan_static.png}
     \caption{Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}
     \label{fig:replan_static}
 \end{figure}
@@ -316,11 +544,13 @@ Maze128  & PIBT C++/TCP  & 180,0 & 1\,871 & 1\,188 & Timeout        \\ \hline
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:static_vs_dynamic} so sánh tổng số lần tái hoạch định giữa hai điều kiện môi trường.
+Hình~\ref{fig:static_vs_dynamic} so sánh trực tiếp tổng số lần tái hoạch định giữa hai
+điều kiện môi trường cho từng thuật toán, cho thấy chướng ngại động làm tăng đáng kể số
+lần replan ở mọi thuật toán.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.88\textwidth]{Hinhve/backtest_static_vs_dynamic.pdf}
+    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_static_vs_dynamic.png}
     \caption{So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}
     \label{fig:static_vs_dynamic}
 \end{figure}
@@ -353,17 +583,29 @@ sáu agent.
 % ============================================================
 \section{Triển khai}
 
-Hệ thống được triển khai theo hai hình thức. Hình thức thứ nhất là chạy trực tiếp trong
-Unity Editor phục vụ phát triển và thực nghiệm: người dùng mở scene
-\texttt{Assets/Scenes/MapF\_TankTest.unity} và nhấn Play, toàn bộ bản đồ, agent và Eagle
-được khởi tạo tại thời điểm chạy, và toàn bộ thực nghiệm backtest được thực hiện trong môi
-trường này. Hình thức thứ hai là triển khai trực tuyến qua WebGL: ứng dụng được xuất sang
-WebGL và phục vụ qua GCP Nginx/HTTPS, cho phép truy cập từ trình duyệt mà không cần cài
-đặt thêm phần mềm; tuy nhiên chế độ backtest không khả dụng trên WebGL do giới hạn truy
-xuất tệp của trình duyệt.
+Hệ thống được triển khai theo hai hình thức, được tóm tắt trong sơ đồ triển khai ở
+Hình~\ref{fig:deploy_gcp}. Hình thức thứ nhất là chạy trực tiếp trong Unity Editor phục vụ
+phát triển và thực nghiệm: người dùng mở scene \texttt{Assets/Scenes/MapF\_TankTest.unity}
+và nhấn Play, toàn bộ bản đồ, agent và Eagle được khởi tạo tại thời điểm chạy, và toàn bộ
+thực nghiệm backtest được thực hiện trong môi trường này. Hình thức thứ hai là triển khai
+trực tuyến qua WebGL: ứng dụng được xuất sang WebGL và phục vụ qua một máy ảo GCP, trong đó
+Nginx phục vụ tệp WebGL tĩnh qua HTTPS, dịch vụ Registry quản lý phòng, và các dịch vụ trò
+chơi (WebSocket, UDP và máy chủ PIBT C++) xử lý phần đồng bộ trận đấu.
 
-Máy chủ PIBT C++ (\texttt{Server-PIBT-TeamNoMan-sSky}) chạy độc lập trên WSL/Ubuntu
-và lắng nghe kết nối TCP tại cổng 7777. Khi chạy thực nghiệm, Unity kết nối tới
-server này qua localhost; kết quả backtest không bao gồm độ trễ mạng thực tế.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/14_gcp_nginx_deployment.drawio.png}
+    \caption{Sơ đồ triển khai WebGL qua GCP/Nginx và các dịch vụ trò chơi}
+    \label{fig:deploy_gcp}
+\end{figure}
+
+Như sơ đồ cho thấy, trình duyệt tải bản WebGL tĩnh qua Nginx, gọi Registry để tạo/tham gia
+phòng, rồi kết nối WebSocket tới máy chủ trò chơi; bản chạy gốc (native client) có thể kết
+nối trực tiếp bằng UDP. Cần phân biệt hai luồng kết nối tới lõi PIBT: trong thực nghiệm
+backtest, Unity kết nối trực tiếp tới máy chủ PIBT C++ qua TCP nội bộ tại
+\texttt{127.0.0.1:7777} nên kết quả không bao gồm độ trễ mạng thực tế; còn khi triển khai
+trực tuyến, lệnh lập kế hoạch được chuyển tiếp (relay) qua hạ tầng GCP. Máy chủ PIBT C++
+(\texttt{Server-PIBT-TeamNoMan-sSky}) chạy độc lập trên WSL/Ubuntu. Riêng chế độ backtest
+không khả dụng trên bản WebGL do giới hạn truy xuất tệp của trình duyệt.
 
 \end{document}

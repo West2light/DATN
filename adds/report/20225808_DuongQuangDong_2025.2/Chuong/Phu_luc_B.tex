@@ -1,58 +1,73 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Phụ lục này đặc tả chi tiết hai use case bổ sung không trình bày trong Chương~2:
-chơi mạng LAN nhiều người (UC2) và xem kết quả backtest (UC5).
+Phụ lục này đặc tả nhóm use case E -- triển khai và vận hành máy chủ relay/PIBT trên hạ
+tầng đám mây, do tác nhân Quản trị hệ thống (DevOps) thực hiện. Nhóm này không thuộc luồng
+chơi của người dùng cuối nên được tách khỏi Chương~2. Hình~\ref{fig:uc_groupE} là biểu đồ
+use case của nhóm.
 
-\section{Đặc tả UC2 -- Chơi mạng LAN nhiều người}
+\begin{center}
+\includegraphics[width=0.72\textwidth]{Hinhve/uc_groupE_deploy.png}
+\captionof{figure}{Biểu đồ use case nhóm E -- Triển khai \& vận hành}
+\label{fig:uc_groupE}
+\end{center}
 
-\begin{table}[htbp]
-\centering
-\caption{Đặc tả UC2 -- Chơi mạng LAN}
-\label{tab:uc2}
-\small
-\begin{tabular}{lp{10cm}}
-\hline
-\textbf{Tên use case}   & Chơi mạng LAN nhiều người \\
-\textbf{Tác nhân}       & Người chơi chủ phòng (host), người chơi tham gia (client) \\
-\textbf{Tiền điều kiện} & Các máy cùng mạng LAN; một máy tạo phòng, các máy khác tham gia \\
-\textbf{Luồng chính}    &
-1. Host tạo phòng, hệ thống khởi tạo máy chủ Fish-Net và hiển thị mã/địa chỉ phòng. \newline
-2. Các client nhập địa chỉ và tham gia phòng. \newline
-3. Mỗi người chơi chọn xe tăng và bấm sẵn sàng (ready). \newline
-4. Khi tất cả sẵn sàng, host bấm bắt đầu; hệ thống đồng bộ bản đồ và spawn xe tăng cho mọi người chơi. \newline
-5. Số agent AI được tính theo công thức 6 agent mỗi người chơi; các agent tấn công Eagle Base chung. \newline
-6. Trạng thái xe tăng, đạn và Eagle được đồng bộ giữa các máy theo thời gian thực. \\
-\textbf{Luồng phát sinh} &
-2a. Client nhập sai địa chỉ → báo lỗi kết nối, quay lại màn hình nhập. \newline
-4a. Một client mất kết nối → host nhận thông báo và tiếp tục ván chơi với số người còn lại. \\
-\textbf{Hậu điều kiện}  & Ván chơi kết thúc đồng bộ trên mọi máy; hiển thị kết quả chung \\
-\hline
-\end{tabular}
-\end{table}
+\section{Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}
 
-\section{Đặc tả UC5 -- Xem kết quả backtest}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_E1.png}
+\captionof{figure}{Use case UC-E1 -- Triển khai PIBT/Relay lên GCP}
+\label{fig:ucE1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}\label{tab:ucE1}\\
+\hline
+Mã use case    & UC-E1 \\
+Tên use case   & Triển khai máy chủ PIBT/Relay lên GCP \\
+Tác nhân chính & Quản trị hệ thống (DevOps) \\
+Mô tả          & Triển khai máy chủ PIBT/relay lên Google Cloud Platform với nginx, cấu hình endpoint và registry để client Internet/WebGL kết nối được. \\
+Tiền điều kiện & Có tài khoản GCP và mã nguồn trong \texttt{infra/}, \texttt{services/}. \\
+Luồng sự kiện chính &
+1. Build và triển khai service từ \texttt{infra/} và \texttt{services/} lên GCP. \newline
+2. Cấu hình nginx và endpoint mạng (\texttt{NetworkEndpointConfig}). \newline
+3. Đăng ký registry để client tra cứu phòng theo mã. \\
+Luồng thay thế / ngoại lệ &
+1a. Triển khai thất bại (sai cấu hình/credential) $\rightarrow$ rollback và xem log. \\
+Hậu điều kiện  & Máy chủ PIBT/relay sẵn sàng phục vụ các phòng Internet. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
 
-\begin{table}[htbp]
-\centering
-\caption{Đặc tả UC5 -- Xem kết quả backtest}
-\label{tab:uc5}
-\small
-\begin{tabular}{lp{10cm}}
+\section{Đặc tả use case UC-E2 -- Chạy dedicated server}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_E2.png}
+\captionof{figure}{Use case UC-E2 -- Chạy dedicated server}
+\label{fig:ucE2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-E2 -- Chạy dedicated server}\label{tab:ucE2}\\
 \hline
-\textbf{Tên use case}   & Xem kết quả backtest \\
-\textbf{Tác nhân}       & Người dùng (nghiên cứu viên) \\
-\textbf{Tiền điều kiện} & Đã chạy ít nhất một đợt backtest và sinh tệp kết quả \\
-\textbf{Luồng chính}    &
-1. Người dùng mở thư mục \texttt{BacktestResults/}. \newline
-2. Mở tệp \texttt{backtest\_summary\_*.csv} để xem kết quả tổng hợp theo từng run. \newline
-3. Mở tệp \texttt{backtest\_chart\_*.html} để xem biểu đồ trực quan trên trình duyệt. \newline
-4. Mở tệp \texttt{backtest\_agents\_*.csv} để xem chi tiết chỉ số từng agent. \\
-\textbf{Luồng phát sinh} &
-3a. Nếu môi trường thiếu Python/matplotlib, tệp PNG không sinh được nhưng HTML vẫn hiển thị bảng số liệu. \\
-\textbf{Hậu điều kiện}  & Người dùng nắm được kết quả định lượng của đợt thực nghiệm \\
+Mã use case    & UC-E2 \\
+Tên use case   & Chạy dedicated server \\
+Tác nhân chính & Quản trị hệ thống (DevOps) \\
+Mô tả          & Khởi chạy chế độ máy chủ chuyên dụng (headless) để host trận mà không cần client đồ họa. \\
+Tiền điều kiện & Đã triển khai hoặc đã có bản build máy chủ. \\
+Luồng sự kiện chính &
+1. Chạy ứng dụng với \texttt{NetworkLaunchArgs} ở chế độ server. \newline
+2. \texttt{DedicatedServerBootstrap} khởi tạo \texttt{NetworkManager} và lắng nghe kết nối. \newline
+3. Client tham gia như UC-B2 hoặc UC-B4. \\
+Luồng thay thế / ngoại lệ &
+1a. Cổng/endpoint không khả dụng $\rightarrow$ server thoát kèm log lỗi. \\
+Hậu điều kiện  & Dedicated server đang chạy, sẵn sàng nhận client. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+}
+\vspace{16pt}
 
 \end{document}

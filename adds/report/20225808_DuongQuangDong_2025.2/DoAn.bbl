@@ -215,6 +215,29 @@
     \field{year}{2022}
   \endentry
 
+  \entry{lorr2024}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=L}{%
+         family={{League of Robot Runners}},
+         familyi={L\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{L1}
+    \strng{fullhash}{L1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{note}{Team No Man's Sky: Grand Prize (Combined, Planner, Scheduler
+  Tracks) and Line Honours}
+    \field{title}{{2024 League of Robot Runners} --- Main Round 2024 Results}
+    \verb{url}
+    \verb https://www.leagueofrobotrunners.org/
+    \endverb
+    \field{year}{2025}
+    \field{urlday}{25}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
   \entry{de2013cooperative}{inproceedings}{}{}
     \name{author}{3}{}{%
       {{hash=DWB}{%
@@ -291,6 +314,34 @@
     \field{title}{Benchmarks for Grid-Based Pathfinding}
     \field{volume}{4}
     \field{year}{2012}
+  \endentry
+
+  \entry{yukhnevich2025epibt}{article}{}{}
+    \name{author}{2}{}{%
+      {{hash=YE}{%
+         family={Yukhnevich},
+         familyi={Y\bibinitperiod},
+         given={Egor},
+         giveni={E\bibinitperiod},
+      }}%
+      {{hash=AA}{%
+         family={Andreychuk},
+         familyi={A\bibinitperiod},
+         given={Anton},
+         giveni={A\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{YEAA1}
+    \strng{fullhash}{YEAA1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{note}{Extended version of paper accepted to AAAI-26}
+    \field{title}{Enhancing {PIBT} via Multi-Action Operations}
+    \verb{url}
+    \verb https://arxiv.org/abs/2511.09193
+    \endverb
+    \field{journaltitle}{arXiv preprint arXiv:2511.09193}
+    \field{year}{2025}
   \endentry
 
   \entry{unity2024engine}{misc}{}{}

@@ -44,4 +44,13 @@ là mở rộng hỗ trợ bản đồ động hoàn toàn, trong đó agent có
 toàn cục. Hướng cuối cùng là triển khai WebGL với PIBT server đặt trên cloud thay vì
 localhost, mở ra khả năng chạy backtest phân tán và demo trực tuyến không cần cài đặt.
 
+Về khả năng mở rộng quy mô, hệ thống có thể phát triển theo ba trục song song. Trục thứ
+nhất là số lượng agent: nâng từ vài agent hiện tại lên hàng chục rồi hàng trăm agent như
+quy mô benchmark của LoRR, đòi hỏi tối ưu bộ giải và truyền thông TCP theo lô. Trục thứ
+hai là số người chơi đồng thời: mở rộng tầng mạng nhiều người chơi với cơ chế phòng chờ,
+ghép trận và đồng bộ trạng thái tin cậy khi nhiều người cùng tham gia một trận. Trục thứ
+ba là hạ tầng: triển khai PIBT server trên cloud có cân bằng tải và khả năng co giãn theo
+nhu cầu, cho phép phục vụ đồng thời nhiều trận đấu và chạy backtest phân tán khi cả số
+agent lẫn số người chơi cùng tăng.
+
 \end{document}

@@ -29,7 +29,17 @@ chúng không đảm bảo tránh va chạm. Các thuật toán MAPF tối ưu n
 tăng theo hàm mũ với số agent, không phù hợp cho game thời gian thực. PIBT (Priority
 Inheritance with Backtracking) \cite{okumura2022pibt} là một hướng tiếp cận cân bằng:
 chạy theo bước thời gian, hoàn chỉnh và hiệu quả cho môi trường thời gian thực, song
-không đảm bảo tối ưu toàn cục.
+chấp nhận thay thế lời giải tối ưu toàn cục bằng lời giải khả thi đủ tốt theo từng
+bước thời gian để đạt tốc độ phản hồi thời gian thực.
+
+PIBT trong đồ án được tham khảo từ cuộc thi điều phối robot The League of Robot Runners
+(LoRR) \cite{lorr2024} do Amazon Robotics tài trợ, nơi nhóm Team No Man's Sky không chỉ
+giành giải nhất ở một hạng mục mà còn đứng nhất cả ba bảng đấu -- Combined, Planner và
+Scheduler -- đồng thời đoạt giải Line Honours (nhất toàn đoàn với số lời giải tốt nhất
+nhiều nhất) trong Main Round 2024. Tuy nhiên, các cài đặt đoạt giải đều ở dạng máy chủ
+C++ chạy benchmark, không thể chơi hay tương tác trực tiếp. Đồ án kế thừa ý tưởng và
+thuật toán của Team No Man's Sky rồi đưa vào Unity, để người chơi có thể trực tiếp trải
+nghiệm và quan sát hành vi phối hợp đa agent một cách trực quan ngay trong game.
 
 Thực tế trong ngành game, phần lớn các tựa game RTS và tower-defense hiện tại sử dụng
 thuật toán tìm đường đơn giản hoặc Unity NavMesh mà không giải quyết bài toán va chạm
@@ -90,6 +100,11 @@ Thứ ba, xây dựng hệ thống backtest tự động chạy kịch bản, th
 cho phép so sánh định lượng trên tập bản đồ lớn mà không cần can thiệp thủ công. Thêm
 vào đó, module chướng ngại động (spawn/despawn thùng cản đường trực tiếp trên path
 của agent) dùng để stress-test khả năng tái hoạch định của từng thuật toán.
+
+Ngoài ba bước trên, thiết kế hệ thống còn hướng tới khả năng mở rộng quy mô về sau trên
+ba trục: tăng số lượng agent AI, tăng số người chơi đồng thời, và mở rộng hạ tầng máy
+chủ (đưa PIBT server lên cloud, cân bằng tải). Các hướng mở rộng này được trình bày chi
+tiết ở Chương~\ref{chapter:conclusion}.
 
 Đóng góp chính: hệ thống tích hợp MAPF đầy đủ trong Unity với ba cấp độ thuật toán,
 cơ sở hạ tầng backtest định lượng, và bộ kết quả thực nghiệm trên benchmark chuẩn.
