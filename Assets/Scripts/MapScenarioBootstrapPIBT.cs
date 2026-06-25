@@ -296,10 +296,15 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
             if (fm.CurrentFaction == Faction.Player)
                 occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
-        for (int i = 0; i < enemySpawnCells.Count; i++)
+        List<Vector2Int> spawnSeeds =
+            (BacktestMode.IsActive && BacktestMode.AgentCount > 0)
+                ? BacktestSpawn.GenerateSpawnCells(mapLoader, BacktestMode.AgentCount)
+                : enemySpawnCells;
+
+        for (int i = 0; i < spawnSeeds.Count; i++)
         {
             if (!mapLoader.TryFindAvailableSpawnNear(
-                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+                    spawnSeeds[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
             occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);
@@ -372,7 +377,15 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
                         continue;
                     }
 
-                    Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    bool shouldIgnore =
+                        enemyCollider.isTrigger ||
+                        otherCollider.isTrigger ||
+                        enemyCollider.gameObject.name == "PlayerBlocker" ||
+                        otherCollider.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
+                    {
+                        Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    }
                 }
             }
         }

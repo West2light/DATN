@@ -14,7 +14,7 @@ using UnityEditor;
 
 /// <summary>
 /// Headless backtest: maps × algorithms (A* / PIBT / PIBT-C++) × repetitions.
-/// No player. Run ends when Eagle HP = 0, all enemies dead, or timeout (120 s).
+/// No player. Run ends when Eagle HP = 0, all enemies dead, or timeout (180 s).
 /// Results exported to two CSV files in Application.persistentDataPath.
 /// Attach to any scene, or call BacktestRunner.Launch() from code.
 /// </summary>
@@ -22,7 +22,7 @@ public class BacktestRunner : MonoBehaviour
 {
     // ── Config ─────────────────────────────────────────────────────────────
     public const int   Reps          = 3;   // default; caller can override via Launch()
-    public const float RunTimeoutSec = 120f;
+    public const float RunTimeoutSec = 180f;
 
     private static readonly string[] MapFiles =
     {
@@ -63,6 +63,7 @@ public class BacktestRunner : MonoBehaviour
     private float _runElapsed;
 
     private Damagable              _eagleDamagable;
+    private int                    _eagleMaxHp;
     private readonly List<GridEnemyAgent>     _agentsA = new List<GridEnemyAgent>();
     private readonly List<GridEnemyAgentPIBT> _agentsL = new List<GridEnemyAgentPIBT>();
     private readonly List<GridEnemyAgentPIBT_TCP> _agentsT = new List<GridEnemyAgentPIBT_TCP>();
@@ -85,8 +86,11 @@ public class BacktestRunner : MonoBehaviour
         _instance = null;
     }
 
+    public const int DefaultAgentCount = 4; // = số ô spawn cố định cũ
+
     // selectedMapIndices: indices into MapFiles/MapLabels; null = run all maps
-    public static void Launch(List<int> selectedMapIndices = null, int reps = Reps, bool dynamicObstacles = false)
+    public static void Launch(List<int> selectedMapIndices = null, int reps = Reps,
+                              bool dynamicObstacles = false, int agentCount = DefaultAgentCount)
     {
         if (_instance != null) return;
         var go = new GameObject("BacktestRunner");
@@ -94,11 +98,13 @@ public class BacktestRunner : MonoBehaviour
         runner._selectedMapIndices  = selectedMapIndices;
         runner._reps                = Mathf.Max(1, reps);
         runner._dynamicObstacles    = dynamicObstacles;
+        runner._agentCount          = Mathf.Clamp(agentCount, 1, 20);
     }
 
     private List<int> _selectedMapIndices;
     private int       _reps = Reps;
     private bool      _dynamicObstacles;
+    private int       _agentCount = DefaultAgentCount;
     private DynamicObstacleSpawner _obstacleSpawner;
 
     // ── Unity lifecycle ────────────────────────────────────────────────────
@@ -165,7 +171,7 @@ public class BacktestRunner : MonoBehaviour
         PlayerPrefs.SetString("SelectedMapFile", job.mapFile);
         PlayerPrefs.SetString("SelectedAlgorithm", job.algorithm);
         PlayerPrefs.Save();
-        BacktestMode.Activate(job.algorithm, job.mapLabel, _dynamicObstacles);
+        BacktestMode.Activate(job.algorithm, job.mapLabel, _dynamicObstacles, _agentCount);
 
         SceneManager.LoadScene(job.scene);
 
@@ -266,6 +272,8 @@ public class BacktestRunner : MonoBehaviour
         {
             Debug.LogWarning("[BacktestRunner] Eagle Damagable not found in scene!");
         }
+
+        _eagleMaxHp = _eagleDamagable != null ? Mathf.Max(0, _eagleDamagable.MaxHealth) : 0;
 
         _agentsA.AddRange(FindObjectsByType<GridEnemyAgent>(FindObjectsSortMode.None));
         _agentsL.AddRange(FindObjectsByType<GridEnemyAgentPIBT>(FindObjectsSortMode.None));
@@ -379,6 +387,7 @@ public class BacktestRunner : MonoBehaviour
             outcome   = outcome,
             duration  = _runElapsed,
             eagleHpAtEnd = _eagleDamagable != null ? Mathf.Max(0, _eagleDamagable.Health) : -1,
+            eagleHpMax   = _eagleMaxHp,
             agents       = new List<BacktestAgentRecord>(),
         };
 
@@ -471,13 +480,17 @@ public class BacktestRunner : MonoBehaviour
 
         // ── Summary: one row per run ────────────────────────────────────────
         var sb = new StringBuilder();
-        sb.AppendLine("Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells");
+        sb.AppendLine("Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells");
         for (int i = 0; i < _results.Count; i++)
         {
             var r = _results[i];
+            float hpLostPct = (r.eagleHpMax > 0 && r.eagleHpAtEnd >= 0)
+                ? (1f - (float)r.eagleHpAtEnd / r.eagleHpMax) * 100f
+                : 0f;
             sb.AppendLine(string.Join(",",
                 i + 1, r.map, r.algorithm, r.rep, r.outcome,
-                r.duration.ToString("F2"), r.eagleHpAtEnd, r.agentCount,
+                r.duration.ToString("F2"), r.eagleHpAtEnd, r.eagleHpMax,
+                hpLostPct.ToString("F1"), r.agentCount,
                 r.enemiesAliveAtEnd, r.totalReplans, r.totalRecoveries,
                 r.totalShots, r.totalCells));
         }
@@ -718,9 +731,9 @@ public class BacktestRunner : MonoBehaviour
         foreach (var r in results)
             if (!maps.Contains(r.map)) maps.Add(r.map);
 
-        // Aggregate per (map, algo): sum & count for 4 metrics
-        // idx: 0=duration, 1=replans, 2=shots, 3=cells
-        const int NM = 4;
+        // Aggregate per (map, algo): sum & count for 5 metrics
+        // idx: 0=duration, 1=replans, 2=shots, 3=cells, 4=eagleHp
+        const int NM = 5;
         var sums  = new Dictionary<(string, string), float[]>();
         var cnts  = new Dictionary<(string, string), int[]>();
         foreach (var r in results)
@@ -731,6 +744,7 @@ public class BacktestRunner : MonoBehaviour
             sums[k][1] += r.totalReplans;  cnts[k][1]++;
             sums[k][2] += r.totalShots;    cnts[k][2]++;
             sums[k][3] += r.totalCells;    cnts[k][3]++;
+            sums[k][4] += r.eagleHpAtEnd;  cnts[k][4]++;
         }
 
         float Avg(string map, string algo, int i)
@@ -740,8 +754,8 @@ public class BacktestRunner : MonoBehaviour
             return sums[k][i] / cnts[k][i];
         }
 
-        string[] metLabels    = { "Average time (s)", "Total replans", "Total shots", "Cells traveled" };
-        bool[]   lowerBetter  = { true, false, false, false };
+        string[] metLabels    = { "Average time (s)", "Total replans", "Total shots", "Cells traveled", "Final Eagle HP" };
+        bool[]   lowerBetter  = { true, false, false, false, false };
 
         string BestAlgo(string map, int mi)
         {

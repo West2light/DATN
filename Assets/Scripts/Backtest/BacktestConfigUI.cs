@@ -37,6 +37,8 @@ public static class BacktestConfigUI
     private static GameObject _root;
     private static int        _reps = BacktestRunner.Reps;
     private static Text       _repsTxt;
+    private static int        _agentCount = BacktestRunner.DefaultAgentCount;
+    private static Text       _agentTxt;
     private static bool       _dynamicObstacles;
     private static Image      _dynToggleBg;
     private static Text       _dynToggleTxt;
@@ -50,7 +52,8 @@ public static class BacktestConfigUI
         _sel     = new bool[n];
         _rowImg  = new Image[n];
         _chkMark = new Image[n];
-        _reps    = BacktestRunner.Reps;
+        _reps        = BacktestRunner.Reps;
+        _agentCount  = BacktestRunner.DefaultAgentCount;
         for (int i = 0; i < n; i++) _sel[i] = true;
 
         Build(n);
@@ -131,8 +134,9 @@ public static class BacktestConfigUI
         sTxt.font = Fnt(); sTxt.fontSize = 12; sTxt.fontStyle = FontStyle.Normal;
         sTxt.alignment = TextAnchor.MiddleCenter; sTxt.color = TextMuted;
 
-        // Reps stepper row
+        // Reps stepper row + Agents stepper (cùng hàng, vùng phải)
         BuildRepsStepper(panel, layer);
+        BuildAgentStepper(panel, layer);
 
         // Dynamic obstacle toggle
         BuildDynamicObstacleToggle(panel, layer);
@@ -311,9 +315,10 @@ public static class BacktestConfigUI
     {
         var indices = new List<int>();
         for (int i = 0; i < _sel.Length; i++) if (_sel[i]) indices.Add(i);
-        bool dyn = _dynamicObstacles;
+        bool dyn    = _dynamicObstacles;
+        int agents  = _agentCount;
         Close();
-        BacktestRunner.Launch(indices, _reps, dyn);
+        BacktestRunner.Launch(indices, _reps, dyn, agents);
     }
 
     // ── Reps stepper ───────────────────────────────────────────────────────
@@ -355,6 +360,49 @@ public static class BacktestConfigUI
         // [+] button
         StepBtn(row, layer, "Plus", "+", new Vector2(196f, 0f), new Vector2(22f, 22f),
             () => ChangeReps(+1));
+    }
+
+    // ── Agent-count stepper ──────────────────────────────────────────────────
+    // Cùng hàng với "Runs per map" (y = -72), đặt vào vùng trống bên phải.
+    private static void BuildAgentStepper(GameObject panel, int layer)
+    {
+        var row  = Child(panel, "AgentsRow", layer);
+        var rRt  = row.GetComponent<RectTransform>();
+        rRt.anchorMin = new Vector2(0.5f, 1f); rRt.anchorMax = new Vector2(0.5f, 1f);
+        rRt.pivot = new Vector2(0f, 1f);
+        rRt.anchoredPosition = new Vector2(96f, -72f);
+        rRt.sizeDelta = new Vector2(210f, 22f);
+
+        var lbl  = Child(row, "ALbl", layer);
+        var lRt  = lbl.GetComponent<RectTransform>();
+        lRt.anchorMin = new Vector2(0f, 0f); lRt.anchorMax = new Vector2(0f, 1f);
+        lRt.pivot = new Vector2(0f, 0.5f);
+        lRt.anchoredPosition = Vector2.zero; lRt.sizeDelta = new Vector2(64f, 0f);
+        var lTxt = lbl.AddComponent<Text>();
+        lTxt.text = "Agents:"; lTxt.font = Fnt(); lTxt.fontSize = 13;
+        lTxt.color = TextMuted; lTxt.alignment = TextAnchor.MiddleLeft;
+
+        StepBtn(row, layer, "AMinus", "−", new Vector2(66f, 0f), new Vector2(22f, 22f),
+            () => ChangeAgents(-1));
+
+        var cnt  = Child(row, "ACount", layer);
+        var cRt  = cnt.GetComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0f, 0f); cRt.anchorMax = new Vector2(0f, 1f);
+        cRt.pivot = new Vector2(0f, 0.5f);
+        cRt.anchoredPosition = new Vector2(92f, 0f); cRt.sizeDelta = new Vector2(34f, 0f);
+        _agentTxt = cnt.AddComponent<Text>();
+        _agentTxt.text = _agentCount.ToString(); _agentTxt.font = Fnt(); _agentTxt.fontSize = 15;
+        _agentTxt.fontStyle = FontStyle.Bold; _agentTxt.color = AccentGold;
+        _agentTxt.alignment = TextAnchor.MiddleCenter;
+
+        StepBtn(row, layer, "APlus", "+", new Vector2(130f, 0f), new Vector2(22f, 22f),
+            () => ChangeAgents(+1));
+    }
+
+    private static void ChangeAgents(int delta)
+    {
+        _agentCount = Mathf.Clamp(_agentCount + delta, 1, 20);
+        if (_agentTxt != null) _agentTxt.text = _agentCount.ToString();
     }
 
     // ── Dynamic obstacle toggle ─────────────────────────────────────────────

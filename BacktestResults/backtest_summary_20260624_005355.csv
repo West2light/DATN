@@ -1,0 +1,4 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Gallows,AStar,1,EagleDestroyed,112.31,-1,500,0.0,6,6,781,0,6429,386
+2,Gallows,PIBT,1,EagleDestroyed,120.94,-1,500,0.0,6,6,2908,1,6544,381
+3,Gallows,PIBT_TCP,1,EagleDestroyed,114.99,-1,500,0.0,6,6,2712,0,8519,543

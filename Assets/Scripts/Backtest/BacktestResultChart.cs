@@ -62,9 +62,11 @@ public class BacktestResultChart : MonoBehaviour
 
     private static readonly Metric[] Metrics =
     {
-        new Metric { label="Average time (s)", get=r=>r.duration,    maxHint=120f, lowerBetter=true  },
+        new Metric { label="Average time (s)", get=r=>r.duration,    maxHint=180f, lowerBetter=true  },
         new Metric { label="Total replans",    get=r=>r.totalReplans,maxHint=0,    lowerBetter=false },
         new Metric { label="Total shots",      get=r=>r.totalShots,  maxHint=0,    lowerBetter=false },
+        new Metric { label="Cells traveled",   get=r=>r.totalCells,  maxHint=0,    lowerBetter=false },
+        new Metric { label="Final Eagle HP",   get=r=>r.eagleHpAtEnd,maxHint=0,    lowerBetter=false },
     };
 
     // ── State ──────────────────────────────────────────────────────────────

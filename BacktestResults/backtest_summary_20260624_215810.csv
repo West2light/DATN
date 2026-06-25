@@ -1,0 +1,4 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Chantry,AStar,1,EagleDestroyed,131.31,-1,500,0.0,6,6,939,0,30205,469
+2,Chantry,PIBT,1,EagleDestroyed,128.41,-1,500,0.0,6,6,3749,0,35911,370
+3,Chantry,PIBT_TCP,1,EagleDestroyed,134.84,-1,500,0.0,6,6,1091,0,17740,665

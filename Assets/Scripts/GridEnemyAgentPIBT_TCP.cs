@@ -102,7 +102,6 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     /// <summary>Set the next grid cell this agent should move to.</summary>
     public void SetNextTarget(Vector2Int cell)
     {
-        btReplanCount++;
         _currentTarget = cell;
         _hasTarget = true;
     }
@@ -127,6 +126,7 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
         float still = Time.time - _lastCellChangeTime;
         if (still > stuckTimeout && !NeedsForcedReplan)
         {
+            btReplanCount++;
             NeedsForcedReplan = true;
             LastStallReason = $"no-progress {still:F1}s (target={_currentTarget}, cell={c})";
             Debug.LogWarning($"[PIBT_TCP] {name} stuck: {LastStallReason} → forced replan");

@@ -167,6 +167,13 @@ public class DynamicObstacleSpawner : MonoBehaviour
 
         if (_agentsA != null) foreach (var a in _agentsA) if (a != null) AddPath(a.CurrentPath);
         if (_agentsL != null) foreach (var a in _agentsL) if (a != null) AddPath(a.CurrentPath);
+        // TCP agents don't hold a full path — the server gives only one step at a time.
+        // MovementTarget itself is excluded by IsValidSpawnCell (agent is mid-move there).
+        // Instead, do a greedy lookahead from MovementTarget toward the eagle (6 steps)
+        // to generate on-path candidates further ahead, matching what A*/PIBT provide.
+        if (_agentsT != null)
+            foreach (var a in _agentsT)
+                if (a != null) AddTcpGreedyLookahead(a, candidates);
 
         if (candidates.Count == 0) { result = default; return false; }
 
@@ -205,13 +212,70 @@ public class DynamicObstacleSpawner : MonoBehaviour
         return false;
     }
 
+    // Greedy lookahead toward the eagle for TCP agents (no full path available).
+    // Starts from MovementTarget and takes up to 6 greedy steps toward _eaglePos,
+    // generating on-path candidates equivalent to path[1..6] for A*/PIBT agents.
+    private static readonly Vector2Int[] Dirs4 =
+        { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+
+    private void AddTcpGreedyLookahead(GridEnemyAgentPIBT_TCP a, List<Vector2Int> candidates)
+    {
+        Vector2Int cur = a.HasMovementTarget ? a.MovementTarget : a.CurrentCell;
+        Vector2Int goal = _mapLoader.WorldToCell(_eaglePos);
+        for (int step = 0; step < 6; step++)
+        {
+            Vector2Int best = cur;
+            int bestDist = ManhattanDist(cur, goal);
+            foreach (var d in Dirs4)
+            {
+                Vector2Int nb = cur + d;
+                if (!_mapLoader.IsWalkable(nb)) continue;
+                int dist = ManhattanDist(nb, goal);
+                if (dist < bestDist) { bestDist = dist; best = nb; }
+            }
+            if (best == cur) break; // greedy stuck (dead end)
+            cur = best;
+            candidates.Add(cur);
+        }
+    }
+
     private bool IsValidSpawnCell(Vector2Int cell)
     {
         if (!_mapLoader.IsWalkable(cell)) return false;
         if (Vector3.Distance(_mapLoader.CellToWorld(cell), _eaglePos) < safeRadius) return false;
         foreach (var e in _active) if (e.cell == cell) return false;
+        // Never spawn on a cell that an agent currently occupies or is actively moving toward —
+        // agents are not physics-blocked by Walls layer, so spawning on their path mid-transition
+        // causes them to clip inside the crate before pathfinding replans.
+        if (IsOccupiedOrTargetedByAgent(cell)) return false;
         return true;
     }
+
+    private bool IsOccupiedOrTargetedByAgent(Vector2Int cell)
+    {
+        // AStar/PIBT: neither exposes CurrentCell — derive it from transform.position.
+        // Use Manhattan distance ≤ 1 so we also block the 4 adjacent cells: an agent
+        // whose CurrentCell is A may be physically halfway to neighbour B, so blocking
+        // B prevents spawning there while the agent is mid-transition.
+        if (_agentsA != null)
+            foreach (var a in _agentsA)
+                if (a != null && ManhattanDist(_mapLoader.WorldToCell(a.transform.position), cell) <= 1) return true;
+        if (_agentsL != null)
+            foreach (var a in _agentsL)
+                if (a != null && ManhattanDist(_mapLoader.WorldToCell(a.transform.position), cell) <= 1) return true;
+        // TCP: CurrentCell is exposed; also check MovementTarget (cell agent is actively moving toward).
+        if (_agentsT != null)
+            foreach (var a in _agentsT)
+            {
+                if (a == null) continue;
+                if (a.CurrentCell == cell) return true;
+                if (a.HasMovementTarget && a.MovementTarget == cell) return true;
+            }
+        return false;
+    }
+
+    private static int ManhattanDist(Vector2Int a, Vector2Int b) =>
+        Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
 
     // ── GameObject construction ─────────────────────────────────────────────
 

@@ -18,10 +18,11 @@ except ImportError:
 
 
 METRICS = [
-    ("Duration_s", "Thoi gian TB (s)", True),
-    ("TotalReplans", "Replan tong", False),
-    ("TotalShots", "Tong so shot", False),
-    ("TotalCells", "Cells da di", False),
+    ("Duration_s", "Average time (s)", True),
+    ("TotalReplans", "Total replans", False),
+    ("TotalShots", "Total shots", False),
+    ("TotalCells", "Cells traveled", False),
+    ("EagleHP", "Final Eagle HP", False),
 ]
 
 ALGOS = [
@@ -74,9 +75,14 @@ def plot_png(maps, sums, counts, png_path):
     if plt is None:
         raise RuntimeError("matplotlib is not installed. Install it with: python3 -m pip install matplotlib")
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 8), constrained_layout=True)
+    ncols = 3
+    nrows = (len(METRICS) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6 * ncols, 4 * nrows), constrained_layout=True)
     fig.patch.set_facecolor("#0e1014")
     axes = axes.flatten()
+    # Ẩn các ô subplot dư (khi số metric không lấp đầy lưới)
+    for j in range(len(METRICS), len(axes)):
+        axes[j].set_visible(False)
 
     x = list(range(len(maps)))
     bar_width = 0.24

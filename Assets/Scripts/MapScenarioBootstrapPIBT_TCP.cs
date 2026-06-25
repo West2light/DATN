@@ -311,12 +311,17 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         _reconnectAttempts = 0;
         ApplyStepActions(actions, null, rows, cols);
+        AccumulateReplanWindow();
     }
 #endif
 
     // F-U2/F-U3: geometry stall detection counters
     private int _invalidNextLocCount;  // total invalid server nextLoc since session start
     private int _geometryStallTicks;   // consecutive ticks where ALL agents' serverNextLoc was invalid
+
+    // Replan cadence normalization: accumulate TCP tick time so btReplanCount increments
+    // once per enemyReplanInterval window (matching A*/PIBT-C# cadence for fair comparison).
+    private float _replanWindowAccum;
 
     private bool _firstStepLogged;
 
@@ -378,6 +383,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int[] nextLocs = client != null ? client.LastNextLocs : null;
         if (enableTcpTrace) LogTickTrace(actions, nextLocs, rows, cols);
         ApplyStepActions(actions, nextLocs, rows, cols);
+        AccumulateReplanWindow();
         _stepInFlight = false;
     }
 
@@ -435,6 +441,19 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         {
             _geometryStallTicks = 0;
         }
+    }
+
+    // Increment each agent's btReplanCount once per enemyReplanInterval window so the
+    // metric is on the same cadence as A*/PIBT-C# (both fire every replanInterval seconds).
+    // tcpTickInterval (0.25s) is faster than replanInterval (0.75s), so we accumulate and
+    // only fire when a full window has elapsed — avoiding the 3× inflation of raw tick counting.
+    private void AccumulateReplanWindow()
+    {
+        _replanWindowAccum += tcpTickInterval;
+        if (_replanWindowAccum < enemyReplanInterval) return;
+        _replanWindowAccum -= enemyReplanInterval;
+        foreach (var a in _agents)
+            if (a != null) a.btReplanCount++;
     }
 
     private void LogTickTrace(string[] actions, int[] nextLocs, int rows, int cols)
@@ -754,10 +773,15 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             if (fm.CurrentFaction == Faction.Player)
                 occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
-        for (int i = 0; i < enemySpawnCells.Count; i++)
+        List<Vector2Int> spawnSeeds =
+            (BacktestMode.IsActive && BacktestMode.AgentCount > 0)
+                ? BacktestSpawn.GenerateSpawnCells(mapLoader, BacktestMode.AgentCount)
+                : enemySpawnCells;
+
+        for (int i = 0; i < spawnSeeds.Count; i++)
         {
             if (!mapLoader.TryFindAvailableSpawnNear(
-                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+                    spawnSeeds[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
             occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell),
@@ -825,8 +849,18 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             Collider2D[] theirs = other.GetComponentsInChildren<Collider2D>(true);
             foreach (var a in mine)
                 foreach (var b in theirs)
-                    if (a != null && b != null)
+                {
+                    if (a == null || b == null) continue;
+                    bool shouldIgnore =
+                        a.isTrigger ||
+                        b.isTrigger ||
+                        a.gameObject.name == "PlayerBlocker" ||
+                        b.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
+                    {
                         Physics2D.IgnoreCollision(a, b, true);
+                    }
+                }
         }
     }
 
@@ -1010,6 +1044,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _reconnectAttempts  = 0;
         _invalidNextLocCount = 0;
         _geometryStallTicks  = 0;
+        _replanWindowAccum   = 0f;
         _agents.Clear();
         _agentOrientations.Clear();
         _enemyGOs.Clear();
