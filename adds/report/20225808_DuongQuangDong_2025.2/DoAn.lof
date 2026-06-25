@@ -41,8 +41,8 @@
 \contentsline {figure}{\numberline {4.16}{\ignorespaces Hai màn hình kết thúc trận của chế độ chơi đơn}}{36}{figure.caption.26}%
 \contentsline {figure}{\numberline {4.17}{\ignorespaces Quy trình thực nghiệm backtest tự động}}{37}{figure.caption.28}%
 \contentsline {figure}{\numberline {4.18}{\ignorespaces Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}}{38}{figure.caption.30}%
-\contentsline {figure}{\numberline {4.19}{\ignorespaces Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}}{38}{figure.caption.31}%
-\contentsline {figure}{\numberline {4.20}{\ignorespaces So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}}{39}{figure.caption.33}%
+\contentsline {figure}{\numberline {4.19}{\ignorespaces Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}}{39}{figure.caption.31}%
+\contentsline {figure}{\numberline {4.20}{\ignorespaces So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}}{40}{figure.caption.33}%
 \contentsline {figure}{\numberline {4.21}{\ignorespaces Sơ đồ triển khai WebGL qua GCP/Nginx và các dịch vụ trò chơi}}{41}{figure.caption.34}%
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{43}{figure.caption.35}%

@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  25 JUN 2026 16:56
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  25 JUN 2026 19:12
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1803,6 +1803,8 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 [31]
 File: Hinhve/Menu.png Graphic file (type bmp)
 <Hinhve/Menu.png>
+File: Hinhve/Single_play_to_select_color_tank.png Graphic file (type bmp)
+<Hinhve/Single_play_to_select_color_tank.png>
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1812,12 +1814,8 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [32]
-File: Hinhve/Single_play_to_select_color_tank.png Graphic file (type bmp)
-<Hinhve/Single_play_to_select_color_tank.png>
 File: Hinhve/Single_play_select_map.png Graphic file (type bmp)
 <Hinhve/Single_play_select_map.png>
-File: Hinhve/In_round_game.png Graphic file (type bmp)
-<Hinhve/In_round_game.png>
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1827,15 +1825,10 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [33]
+File: Hinhve/In_round_game.png Graphic file (type bmp)
+<Hinhve/In_round_game.png>
 File: Hinhve/Multiple_Select_Role.png Graphic file (type bmp)
 <Hinhve/Multiple_Select_Role.png>
-File: Hinhve/MultiplaySelect_countEnemyAgent_map.png Graphic file (type bmp)
-<Hinhve/MultiplaySelect_countEnemyAgent_map.png>
-
-Overfull \hbox (0.38956pt too wide) in paragraph at lines 371--374
-[]\TU/TimesNewRoman(0)/m/n/13 Chủ phòng quản lý phòng chờ và bắt đầu trận khi m
-ọi người sẵn sàng (Hình []4.14[]).
- []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1845,8 +1838,24 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [34]
+File: Hinhve/MultiplaySelect_countEnemyAgent_map.png Graphic file (type bmp)
+<Hinhve/MultiplaySelect_countEnemyAgent_map.png>
 File: Hinhve/host_game_multiple.png Graphic file (type bmp)
 <Hinhve/host_game_multiple.png>
+
+Overfull \hbox (43.12445pt too wide) in paragraph at lines 391--396
+\TU/TimesNewRoman(0)/m/n/13 chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăn
+g và các nút READY/START/CANCEL;
+ []
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[35]
 File: Hinhve/Inround_game_multiplayer.png Graphic file (type bmp)
 <Hinhve/Inround_game_multiplayer.png>
 File: Hinhve/lose_scene.png Graphic file (type bmp)
@@ -1861,19 +1870,11 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[35]
+[36]
 File: Hinhve/13_backtest_workflow.drawio.png Graphic file (type bmp)
 <Hinhve/13_backtest_workflow.drawio.png>
 
-
-Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
-
-[36]
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 472--491
+Overfull \hbox (3.57104pt too wide) in paragraph at lines 491--510
  [][] 
  []
 
@@ -1887,10 +1888,18 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [37]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[38]
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
 
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 526--545
+Overfull \hbox (3.57104pt too wide) in paragraph at lines 545--564
  [][] 
  []
 
@@ -1903,7 +1912,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[38]
+[39]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1911,18 +1920,10 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[39]
+[40]
 File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
 <Hinhve/14_gcp_nginx_deployment.drawio.png>
-
-
-Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
-
-[40])
+)
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2119,4 +2120,4 @@ Here is how much of TeX's memory you used:
  1348 hyphenation exceptions out of 8191
  108i,12n,107p,2507b,4883s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on DoAn.xdv (66 pages, 1066404 bytes).
+Output written on DoAn.xdv (66 pages, 1077516 bytes).

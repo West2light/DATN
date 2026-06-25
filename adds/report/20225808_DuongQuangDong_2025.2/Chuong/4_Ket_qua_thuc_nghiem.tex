@@ -305,9 +305,8 @@ chạy local/Editor.
 \label{fig:ss_menu}
 \end{figure}
 
-\textbf{Luồng chơi đơn.} Sau khi chọn SINGLE PLAY, người chơi lần lượt chọn mẫu xe tăng
-(Hình~\ref{fig:ss_single_tank}), sau đó chọn bản đồ và thuật toán AI
-(Hình~\ref{fig:ss_single_map}) -- đúng trình tự đặc tả ở use case UC-A1.
+\textbf{Luồng chơi đơn.} Sau khi chọn SINGLE PLAY, người chơi trước hết chọn mẫu và màu xe
+tăng (Hình~\ref{fig:ss_single_tank}) -- đúng trình tự đặc tả ở use case UC-A1.
 
 \begin{figure}[htbp]
 \centering
@@ -315,6 +314,10 @@ chạy local/Editor.
 \caption{Chế độ chơi đơn -- màn chọn mẫu/màu xe tăng}
 \label{fig:ss_single_tank}
 \end{figure}
+
+Hình~\ref{fig:ss_single_tank} cho xem trước (preview) mẫu xe tăng và chọn màu; một số màu ở
+trạng thái khóa (LOCK) dành cho phần mở rộng về sau. Sau đó, người chơi chọn bản đồ và thuật
+toán AI (Hình~\ref{fig:ss_single_map}).
 
 \begin{figure}[htbp]
 \centering
@@ -350,9 +353,8 @@ Eagle Base; đường đi dự kiến của chúng hiện lên thành các vệt
 thuật toán MAPF đang chạy theo thời gian thực. Người chơi điều khiển xe tăng của mình di
 chuyển và bắn để chặn các agent trước khi Eagle Base bị phá hủy.
 
-\textbf{Luồng chơi nhiều người.} Khi chọn MULTIPLAYER INTERNET, người chơi chọn vai trò
-Host hoặc Join (Hình~\ref{fig:ss_mp_role}), rồi cấu hình bản đồ và số agent đối thủ
-(Hình~\ref{fig:ss_mp_config}).
+\textbf{Luồng chơi nhiều người.} Khi chọn MULTIPLAYER INTERNET, người chơi trước hết chọn
+vai trò Host hoặc Join (Hình~\ref{fig:ss_mp_role}).
 
 \begin{figure}[htbp]
 \centering
@@ -361,6 +363,11 @@ Host hoặc Join (Hình~\ref{fig:ss_mp_role}), rồi cấu hình bản đồ và
 \label{fig:ss_mp_role}
 \end{figure}
 
+Hình~\ref{fig:ss_mp_role} đưa ra hai lựa chọn: \textbf{HOST GAME} để tạo phòng mới, hoặc
+\textbf{JOIN ROOM} để tham gia một phòng có sẵn bằng mã phòng hoặc đường liên kết được chia
+sẻ. Sau khi chọn vai trò, người chơi cấu hình bản đồ và số agent đối thủ
+(Hình~\ref{fig:ss_mp_config}).
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.82\textwidth]{Hinhve/MultiplaySelect_countEnemyAgent_map.png}
@@ -368,9 +375,11 @@ Host hoặc Join (Hình~\ref{fig:ss_mp_role}), rồi cấu hình bản đồ và
 \label{fig:ss_mp_config}
 \end{figure}
 
-Chủ phòng quản lý phòng chờ và bắt đầu trận khi mọi người sẵn sàng
-(Hình~\ref{fig:ss_mp_host}). Hình~\ref{fig:ss_inround_mp} minh họa một trận nhiều người với
-trạng thái xe tăng, đạn và Eagle được đồng bộ giữa các máy.
+Màn hình Hình~\ref{fig:ss_mp_config} cho chọn một trong năm bản đồ (kèm thuật toán AI A*,
+PIBT hoặc PIBT-TCP) và một bội số quân địch (×1, ×3, ×6): số agent đối thủ bằng bội số này
+nhân với số người chơi, nên phòng càng đông thì số agent trong trận càng tăng tương ứng. Sau
+khi cấu hình xong, chủ phòng (Host) quản lý phòng chờ và chỉ bắt đầu trận khi mọi người đã
+sẵn sàng (Hình~\ref{fig:ss_mp_host}).
 
 \begin{figure}[htbp]
 \centering
@@ -379,12 +388,22 @@ trạng thái xe tăng, đạn và Eagle được đồng bộ giữa các máy.
 \label{fig:ss_mp_host}
 \end{figure}
 
+Hình~\ref{fig:ss_mp_host} là phòng chờ phía Host: hiển thị mã phòng để chia sẻ, danh sách
+người chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăng và các nút READY/START/CANCEL;
+nút START chỉ bật khi đủ số người tối thiểu và tất cả đã READY. Khi trận bắt đầu,
+Hình~\ref{fig:ss_inround_mp} minh họa một trận nhiều người với trạng thái xe tăng, đạn và
+Eagle được đồng bộ giữa các máy.
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{Hinhve/Inround_game_multiplayer.png}
 \caption{Một trận nhiều người đang diễn ra}
 \label{fig:ss_inround_mp}
 \end{figure}
+
+Trong Hình~\ref{fig:ss_inround_mp}, mỗi người chơi điều khiển xe tăng của mình trên cùng một
+bản đồ; vị trí xe tăng, đường đạn và máu của Eagle Base được đồng bộ theo thời gian thực
+giữa các máy để mọi bên cùng thấy một diễn biến trận đấu.
 
 \textbf{Kết thúc trận.} Khi Eagle Base bị phá hủy, người chơi thua
 (Hình~\ref{fig:ss_lose}); khi tiêu diệt hết agent mà Eagle còn máu, người chơi thắng
@@ -437,7 +456,7 @@ Bản đồ                    & Alpha32, Mansion, Chantry, Gallows, Maze128    
 Thuật toán so sánh        & A* (baseline), PIBT C\#, PIBT C++/TCP                         \\
 Số agent (xe tăng địch)   & 6                                                              \\
 Số lần lặp mỗi tổ hợp     & 6                                                              \\
-Timeout mỗi run           & 120\,giây (Maze128 chạm trần nội bộ \(\approx\)180\,giây)     \\
+Timeout mỗi run           & 180\,giây (chỉ Maze128 chạm trần)                            \\
 Tổng số run / bộ          & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 6 = 90 run        \\
 Môi trường tĩnh           & Không có chướng ngại di chuyển                                \\
 Môi trường động           & \texttt{DynamicObstacleSpawner}: spawn/despawn thùng          \\

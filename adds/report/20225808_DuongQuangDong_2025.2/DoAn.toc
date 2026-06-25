@@ -45,9 +45,9 @@
 \contentsline {section}{\numberline {4.4}Kiểm thử và đánh giá}{36}{section.4.4}%
 \contentsline {subsection}{\numberline {4.4.1}Cấu hình thực nghiệm}{36}{subsection.4.4.1}%
 \contentsline {subsection}{\numberline {4.4.2}Kết quả thực nghiệm -- Môi trường tĩnh}{37}{subsection.4.4.2}%
-\contentsline {subsection}{\numberline {4.4.3}Kết quả thực nghiệm -- Môi trường có chướng ngại động}{38}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.3}Kết quả thực nghiệm -- Môi trường có chướng ngại động}{39}{subsection.4.4.3}%
 \contentsline {subsection}{\numberline {4.4.4}Nhận xét và đánh giá}{40}{subsection.4.4.4}%
-\contentsline {section}{\numberline {4.5}Triển khai}{40}{section.4.5}%
+\contentsline {section}{\numberline {4.5}Triển khai}{41}{section.4.5}%
 \contentsline {chapter}{\numberline {5}CÁC GIẢI PHÁP VÀ ĐÓNG GÓP NỔI BẬT}{42}{chapter.5}%
 \contentsline {section}{\numberline {5.1}Hệ thống đọc bản đồ động và dựng lưới thống nhất}{42}{section.5.1}%
 \contentsline {section}{\numberline {5.2}Triển khai A* thời gian thực với tái hoạch định định kỳ}{42}{section.5.2}%
