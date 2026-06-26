@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 13:39
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 15:54
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1889,30 +1889,6 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [37]
-Underfull \hbox (badness 10000) in paragraph at lines 530--530
-[]|\TU/TimesNewRoman(0)/b/n/11.86258 Phương sai
- []
-
-
-Underfull \hbox (badness 3428) in paragraph at lines 532--532
-[]|\TU/TimesNewRoman(0)/m/n/11.86258 Mỗi bước phân giải +
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 533--533
-[]|\TU/TimesNewRoman(0)/m/n/11.86258 PIBT
- []
-
-
-Underfull \hbox (badness 1253) in paragraph at lines 533--533
-[]|\TU/TimesNewRoman(0)/m/n/11.86258 Máy chủ C++ tập
- []
-
-
-Underfull \hbox (badness 1048) in paragraph at lines 533--533
-[]|\TU/TimesNewRoman(0)/m/n/11.86258 Rất thấp, đồng
- []
-
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1938,7 +1914,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
 
-Overfull \hbox (78.85747pt too wide) in paragraph at lines 621--640
+Overfull \hbox (43.85747pt too wide) in paragraph at lines 622--641
  [][] 
  []
 
@@ -1968,7 +1944,7 @@ File: Hinhve/backtest-dyn-on-2.png Graphic file (type bmp)
 File: Hinhve/backtest_static_vs_dynamic.png Graphic file (type bmp)
 <Hinhve/backtest_static_vs_dynamic.png>
 
-Overfull \hbox (0.65176pt too wide) in paragraph at lines 709--733
+Overfull \hbox (0.65176pt too wide) in paragraph at lines 710--734
  [][] 
  []
 
@@ -1996,7 +1972,7 @@ File: Hinhve/backtest_replan_vs_agents.png Graphic file (type bmp)
 File: Hinhve/backtest_timeout_vs_agents.png Graphic file (type bmp)
 <Hinhve/backtest_timeout_vs_agents.png>
 
-Overfull \hbox (20.10802pt too wide) in paragraph at lines 789--813
+Overfull \hbox (20.10802pt too wide) in paragraph at lines 790--814
  [][] 
  []
 
@@ -2242,4 +2218,4 @@ Here is how much of TeX's memory you used:
  1348 hyphenation exceptions out of 8191
  108i,12n,107p,2507b,4883s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on DoAn.xdv (75 pages, 1231704 bytes).
+Output written on DoAn.xdv (75 pages, 1231596 bytes).

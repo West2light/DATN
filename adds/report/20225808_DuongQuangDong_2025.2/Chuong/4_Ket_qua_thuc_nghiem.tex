@@ -525,7 +525,7 @@ C\# phát sinh thêm. Bảng~\ref{tab:replan_mechanism} tóm tắt sự khác bi
 \caption{Cơ chế phát sinh lệnh tái hoạch định của ba thuật toán}
 \label{tab:replan_mechanism}
 \small
-\begin{tabular}{p{2.4cm}p{3.3cm}p{4.3cm}p{2.7cm}}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{2.7cm}}
 \hline
 \textbf{Thuật toán} & \textbf{Nơi giải xung đột} & \textbf{``Replan'' đếm gì} & \textbf{Phương sai giữa các agent} \\ \hline
 A*           & Độc lập từng agent    & Chặn đường + chu kỳ định kỳ              & Thấp, đồng đều \\
@@ -537,7 +537,7 @@ PIBT C++/TCP & Máy chủ C++ tập trung & Nhịp đếm phía máy khách     
 Hệ quả của ba cơ chế trên thể hiện ngay ở mức sáu agent. Bảng~\ref{tab:peragent_evidence} trích
 số lần replan của từng agent trong một lượt chạy trên bản đồ Mansion: A* phân bố đều, PIBT~C\#
 có một agent đột biến lên hàng nghìn trong khi các agent còn lại quanh giá trị trung vị, còn
-PIBT~C++/TCP gần như bằng nhau tuyệt đối.
+PIBT~C++/TCP xấp xỉ bằng nhau.
 
 \begin{table}[htbp]
 \centering
@@ -618,6 +618,7 @@ Bảng~\ref{tab:dynamic_results} tổng hợp kết quả khi bật chướng ng
 \caption{Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}
 \label{tab:dynamic_results}
 \small
+\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{llrrrrl}
 \hline
 \textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
