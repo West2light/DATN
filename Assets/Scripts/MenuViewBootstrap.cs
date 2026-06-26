@@ -246,7 +246,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Text title = MakeText(card.transform, "Title", "TANK MAPF",
             54, FontStyle.Bold, AccentGold,
             new Vector2(0.5f, 0.5f), new Vector2(0f, 170f), new Vector2(380f, 72f));
-        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.font = UiFontProvider.GetDefaultFont();
         title.fontStyle = FontStyle.Bold;
         title.transform.SetAsLastSibling();
 
@@ -1106,7 +1106,7 @@ public class MenuViewBootstrap : MonoBehaviour
         Text label = btn.GetComponentInChildren<Text>(true);
         if (label != null)
         {
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = UiFontProvider.GetDefaultFont();
             label.color = TextLight;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
@@ -1219,7 +1219,7 @@ public class MenuViewBootstrap : MonoBehaviour
         tr.offsetMin = new Vector2(14, 8); tr.offsetMax = new Vector2(-14, -8);
         Text txt = textGO.AddComponent<Text>();
         txt.text      = message;
-        txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.font      = UiFontProvider.GetDefaultFont();
         txt.fontSize  = 18;
         txt.alignment = TextAnchor.MiddleCenter;
         txt.color     = new Color(1f, 0.38f, 0.32f, 1f);

@@ -980,7 +980,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         tr.offsetMax  = new Vector2(-12, -8);
         Text txt = textGO.AddComponent<Text>();
         txt.text      = message;
-        txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.font      = UiFontProvider.GetDefaultFont();
         txt.fontSize  = 18;
         txt.alignment = TextAnchor.MiddleCenter;
         txt.color     = new Color(1f, 0.35f, 0.35f, 1f);

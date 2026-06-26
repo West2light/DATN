@@ -68,19 +68,16 @@ public static class UiFontProvider
     }
 
     /// <summary>
-    /// Force every active Text that uses this font to rebuild its geometry.
-    /// Call this from a MonoBehaviour coroutine after Text components are created.
+    /// Force every active Text component to rebuild its geometry.
+    /// Covers all fonts (NotoSans, LegacyRuntime, etc.) so no text is missed.
     /// </summary>
     public static void ForceRefreshAllTexts()
     {
-        Font f = GetDefaultFont();
-        if (f == null) return;
-
         var all = Object.FindObjectsByType<Text>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (var t in all)
         {
-            if (t != null && t.font == f)
+            if (t != null)
                 t.SetAllDirty();
         }
     }
@@ -100,13 +97,6 @@ public static class UiFontProvider
     private static void OnAtlasRebuilt(Font rebuilt)
     {
         if (_font == null || rebuilt != _font) return;
-
-        var all = Object.FindObjectsByType<Text>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (var t in all)
-        {
-            if (t != null && t.font == rebuilt)
-                t.SetAllDirty();
-        }
+        ForceRefreshAllTexts();
     }
 }

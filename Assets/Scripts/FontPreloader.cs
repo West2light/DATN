@@ -26,9 +26,9 @@ public class FontPreloader : MonoBehaviour
 {
     private static FontPreloader _instance;
 
-    // Number of frames to keep refreshing after a scene loads.
-    // 10 frames (~167 ms at 60 fps) is enough for even the slowest cold loads.
-    private const int RefreshFrames = 10;
+    // Number of frames to refresh every frame right after a scene loads.
+    // Covers the common case where the atlas is ready within ~0.5 s.
+    private const int RefreshFrames = 30;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoCreate()
@@ -74,14 +74,20 @@ public class FontPreloader : MonoBehaviour
             PrimeSizes(font);
         }
 
-        // Refresh every frame for RefreshFrames frames.
-        // The first couple of frames the atlas may still be building; by the end
-        // it is guaranteed complete and the final SetAllDirty() sticks.
+        // Refresh every frame for the first batch of frames.
         for (int i = 0; i < RefreshFrames; i++)
         {
             yield return null;
             UiFontProvider.ForceRefreshAllTexts();
         }
+
+        // Extra delayed passes for slow browsers where glyph baking takes > 0.5 s.
+        yield return new WaitForSeconds(0.5f);
+        UiFontProvider.ForceRefreshAllTexts();
+        yield return new WaitForSeconds(1.0f);
+        UiFontProvider.ForceRefreshAllTexts();
+        yield return new WaitForSeconds(2.0f);
+        UiFontProvider.ForceRefreshAllTexts();
     }
 
     private static void PrimeSizes(Font font)
