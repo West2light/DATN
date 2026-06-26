@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 16:09
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 17:17
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1844,11 +1844,6 @@ File: Hinhve/MultiplaySelect_countEnemyAgent_map.png Graphic file (type bmp)
 File: Hinhve/host_game_multiple.png Graphic file (type bmp)
 <Hinhve/host_game_multiple.png>
 
-Overfull \hbox (43.12445pt too wide) in paragraph at lines 391--396
-\TU/TimesNewRoman(0)/m/n/13 chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăn
-g và các nút READY/START/CANCEL;
- []
-
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1872,15 +1867,12 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [36]
-Overfull \hbox (37.38342pt too wide) in paragraph at lines 452--466
- [][] 
- []
-
 File: Hinhve/13_backtest_workflow.drawio.png Graphic file (type bmp)
 <Hinhve/13_backtest_workflow.drawio.png>
 File: Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png Graphic file (type 
 bmp)
 <Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png>
+
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1897,12 +1889,10 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [38]
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 566--585
+Overfull \hbox (3.57104pt too wide) in paragraph at lines 564--583
  [][] 
  []
 
-File: Hinhve/backtest_duration_static.png Graphic file (type bmp)
-<Hinhve/backtest_duration_static.png>
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1911,6 +1901,8 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [39]
+File: Hinhve/backtest_duration_static.png Graphic file (type bmp)
+<Hinhve/backtest_duration_static.png>
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
 LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 62
@@ -1965,9 +1957,14 @@ File: Hinhve/backtest_dyn_off.png Graphic file (type bmp)
 <Hinhve/backtest_dyn_off.png>
 File: Hinhve/backtest_dyn_on.png Graphic file (type bmp)
 <Hinhve/backtest_dyn_on.png>
+
+Overfull \hbox (81.59462pt too wide) in paragraph at lines 668--672
+\TU/TimesNewRoman(0)/m/n/13 ngại động, bản đồ chỉ có các thùng tĩnh màu tím (tr
+ái); khi bật, hệ thống \TU/lmtt/m/n/13 DynamicObstacleSpawner
+ []
+
 File: Hinhve/backtest-dyn-on-2.png Graphic file (type bmp)
 <Hinhve/backtest-dyn-on-2.png>
-
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1979,10 +1976,6 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 File: Hinhve/backtest_static_vs_dynamic.png Graphic file (type bmp)
 <Hinhve/backtest_static_vs_dynamic.png>
 
-Overfull \hbox (0.65176pt too wide) in paragraph at lines 710--734
- [][] 
- []
-
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1991,9 +1984,14 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [42]
+Overfull \hbox (0.65176pt too wide) in paragraph at lines 710--734
+ [][] 
+ []
+
 File: Hinhve/backtest_duration_vs_agents.png Graphic file (type bmp)
 <Hinhve/backtest_duration_vs_agents.png>
-
+File: Hinhve/backtest_replan_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_replan_vs_agents.png>
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2002,17 +2000,9 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [43]
-File: Hinhve/backtest_replan_vs_agents.png Graphic file (type bmp)
-<Hinhve/backtest_replan_vs_agents.png>
 File: Hinhve/backtest_timeout_vs_agents.png Graphic file (type bmp)
 <Hinhve/backtest_timeout_vs_agents.png>
 
-Overfull \hbox (20.10802pt too wide) in paragraph at lines 790--814
- [][] 
- []
-
-File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
-<Hinhve/backtest_recoveries_vs_agents.png>
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2021,6 +2011,12 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [44]
+Overfull \hbox (20.10802pt too wide) in paragraph at lines 792--816
+ [][] 
+ []
+
+File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_recoveries_vs_agents.png>
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2048,7 +2044,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 [47]
 File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
 <Hinhve/14_gcp_nginx_deployment.drawio.png>
-)
+
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2056,7 +2052,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[48]
+[48])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2247,10 +2243,10 @@ Package logreq Info: Writing requests to 'DoAn.run.xml'.
 Here is how much of TeX's memory you used:
  35171 strings out of 402987
  708575 string characters out of 5448317
- 1667838 words of memory out of 5000000
+ 1674838 words of memory out of 5000000
  63365 multiletter control sequences out of 15000+600000
  639307 words of font info for 125 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  108i,12n,107p,2507b,4883s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on DoAn.xdv (75 pages, 1231580 bytes).
+Output written on DoAn.xdv (75 pages, 1233516 bytes).

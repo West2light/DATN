@@ -389,8 +389,8 @@ sẵn sàng (Hình~\ref{fig:ss_mp_host}).
 \end{figure}
 
 Hình~\ref{fig:ss_mp_host} là phòng chờ phía Host: hiển thị mã phòng để chia sẻ, danh sách
-người chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăng và các nút READY/START/CANCEL;
-nút START chỉ bật khi đủ số người tối thiểu và tất cả đã READY. Khi trận bắt đầu,
+người chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăng và các nút READY, START và CANCEL;
+nút START chỉ bật khi đủ số người tối thiểu và tất cả người chơi đã READY. Khi trận bắt đầu,
 Hình~\ref{fig:ss_inround_mp} minh họa một trận nhiều người với trạng thái xe tăng, đạn và
 Eagle được đồng bộ giữa các máy.
 
@@ -439,31 +439,35 @@ và thời gian còn lại của mỗi run.
 
 \subsection{Cấu hình thực nghiệm}
 
-Thực nghiệm được thực hiện theo phương pháp backtest tự động (automated play-out):
-agent AI kiểm soát tất cả xe tăng địch, hệ thống ghi lại số chỉ số sau mỗi kịch bản
-mà không có sự can thiệp của người dùng. Bảng~\ref{tab:exp_config} mô tả cấu hình đầy
-đủ của thực nghiệm, còn Hình~\ref{fig:backtest_workflow} mô tả quy trình backtest từ
-lúc khởi động đến khi xuất kết quả.
+Thực nghiệm được thực hiện theo phương pháp backtest tự động (automated play-out): agent AI kiểm
+soát toàn bộ xe tăng địch và hệ thống tự ghi lại các chỉ số sau mỗi kịch bản mà không cần người
+dùng can thiệp. Bảng~\ref{tab:exp_config} liệt kê cấu hình đầy đủ của thực nghiệm.
 
 \begin{table}[htbp]
 \centering
 \caption{Cấu hình thực nghiệm}
 \label{tab:exp_config}
-\begin{tabular}{ll}
+\begin{tabular}{l >{\raggedright\arraybackslash}p{8.4cm}}
 \hline
-\textbf{Tham số}          & \textbf{Giá trị}                                               \\ \hline
-Bản đồ                    & Alpha32, Mansion, Chantry, Gallows, Maze128                    \\
-Thuật toán so sánh        & A* (baseline), PIBT C\#, PIBT C++/TCP                         \\
-Số agent (xe tăng địch)   & 6, 12, 24, 36, 72                                              \\
-Số lần lặp mỗi tổ hợp     & 6                                                              \\
-Timeout mỗi run           & 180\,giây                            \\
-Tổng số run               & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 5 mức agent \(\times\) 6 lần \(\times\) 2 = 900 run        \\
-Môi trường tĩnh           & Không có chướng ngại di chuyển                                \\
-Môi trường động           & \texttt{DynamicObstacleSpawner}: spawn/despawn thùng          \\
-                          & ngay trên đường đi của agent, \texttt{crateLifetime}\,=\,8\,s \\
+\textbf{Tham số} & \textbf{Giá trị} \\ \hline
+Bản đồ & Alpha32, Mansion, Chantry, Gallows, Maze128 \\
+Thuật toán so sánh & A* (baseline), PIBT C\#, PIBT C++/TCP \\
+Số agent (xe tăng địch) & 6, 12, 24, 36, 72 \\
+Số lần lặp mỗi tổ hợp & 6 \\
+Timeout mỗi run & 180 giây \\
+Tổng số run & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 5 mức agent \(\times\) 6 lần \(\times\) 2 môi trường = 900 run \\
+Môi trường tĩnh & Không có chướng ngại di chuyển \\
+Môi trường động & \texttt{DynamicObstacleSpawner} sinh/hủy thùng ngay trên đường đi của agent, \texttt{crateLifetime}\,=\,8\,s \\
 \hline
 \end{tabular}
 \end{table}
+
+Các chỉ số thu thập sau mỗi run gồm: thời gian hoàn thành (\textit{Duration}), tổng số lần tái
+hoạch định (\textit{TotalReplans}), số lần phục hồi sau kẹt (\textit{TotalRecoveries}), tổng số
+phát bắn (\textit{TotalShots}), tổng số ô đã đi qua (\textit{TotalCells}), điểm máu Eagle còn lại
+(\textit{EagleHP}) và kết quả kịch bản (\textit{Outcome}: \texttt{EagleDestroyed} hoặc
+\texttt{Timeout}). Toàn bộ quy trình từ lúc khởi động đến khi xuất tệp CSV được tóm tắt ở
+Hình~\ref{fig:backtest_workflow}.
 
 \begin{figure}[htbp]
     \centering
@@ -472,16 +476,7 @@ Môi trường động           & \texttt{DynamicObstacleSpawner}: spawn/despaw
     \label{fig:backtest_workflow}
 \end{figure}
 
-Các chỉ số được thu thập bao gồm: thời gian hoàn thành kịch bản (\textit{Duration}),
-tổng số lần tái hoạch định đường đi (\textit{TotalReplans}), số lần phục hồi sau kẹt
-(\textit{TotalRecoveries}), tổng số phát bắn (\textit{TotalShots}), tổng số ô đã đi qua
-(\textit{TotalCells}), điểm máu Eagle còn lại (\textit{EagleHP}), và kết quả kịch bản
-(\textit{Outcome}: \texttt{EagleDestroyed} hoặc \texttt{Timeout}).
-
-Giao diện điều khiển backtest (Hình~\ref{fig:backtest_config}) cho phép chọn tập bản đồ, số
-lần chạy mỗi bản đồ, \textbf{số lượng agent} và bật/tắt chế độ chướng ngại động. Khả năng quét
-số lượng agent ngay trên giao diện là cơ sở để khảo sát khả năng mở rộng ở
-Mục~\ref{subsec:scaling}: cùng một kịch bản được lặp lại với 6, 12, 24, 36 và 72 agent.
+Toàn bộ cấu hình được điều khiển qua một giao diện duy nhất, minh họa ở Hình~\ref{fig:backtest_config}.
 
 \begin{figure}[htbp]
     \centering
@@ -490,35 +485,18 @@ Mục~\ref{subsec:scaling}: cùng một kịch bản được lặp lại với 
     \label{fig:backtest_config}
 \end{figure}
 
+Qua giao diện này, người dùng chọn tập bản đồ, số lần chạy mỗi bản đồ, \textbf{số lượng agent} và
+bật/tắt chế độ chướng ngại động. Khả năng quét số lượng agent ngay trên giao diện chính là cơ sở
+để khảo sát khả năng mở rộng ở Mục~\ref{subsec:scaling}, với năm mức 6, 12, 24, 36 và 72 agent.
+
 \subsection{Ba thuật toán điều hướng và cách đo số lần tái hoạch định}
 \label{subsec:three_algos}
 
-Ba thuật toán được so sánh khác nhau ở \emph{nơi giải quyết xung đột} và do đó ở \emph{cách
-phát sinh lệnh tái hoạch định} (replan). Hiểu rõ điểm này là điều kiện để diễn giải đúng các
-số liệu ở những mục sau.
-
-\textbf{A* (baseline).} Mỗi agent chạy một bộ tìm đường A* trên lưới một cách \emph{độc lập}
-(lớp \texttt{GridEnemyAgent}). Agent chỉ tái hoạch định khi ô kế tiếp trên đường đi bị chặn
-hoặc khi hết một chu kỳ định kỳ \texttt{replanInterval}. Vì không có cơ chế phối hợp giữa các
-agent nên số lần replan của từng agent tương đối đồng đều và không xuất hiện đột biến. Sơ đồ
-tuần tự của cơ chế này được trình bày ở Hình~\ref{fig:seq_astar}.
-
-\textbf{PIBT C\#.} Bộ giải PIBT (Priority Inheritance with Backtracking)~\cite{okumura2022pibt}
-chạy \emph{cục bộ trong tiến trình Unity} (lớp \texttt{GridEnemyAgentPIBT}). Mỗi bước phân
-giải xung đột giữa các agent được tính là một lần replan; ngoài ra, khi một agent bị kẹt, cơ
-chế thoát kẹt khẩn cấp của riêng agent đó phát sinh thêm nhiều replan, tạo ra \emph{đột biến}
-(spike) trên các bản đồ hẹp. Tham chiếu Hình~\ref{fig:seq_pibt}.
-
-\textbf{PIBT C++/TCP.} Bộ giải PIBT chạy trên một \emph{máy chủ C++ tập trung} kết nối qua TCP
-(lớp \texttt{GridEnemyAgentPIBT\_TCP}). Unity gửi trạng thái và nhận lại hành động ở mỗi chu
-kỳ; phía Unity chỉ \emph{đếm theo nhịp} (cadence) nên số replan của các agent rất đồng đều.
-Lưu ý quan trọng: chi phí phối hợp và đệ quy bên trong máy chủ C++ không được trả về qua giao
-thức, nên con số replan của biến thể này chỉ phản ánh nhịp đếm phía máy khách, không bao gồm
-chi phí nội bộ máy chủ. Tham chiếu Hình~\ref{fig:seq_pibt_tcp}.
-
-Để ba thuật toán so sánh được, cả ba đều đếm replan trên cùng một đơn vị nhịp (một lần mỗi
-agent cho mỗi cửa sổ 0,75 giây); điểm khác biệt nằm ở phần replan \emph{khẩn cấp} mà chỉ PIBT
-C\# phát sinh thêm. Bảng~\ref{tab:replan_mechanism} tóm tắt sự khác biệt này.
+Ba thuật toán được so sánh khác nhau ở \emph{nơi giải quyết xung đột} và do đó ở \emph{cách phát
+sinh lệnh tái hoạch định} (replan). Cả ba đều đếm replan trên cùng một đơn vị nhịp (một lần mỗi
+agent cho mỗi cửa sổ 0,75 giây); điểm khác biệt nằm ở phần replan \emph{khẩn cấp} mà chỉ PIBT~C\#
+phát sinh thêm. Bảng~\ref{tab:replan_mechanism} tóm tắt khác biệt này trước khi đi vào chi tiết
+từng thuật toán.
 
 \begin{table}[htbp]
 \centering
@@ -534,10 +512,26 @@ PIBT C++/TCP & Máy chủ C++ tập trung & Nhịp đếm phía máy khách     
 \end{tabular}
 \end{table}
 
-Hệ quả của ba cơ chế trên thể hiện ngay ở mức sáu agent. Bảng~\ref{tab:peragent_evidence} trích
-số lần replan của từng agent trong một lượt chạy trên bản đồ Mansion: A* phân bố đều, PIBT~C\#
-có một agent đột biến lên hàng nghìn trong khi các agent còn lại quanh giá trị trung vị, còn
-PIBT~C++/TCP xấp xỉ bằng nhau.
+\textbf{A* (baseline).} Mỗi agent chạy một bộ tìm đường A* trên lưới một cách \emph{độc lập} (lớp
+\texttt{GridEnemyAgent}). Agent chỉ tái hoạch định khi ô kế tiếp trên đường đi bị chặn hoặc khi
+hết một chu kỳ định kỳ \texttt{replanInterval}. Vì không có cơ chế phối hợp giữa các agent nên số
+lần replan của từng agent tương đối đồng đều và không xuất hiện đột biến (Hình~\ref{fig:seq_astar}).
+
+\textbf{PIBT C\#.} Bộ giải PIBT (Priority Inheritance with Backtracking)~\cite{okumura2022pibt}
+chạy \emph{cục bộ trong tiến trình Unity} (lớp \texttt{GridEnemyAgentPIBT}). Mỗi bước phân giải
+xung đột giữa các agent được tính là một lần replan; ngoài ra, khi một agent bị kẹt, cơ chế thoát
+kẹt khẩn cấp của riêng agent đó phát sinh thêm nhiều replan, tạo ra \emph{đột biến} (spike) trên
+các bản đồ hẹp (Hình~\ref{fig:seq_pibt}).
+
+\textbf{PIBT C++/TCP.} Bộ giải PIBT chạy trên một \emph{máy chủ C++ tập trung} kết nối qua TCP
+(lớp \texttt{GridEnemyAgentPIBT\_TCP}). Unity gửi trạng thái và nhận lại hành động ở mỗi chu kỳ;
+phía Unity chỉ \emph{đếm theo nhịp} (cadence) nên số replan của các agent rất đồng đều. Lưu ý quan
+trọng: chi phí phối hợp và đệ quy bên trong máy chủ C++ không được trả về qua giao thức, nên con
+số replan của biến thể này chỉ phản ánh nhịp đếm phía máy khách, không bao gồm chi phí nội bộ máy
+chủ (Hình~\ref{fig:seq_pibt_tcp}).
+
+Hệ quả của ba cơ chế thể hiện ngay ở mức sáu agent: Bảng~\ref{tab:peragent_evidence} trích số lần
+replan của từng agent trong một lượt chạy trên bản đồ Mansion.
 
 \begin{table}[htbp]
 \centering
@@ -553,10 +547,14 @@ PIBT C++/TCP & 135, 135, 134, 134, 134, 134 \\ \hline
 \end{tabular}
 \end{table}
 
+Bảng~\ref{tab:peragent_evidence} cho thấy A* phân bố đều, PIBT~C\# có một agent đột biến lên hàng
+nghìn trong khi các agent còn lại quanh giá trị trung vị, còn PIBT~C++/TCP xấp xỉ bằng nhau --
+đúng với cột ``phương sai'' trong Bảng~\ref{tab:replan_mechanism}.
+
 \subsection{Kết quả thực nghiệm -- Môi trường tĩnh}
 
-Bảng~\ref{tab:static_results} tổng hợp kết quả trung bình trên 6 lần lặp
-trong môi trường tĩnh (không có chướng ngại động), ở mức sáu agent.
+Bảng~\ref{tab:static_results} tổng hợp kết quả trung bình trên 6 lần lặp ở mức sáu agent trong
+môi trường tĩnh (không có chướng ngại động).
 
 \begin{table}[htbp]
 \centering
@@ -584,29 +582,31 @@ Maze128  & PIBT C++/TCP  & 180,0 & 1\,434 &   988  & Timeout        \\ \hline
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:duration_static} biểu diễn thời gian hoàn thành trung bình trên 5 bản đồ.
-Có thể thấy ba thuật toán cho thời gian gần như trùng nhau trên các bản đồ mở, và cùng
-chạm trần timeout trên bản đồ mê cung Maze128.
+Bảng cho thấy cả ba thuật toán đều phá được Eagle trên 4/5 bản đồ với thời gian xấp xỉ nhau,
+riêng Maze128 timeout. Hai khác biệt đáng chú ý -- thời gian hoàn thành và số lần tái hoạch
+định -- được minh họa lần lượt ở Hình~\ref{fig:duration_static} và Hình~\ref{fig:replan_static}.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_duration_static.png}
+    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_duration_static.png}
     \caption{Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}
     \label{fig:duration_static}
 \end{figure}
 
-Trong khi thời gian gần như tương đương, số lần tái hoạch định lại tách thành ba mức rõ rệt,
-như minh họa ở Hình~\ref{fig:replan_static} (vẽ theo thang logarit). PIBT~C\# cao vượt trội
-trên các bản đồ hẹp (Mansion, Chantry, Gallows) do các lần thoát kẹt khẩn cấp của từng agent;
-PIBT~C++/TCP ở mức trung gian; còn A* thấp nhất trên những bản đồ này. Nguyên nhân của khác
-biệt được phân tích chi tiết ở phần nhận xét và đánh giá cuối mục.
+Về thời gian, Hình~\ref{fig:duration_static} cho thấy ba thuật toán gần như trùng nhau trên các
+bản đồ mở và cùng chạm trần 180 giây trên bản đồ mê cung Maze128.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{Hinhve/backtest_replan_static.png}
+    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_replan_static.png}
     \caption{Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}
     \label{fig:replan_static}
 \end{figure}
+
+Về số lần tái hoạch định, Hình~\ref{fig:replan_static} (thang logarit) cho thấy ba thuật toán
+tách thành ba mức rõ rệt: PIBT~C\# cao vượt trội trên các bản đồ hẹp (Mansion, Chantry, Gallows)
+do các lần thoát kẹt khẩn cấp của từng agent; PIBT~C++/TCP ở mức trung gian; còn A* thấp nhất.
+Nguyên nhân được phân tích chi tiết ở phần nhận xét cuối mục.
 
 \subsection{Kết quả thực nghiệm -- Môi trường có chướng ngại động}
 
@@ -646,11 +646,6 @@ Số liệu cho thấy PIBT~C\# phục hồi nhiều nhất (\(326\)--\(364\) l�
 chế thoát kẹt cục bộ, trong khi A* gần như không dùng cơ chế này (\(8\)--\(17\) lần) mà chủ yếu
 tái hoạch định lại đường, còn PIBT~C++/TCP ở mức trung gian.
 
-Hình~\ref{fig:backtest_dyn_compare} minh họa trực quan sự khác biệt giữa hai chế độ trên bản đồ
-Alpha32. Khi tắt chướng ngại động, bản đồ chỉ có các thùng tĩnh màu tím (trái); khi bật, hệ
-thống \texttt{DynamicObstacleSpawner} sinh thêm các khối kim loại màu đen ngay trên lối đi
-(phải), buộc agent phải liên tục tính lại đường.
-
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}{0.48\textwidth}
@@ -670,20 +665,21 @@ thống \texttt{DynamicObstacleSpawner} sinh thêm các khối kim loại màu �
     \label{fig:backtest_dyn_compare}
 \end{figure}
 
-Diễn tiến của một lượt chạy có chướng ngại động được minh họa ở Hình~\ref{fig:backtest_dyn_run}:
-sau 17 giây, agent A* trên bản đồ Alpha32 đã tích lũy 178 lần tái hoạch định và Eagle bắt đầu
-mất máu (còn 491/500) do agent phải liên tục vòng tránh các khối kim loại động.
+Hình~\ref{fig:backtest_dyn_compare} minh họa trực quan sự khác biệt trên bản đồ Alpha32: khi tắt
+chướng ngại động, bản đồ chỉ có các thùng tĩnh màu tím (trái); khi bật, hệ thống
+\texttt{DynamicObstacleSpawner} sinh thêm các khối kim loại màu đen ngay trên lối đi (phải), buộc
+agent phải liên tục tính lại đường.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{Hinhve/backtest-dyn-on-2.png}
+    \includegraphics[width=0.82\textwidth]{Hinhve/backtest-dyn-on-2.png}
     \caption{Một lượt backtest A* với chướng ngại động trên Alpha32: bảng chỉ số bên phải hiển thị số lần replan và máu Eagle theo thời gian}
     \label{fig:backtest_dyn_run}
 \end{figure}
 
-Hình~\ref{fig:static_vs_dynamic} so sánh trực tiếp tổng số lần tái hoạch định giữa hai
-điều kiện môi trường cho từng thuật toán, cho thấy chướng ngại động làm tăng đáng kể số
-lần replan ở mọi thuật toán.
+Hình~\ref{fig:backtest_dyn_run} minh họa diễn tiến một lượt chạy: sau 17 giây, agent A* trên
+Alpha32 đã tích lũy 178 lần tái hoạch định và Eagle bắt đầu mất máu (còn 491/500) do agent phải
+liên tục vòng tránh các khối kim loại động.
 
 \begin{figure}[htbp]
     \centering
@@ -692,10 +688,14 @@ lần replan ở mọi thuật toán.
     \label{fig:static_vs_dynamic}
 \end{figure}
 
+Hình~\ref{fig:static_vs_dynamic} so sánh trực tiếp tổng số lần tái hoạch định giữa hai điều kiện
+môi trường cho từng thuật toán, cho thấy chướng ngại động làm tăng đáng kể số lần replan ở mọi
+thuật toán.
+
 \subsection{Khảo sát khả năng mở rộng theo số lượng agent}
 \label{subsec:scaling}
 
-Các kết quả ở trên dừng ở mức sáu agent. Để đánh giá khả năng mở rộng (scalability) của ba
+Các kết quả tại những mục trước mới dừng ở mức sáu agent. Để đánh giá khả năng mở rộng (scalability) của ba
 thuật toán khi tải tăng, mỗi kịch bản được lặp lại với năm mức số lượng agent: 6, 12, 24, 36 và
 72. Mức tải này phản ánh đúng cơ chế của trò chơi, trong đó mỗi người chơi kéo theo một nhóm
 sáu xe tăng địch (\texttt{EnemyCount} \(=\) 6 \(\times\) số người chơi), nên 72 agent tương ứng
@@ -733,11 +733,9 @@ agent, lấy trung bình trên cả năm bản đồ.
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:scaling_duration} biểu diễn thời gian hoàn thành trung bình theo số lượng agent.
-Cả ba thuật toán đều tăng nhẹ rồi bão hòa gần ngưỡng timeout 180 giây: với các lượt vẫn phá
-được Eagle, thời gian tăng từ khoảng 112 giây (6 agent) lên khoảng 155 giây (72 agent). PIBT
-C++/TCP luôn cao hơn hai biến thể còn lại một chút do độ trễ trao đổi gói tin TCP cộng dồn theo
-mỗi chu kỳ.
+Bảng~\ref{tab:scaling_results} hé lộ ba xu hướng chính khi tăng số agent: thời gian hoàn thành,
+số lần tái hoạch định và tỉ lệ timeout, được làm rõ lần lượt ở Hình~\ref{fig:scaling_duration},
+Hình~\ref{fig:scaling_replan} và Hình~\ref{fig:scaling_timeout}.
 
 \begin{figure}[htbp]
     \centering
@@ -746,16 +744,10 @@ mỗi chu kỳ.
     \label{fig:scaling_duration}
 \end{figure}
 
-Khác biệt rõ rệt nhất nằm ở số lần tái hoạch định, biểu diễn theo thang logarit ở
-Hình~\ref{fig:scaling_replan}, tạo thành ba đường cong tách biệt. PIBT~C\# luôn cao nhất và tăng
-nhanh nhất, từ khoảng \(2\,600\) lần (6 agent) lên hơn \(140\,000\) lần (72 agent): mỗi agent bị
-kẹt lại kích hoạt thêm các lần thoát kẹt khẩn cấp, càng đông agent thì càng nhiều đột
-biến~\cite{okumura2022pibt}. A* và PIBT~C++/TCP xuất phát sát nhau ở mức sáu agent, nhưng từ
-khoảng 24 agent trở đi A* vượt lên trên PIBT~C++/TCP: số xung đột mà A* phải xử lý tăng gần theo
-bình phương số agent~\cite{sharon2015cbs}, trong khi PIBT~C++/TCP chỉ tăng gần tuyến tính theo
-nhịp đếm tập trung. Nói cách khác, kiến trúc máy chủ tập trung thể hiện khả năng mở rộng tốt
-nhất về số lần tái hoạch định phía máy khách; tuy vậy cần nhắc lại con số này không bao gồm chi
-phí phối hợp bên trong máy chủ.
+Về thời gian (Hình~\ref{fig:scaling_duration}), cả ba thuật toán đều tăng nhẹ rồi bão hòa gần
+ngưỡng timeout 180 giây: với các lượt vẫn phá được Eagle, thời gian tăng từ khoảng 112 giây
+(6 agent) lên khoảng 155 giây (72 agent). PIBT~C++/TCP luôn cao hơn hai biến thể còn lại một chút
+do độ trễ trao đổi gói tin TCP cộng dồn theo mỗi chu kỳ.
 
 \begin{figure}[htbp]
     \centering
@@ -764,13 +756,16 @@ phí phối hợp bên trong máy chủ.
     \label{fig:scaling_replan}
 \end{figure}
 
-Hình~\ref{fig:scaling_timeout} cho thấy tỉ lệ lượt chạy bị timeout tăng theo số lượng agent. Ở
-mức sáu agent chỉ bản đồ mê cung Maze128 timeout (ứng với tỉ lệ phá Eagle 80\%). Khi số agent
-tăng, tỉ lệ timeout tăng theo dạng ``vách'': các bản đồ hẹp Chantry và Gallows lần lượt timeout
-ở mức 36 agent với A* và PIBT~C\#, riêng PIBT~C++/TCP chạm vách sớm hơn một bậc (từ 24 agent) vì
-thời gian mỗi chu kỳ cao hơn đẩy nhanh việc chạm trần 180 giây. Quy luật hiệu năng sụt mạnh khi
-vượt khoảng 50 agent quan sát được ở đây phù hợp với các nghiên cứu nền về bài toán
-MAPF~\cite{stern2019mapf}.
+Khác biệt rõ rệt nhất nằm ở số lần tái hoạch định (Hình~\ref{fig:scaling_replan}, thang logarit),
+tạo thành ba đường cong tách biệt. PIBT~C\# luôn cao nhất và tăng nhanh nhất, từ khoảng
+\(2\,600\) lần (6 agent) lên hơn \(140\,000\) lần (72 agent): mỗi agent bị kẹt lại kích hoạt thêm
+các lần thoát kẹt khẩn cấp, càng đông agent thì càng nhiều đột biến~\cite{okumura2022pibt}. A* và
+PIBT~C++/TCP xuất phát sát nhau ở mức sáu agent, nhưng từ khoảng 24 agent trở đi A* vượt lên trên
+PIBT~C++/TCP: số xung đột mà A* phải xử lý tăng gần theo bình phương số
+agent~\cite{sharon2015cbs}, trong khi PIBT~C++/TCP chỉ tăng gần tuyến tính theo nhịp đếm tập
+trung. Nói cách khác, kiến trúc máy chủ tập trung thể hiện khả năng mở rộng tốt nhất về số lần
+tái hoạch định phía máy khách; tuy vậy cần nhắc lại con số này không bao gồm chi phí phối hợp bên
+trong máy chủ.
 
 \begin{figure}[htbp]
     \centering
@@ -778,6 +773,13 @@ MAPF~\cite{stern2019mapf}.
     \caption{Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}
     \label{fig:scaling_timeout}
 \end{figure}
+
+Về tỉ lệ timeout (Hình~\ref{fig:scaling_timeout}), ở mức sáu agent chỉ bản đồ mê cung Maze128
+timeout (ứng với tỉ lệ phá Eagle 80\%). Khi số agent tăng, tỉ lệ timeout tăng theo dạng
+``vách'': các bản đồ hẹp Chantry và Gallows lần lượt timeout ở mức 36 agent với A* và PIBT~C\#,
+riêng PIBT~C++/TCP chạm vách sớm hơn một bậc (từ 24 agent) vì thời gian mỗi chu kỳ cao hơn đẩy
+nhanh việc chạm trần 180 giây. Quy luật hiệu năng sụt mạnh khi vượt khoảng 50 agent quan sát được
+ở đây phù hợp với các nghiên cứu nền về bài toán MAPF~\cite{stern2019mapf}.
 
 Trong môi trường có chướng ngại động, xu hướng theo số agent giữ nguyên nhưng chiều \emph{số lần
 phục hồi} trở nên nổi bật. Bảng~\ref{tab:scaling_dynamic} tổng hợp kết quả động theo mức agent.
@@ -813,19 +815,19 @@ phục hồi} trở nên nổi bật. Bảng~\ref{tab:scaling_dynamic} tổng h�
 \end{tabular}
 \end{table}
 
-Hình~\ref{fig:scaling_recoveries} cho thấy số lần phục hồi tăng vọt ở PIBT~C\#: cơ chế thoát kẹt
-cục bộ của biến thể này kích hoạt rất thường xuyên khi thùng động liên tục chặn đường, cao hơn
-A* và PIBT~C++/TCP từ một đến hai bậc độ lớn ở mọi mức agent. A* gần như không dùng cơ chế phục
-hồi (chỉ tái hoạch định lại đường), còn PIBT~C++/TCP ở mức trung gian nhờ máy chủ xử lý phần lớn
-xung đột. Đây vừa là điểm linh hoạt (thoát kẹt tốt) vừa là điểm yếu (chi phí phục hồi bùng nổ
-khi tải lớn) của kiến trúc cục bộ.
-
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.82\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
     \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
     \label{fig:scaling_recoveries}
 \end{figure}
+
+Hình~\ref{fig:scaling_recoveries} cho thấy số lần phục hồi tăng vọt ở PIBT~C\#: cơ chế thoát kẹt
+cục bộ của biến thể này kích hoạt rất thường xuyên khi thùng động liên tục chặn đường, cao hơn A*
+và PIBT~C++/TCP từ một đến hai bậc độ lớn ở mọi mức agent. A* gần như không dùng cơ chế phục hồi
+(chỉ tái hoạch định lại đường), còn PIBT~C++/TCP ở mức trung gian nhờ máy chủ xử lý phần lớn xung
+đột. Đây vừa là điểm linh hoạt (thoát kẹt tốt) vừa là điểm yếu (chi phí phục hồi bùng nổ khi tải
+lớn) của kiến trúc cục bộ.
 
 Bảng~\ref{tab:scaling_detail} trình bày chi tiết số lần tái hoạch định theo từng bản đồ và từng
 mức agent trong môi trường tĩnh, đánh dấu \(\dagger\) cho các lượt bị timeout. Có thể thấy rõ
@@ -876,7 +878,7 @@ Maze128  &  6 & 1\,439$^\dagger$ & 1\,413$^\dagger$ & 1\,434$^\dagger$ \\
 
 \subsection{Nhận xét và đánh giá}
 
-Từ toàn bộ kết quả ở trên, có thể rút ra một số nhận xét. Về thời gian hoàn thành, ba thuật
+Từ toàn bộ kết quả thực nghiệm, có thể rút ra một số nhận xét. Về thời gian hoàn thành, ba thuật
 toán cho kết quả xấp xỉ nhau trên các bản đồ mở, với chênh lệch lớn nhất không quá 10\% ở mức
 sáu agent; hành vi cuối cùng là phá hủy Eagle Base tương đương nhau giữa ba thuật toán.
 

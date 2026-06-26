@@ -44,9 +44,9 @@
 \contentsline {subsection}{\numberline {4.3.3}Minh họa các chức năng chính}{32}{subsection.4.3.3}%
 \contentsline {section}{\numberline {4.4}Kiểm thử và đánh giá}{36}{section.4.4}%
 \contentsline {subsection}{\numberline {4.4.1}Cấu hình thực nghiệm}{36}{subsection.4.4.1}%
-\contentsline {subsection}{\numberline {4.4.2}Ba thuật toán điều hướng và cách đo số lần tái hoạch định}{37}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.2}Ba thuật toán điều hướng và cách đo số lần tái hoạch định}{38}{subsection.4.4.2}%
 \contentsline {subsection}{\numberline {4.4.3}Kết quả thực nghiệm -- Môi trường tĩnh}{39}{subsection.4.4.3}%
-\contentsline {subsection}{\numberline {4.4.4}Kết quả thực nghiệm -- Môi trường có chướng ngại động}{40}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.4}Kết quả thực nghiệm -- Môi trường có chướng ngại động}{41}{subsection.4.4.4}%
 \contentsline {subsection}{\numberline {4.4.5}Khảo sát khả năng mở rộng theo số lượng agent}{42}{subsection.4.4.5}%
 \contentsline {subsection}{\numberline {4.4.6}Nhận xét và đánh giá}{47}{subsection.4.4.6}%
 \contentsline {section}{\numberline {4.5}Triển khai}{48}{section.4.5}%
