@@ -1,89 +1,111 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Provides the shared runtime font for all procedural UI.
+///
+/// WebGL dynamic-font race condition:
+///   Unity's dynamic font renders glyphs into a texture atlas at runtime.
+///   On a cold browser the atlas starts empty; when Text components first
+///   render, their glyphs are not in the atlas yet — so they show blank.
+///   Unity then rebuilds the atlas and fires Font.textureRebuilt, but the
+///   existing Text components don't automatically redraw their geometry.
+///
+/// Fixes applied here:
+///   1. Subscribe to Font.textureRebuilt → call SetAllDirty on every
+///      matching Text so their geometry is rebuilt with correct glyph UVs.
+///   2. Call RequestCharactersInTexture once (common chars, size 14) right
+///      after the font loads, to start pre-populating the atlas early.
+///
+/// FontPreloader.cs (companion script) covers the rest:
+///   it force-refreshes all Text components every frame for the first
+///   several frames after each scene load, catching any remaining races.
+/// </summary>
 public static class UiFontProvider
 {
-    private const string DefaultFontResourcePath = "Fonts/NotoSans-Regular";
+    private const string FontResourcePath = "Fonts/NotoSans-Regular";
 
-    // All characters used across game HUD and menus — pre-warmed into the atlas on load.
-    // This prevents the WebGL atlas-rebuild race where Text components render before
-    // their glyphs exist, then never recover because no one re-dirtied them.
+    // Characters needed by the in-game HUD and menus — one prewarm call at
+    // the most common size is enough; other sizes are handled by FontPreloader.
     private const string PrewarmChars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" +
-        "0123456789 .,:;!?-/\\()[]{}×•←→★✔✖▶●%+_@#&'\"" +
-        "HPBASENEMYhpbaseenemy:";
+        "0123456789 .,:;!?-/()[]" +
+        "HPBASENEMYhpbaseenemy:" +
+        "×•←→★✔✖▶●%+_@#&'\"";
 
-    private static readonly int[]       PrewarmSizes  = { 11, 12, 13, 14, 15, 16, 20, 22 };
-    private static readonly FontStyle[] PrewarmStyles = { FontStyle.Normal, FontStyle.Bold };
-
-    private static Font _cachedFont;
-    private static bool _warnedMissingFont;
-    private static bool _subscribedToRebuild;
+    private static Font _font;
+    private static bool _warnedMissing;
+    private static bool _subscribed;
 
     public static Font GetDefaultFont()
     {
 #if UNITY_EDITOR
-        // NotoSans is packaged correctly for builds, but its dynamic atlas can fail to render
-        // legacy Unity UI.Text inside the Editor Game view. The built-in runtime font is
-        // always available in the Editor and avoids blank HUD text.
-        Font editorFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (editorFont != null)
-            return editorFont;
+        Font ef = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (ef != null) return ef;
 #endif
-
-        if (_cachedFont == null)
+        if (_font == null)
         {
-            _cachedFont = Resources.Load<Font>(DefaultFontResourcePath);
-            if (_cachedFont == null && !_warnedMissingFont)
+            _font = Resources.Load<Font>(FontResourcePath);
+            if (_font == null && !_warnedMissing)
             {
-                _warnedMissingFont = true;
+                _warnedMissing = true;
                 Debug.LogWarning(
-                    $"[UiFontProvider] Could not load Resources/{DefaultFontResourcePath}. " +
+                    $"[UiFontProvider] Cannot load Resources/{FontResourcePath}. " +
                     "Falling back to LegacyRuntime.ttf.");
             }
 
-            if (_cachedFont != null)
+            if (_font != null)
             {
-                // Subscribe BEFORE pre-warming so no rebuild event is missed.
-                EnsureTextureRebuildSubscription();
-                PrewarmFontAtlas(_cachedFont);
+                Subscribe();
+                // Kick off glyph baking early so atlas has content before any
+                // Text component requests characters during its first render.
+                _font.RequestCharactersInTexture(PrewarmChars, 14, FontStyle.Normal);
+                _font.RequestCharactersInTexture(PrewarmChars, 15, FontStyle.Bold);
             }
         }
 
-        return _cachedFont ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return _font ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
-    // Subscribe once to the global Font.textureRebuilt event.
-    // When the dynamic atlas is rebuilt (new glyphs needed), every Text using this font
-    // must be re-dirtied so Unity re-fetches the updated UV coordinates.
-    private static void EnsureTextureRebuildSubscription()
+    /// <summary>
+    /// Force every active Text that uses this font to rebuild its geometry.
+    /// Call this from a MonoBehaviour coroutine after Text components are created.
+    /// </summary>
+    public static void ForceRefreshAllTexts()
     {
-        if (_subscribedToRebuild) return;
-        _subscribedToRebuild = true;
-        Font.textureRebuilt += OnFontTextureRebuilt;
-    }
+        Font f = GetDefaultFont();
+        if (f == null) return;
 
-    // Request all common glyphs at every used size so the atlas is populated BEFORE
-    // any Text component tries to render.  Drastically reduces mid-render rebuilds.
-    private static void PrewarmFontAtlas(Font font)
-    {
-        foreach (int sz in PrewarmSizes)
-            foreach (FontStyle st in PrewarmStyles)
-                font.RequestCharactersInTexture(PrewarmChars, sz, st);
-    }
-
-    // Called by Unity whenever the font texture atlas is rebuilt.
-    // In WebGL, the rebuild is deferred (no threads), so Text components that already
-    // rendered with stale UVs will stay blank unless we explicitly mark them dirty.
-    private static void OnFontTextureRebuilt(Font changedFont)
-    {
-        if (changedFont != _cachedFont) return;
-
-        var allTexts = Object.FindObjectsByType<Text>(
+        var all = Object.FindObjectsByType<Text>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (var t in allTexts)
+        foreach (var t in all)
         {
-            if (t != null && t.font == changedFont)
+            if (t != null && t.font == f)
+                t.SetAllDirty();
+        }
+    }
+
+    // ── Internal ─────────────────────────────────────────────────────────────
+
+    private static void Subscribe()
+    {
+        if (_subscribed) return;
+        _subscribed = true;
+        Font.textureRebuilt += OnAtlasRebuilt;
+    }
+
+    // Called by Unity whenever a font's texture atlas is rebuilt.
+    // Any Text that already rendered with the old (stale) UVs needs to
+    // rebuild its vertex buffer with the new glyph positions.
+    private static void OnAtlasRebuilt(Font rebuilt)
+    {
+        if (_font == null || rebuilt != _font) return;
+
+        var all = Object.FindObjectsByType<Text>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var t in all)
+        {
+            if (t != null && t.font == rebuilt)
                 t.SetAllDirty();
         }
     }
