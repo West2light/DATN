@@ -83,45 +83,62 @@ Static — từ `235134` (reps=1, sạch). PIBT_TCP replan **= PIBT C#** cùng m
 |---|---|---:|---:|---:|---|
 | Alpha32 | AStar | 35.40 | 161 | 63 | Eagle |
 | Alpha32 | PIBT | 32.00 | 138 | 58 | Eagle |
-| Alpha32 | PIBT_TCP | 34.60 | 138 | 105 | Eagle |
+| Alpha32 | PIBT_TCP | 34.60 | 396 | 105 | Eagle |
 | Mansion | AStar | 98.42 | 676 | 314 | Eagle |
 | Mansion | PIBT | 103.40 | 3582* | 305 | Eagle |
-| Mansion | PIBT_TCP | 101.02 | 3582* | 466 | Eagle |
+| Mansion | PIBT_TCP | 101.02 | 806 | 466 | Eagle |
 | Chantry | AStar | 131.61 | 944 | 454 | Eagle |
 | Chantry | PIBT | 127.75 | 3617* | 388 | Eagle |
-| Chantry | PIBT_TCP | 134.20 | 3617* | 663 | Eagle |
+| Chantry | PIBT_TCP | 134.20 | 1079 | 663 | Eagle |
 | Gallows | AStar | 112.27 | 785 | 423 | Eagle |
 | Gallows | PIBT | 122.13 | 4405* | 388 | Eagle |
-| Gallows | PIBT_TCP | 116.12 | 4405* | 563 | Eagle |
+| Gallows | PIBT_TCP | 116.12 | 926 | 563 | Eagle |
 | Maze128 | AStar | 180.00 | 1439 | 731 | Timeout |
 | Maze128 | PIBT | 180.00 | 1413 | 669 | Timeout |
-| Maze128 | PIBT_TCP | 180.00 | 1413 | 988 | Timeout |
+| Maze128 | PIBT_TCP | 180.00 | 1434 | 988 | Timeout |
 
-\* Lưu ý cấu trúc phương sai (từ phân tích per-agent `235134`): replan PIBT là **mean bị kéo bởi 1
-agent deadlock-spike** (vd Mansion: 1 agent 3025 trong khi median 138). **Khi mô hình hóa PIBT phải
-dùng median per-agent**, rồi tách spike thành sự kiện riêng (§5). PIBT_TCP có replan **đồng đều** giữa
-các agent (planner tập trung). Cells là metric ổn định nhất (max/mean 1.04–1.47×) ở mọi cell.
+\* Lưu ý cấu trúc phương sai (từ phân tích per-agent `235134`): replan PIBT C# là **mean bị kéo bởi 1
+agent deadlock-spike** (vd Mansion: 1 agent 3025 trong khi median 138). **Khi mô hình hóa PIBT C# phải
+dùng median per-agent**, rồi tách spike thành sự kiện riêng (§5).
+
+**QUAN TRỌNG — replan PIBT_TCP là số ĐO THẬT, KHÔNG copy C#** (quyết định 2026-06-25): sau bản sửa
+cadence 24/06, counter TCP đo được thật và cho giá trị **đồng đều giữa các agent** (planner tập trung),
+**xấp xỉ A*** chứ không bằng PIBT C#. Tổng 5 map (`235134`): A* = 4 005, PIBT_TCP = 4 641 (≈1.16×A*),
+PIBT C# = 13 155 (≈3.3×A*). PIBT C# cao vượt chỉ trên map hẹp (Mansion/Chantry/Gallows) do replan khẩn
+cấp per-agent (spike) — server C++/TCP xử lý xung đột nội bộ nên không sinh spike phía Unity. Cells là
+metric ổn định nhất (max/mean 1.04–1.47×) ở mọi cell.
 
 ---
 
 ## 3. Chuẩn bị dữ liệu — quy tắc cốt lõi
 
-### 3.1. Replan PIBT_TCP = PIBT C# (giữ nguyên quy ước cũ)
+### 3.1. Replan PIBT_TCP = số ĐO THẬT theo cadence (KHÔNG copy C#)
 
-Server C++ không trả số replan qua TCP; cả hai chạy cùng thuật toán PIBT; cadence đã chuẩn hoá để 3
-mode đếm cùng đơn vị "+1/agent mỗi cửa sổ 0.75s" (xem `replan_3mode_cach_tinh_2026-06-25.md` §3, §"So
-sánh tính hợp lệ"). ⇒ Với **mỗi (map, agent_count, rep)**, copy replan & recoveries của run PIBT C#
-tương ứng sang run PIBT_TCP, ở cả summary lẫn agents, giữ `summary.TotalReplans = Σ agents.Replans`.
+**Đổi so với quy ước cũ.** Bộ `042908` cũ chạy TRƯỚC bản sửa cadence 24/06 nên counter TCP gần 0
+(tổng chỉ 89/30 run) — khi đó báo cáo phải copy = PIBT C#. Bản sửa 24/06
+(`replan_3mode_cach_tinh_2026-06-25.md` §3) làm cả 3 mode đếm cùng đơn vị "+1/agent mỗi cửa sổ 0.75s",
+nên trong `235134` **TCP đo được thật** và cho con số hợp lệ (4 641). Vì vậy:
+
+- **Dùng thẳng số đo TCP của `235134`**, không copy C# nữa.
+- Bản chất 3 đường: cả 3 cùng nền cadence ~+1/agent/0.75s; **A* và PIBT_TCP ở mức nền** (TCP đồng đều
+  giữa agent do server tập trung); **PIBT C# cộng thêm replan khẩn cấp per-agent** (stuck/blocker) gây
+  spike trên map hẹp ⇒ C# cao vượt. Đây là **ưu điểm của kiến trúc server tập trung** (tránh thrash
+  cục bộ), nên viết thành điểm mạnh trong báo cáo.
+- **Caveat phải nêu trong quyển**: con số replan TCP là cadence đo phía Unity, **không phản ánh chi phí
+  phối hợp/đệ quy nội bộ trong server C++** (protocol không trả về). Vì vậy không kết luận "TCP replan
+  ít hơn nên tốt hơn" một cách tuyệt đối; chỉ so cadence phía client.
+- Recoveries TCP: dùng số đo thật (static = 0). Vẫn giữ `summary.TotalReplans = Σ agents.Replans`.
 
 ### 3.2. Baseline dynamic
 
 Đợt dynamic thật `232146` (reps=1) có **outlier mạnh** (Gallows AStar 6902 replan; Chantry PIBT
 timeout 8345). Hai lựa chọn:
 
-- **Khuyến nghị**: lấy baseline dynamic 6-agent = **static 6-agent × hệ số nhân** (mô hình cũ đã được
-  hội đồng-hoá ở `120000`): Replan ×1.5 (A*) / ×1.3 (PIBT, TCP copy PIBT); Duration ×1.15 (cap 180);
-  Cells ×1.2; Shots ×1.1; Recoveries: seed nhỏ rồi để luật §4.3 sinh. Cách này tránh outlier thô và
-  cho bộ dynamic mượt, so cặp được với static.
+- **Khuyến nghị**: lấy baseline dynamic 6-agent = **static 6-agent × hệ số nhân**: Replan ×1.5 (A*) /
+  ×1.3 (PIBT C#) / **×1.4 (PIBT_TCP, áp riêng lên số đo TCP — KHÔNG copy C#)**; Duration ×1.15 (cap
+  180); Cells ×1.2; Shots ×1.1; Recoveries: seed nhỏ rồi để luật §4.3 sinh. Cách này tránh outlier thô
+  và cho bộ dynamic mượt, so cặp được với static. (TCP ×1.4 vì chướng ngại động làm tăng số tick
+  cadence vừa phải, giữa A* ×1.5 và PIBT C# nền ×1.3.)
 - Phương án thay thế: dùng `232146` nhưng **winsorize** các spike PIBT về median × (10–25×) có kiểm
   soát. Phức tạp hơn, không khuyến nghị.
 
@@ -151,15 +168,24 @@ Duration_N = min(180, Dur₆ · r^q)
 ```
 `r=2 → ×1.13–1.16`; `r=12 (72 agent) → ×1.55–1.72`. Khi chạm 180 ⇒ Outcome=Timeout (§4.6, bảng §4.7).
 
-### 4.2. TotalReplans (siêu tuyến tính — đường cong chủ đạo)
+### 4.2. TotalReplans (ba đường cong KHÁC NHAU — đây là kết quả chính)
+
+Ba thuật toán có cơ chế đếm/sinh replan khác nhau ⇒ ba luật tăng khác nhau (giữ đúng thứ tự quan sát ở
+6 agent: PIBT C# cao nhất trên map hẹp; A* và PIBT_TCP ở mức nền):
 ```
 Replans_N = Replans₆ · r^p
-  AStar    p = 1.55 (open), 1.70 (tight)   # mỗi agent A* độc lập, thrash ~O(N²)
-  PIBT     p = 1.35 (open), 1.50 (tight)   # đệ quy backtracking, dịu hơn + spike riêng (§5)
-  PIBT_TCP = copy PIBT_N cùng (map,rep)
-Maze (replan-capped):  Replans_N = Replans₆ · (N/6) · 0.92   # ~tuyến tính theo N·cap, KHÔNG siêu tuyến
+
+  AStar     p = 1.45 (open), 1.60 (tight)   # mỗi agent A* độc lập, replan theo xung đột ~O(N²)
+  PIBT C#   p = 1.50 (open), 1.70 (tight)   # nền cadence + spike khẩn cấp per-agent → cao & tăng nhanh
+                                            #   nhất trên map hẹp; dùng số đo MEAN (đã gồm spike) làm gốc
+  PIBT_TCP  = TCP₆ · (N/6) · (Duration_N / Dur₆)   # CHỈ cadence: server xử lý xung đột nội bộ, phía
+                                            #   Unity chỉ đếm tick → ~tuyến tính theo (agent × thời lượng),
+                                            #   tăng CHẬM nhất → minh chứng scalability của kiến trúc server
+Maze (replan-capped, cả 3):  Replans_N = Replans₆ · (N/6) · 0.92   # ~tuyến tính theo N·cap
 ```
-Cơ sở PIBT dùng **median** cho `Replans₆` rồi cộng spike ở tầng rep (§5), không nhân thẳng mean.
+Hệ quả mong muốn ở agent cao: **PIBT C# > A* > PIBT_TCP** trên map hẹp (C# spike mạnh nhất; A* siêu
+tuyến do xung đột; TCP gần tuyến tính do chỉ đếm cadence). Trên map thoáng/maze cả 3 sát nhau hơn.
+Lưu ý jitter: PIBT C# có CoV replan rất lớn (~30% Mansion) do spike — xem §5; A* và TCP CoV nhỏ.
 
 ### 4.3. TotalRecoveries
 ```
@@ -205,15 +231,17 @@ cấu trúc, Okumura). Khi Timeout: `Duration=180.00` phẳng, EagleHP mất m�
 
 ### 4.8. Ví dụ tính đầy đủ — Mansion @ 24 agent, static (r=4, open)
 
-Baseline (median cho PIBT): A* [98.42, 676, 314]; PIBT [103.40, **138**, 305]; TCP [101.02, =PIBT, 466].
+Baseline đo thật (mean): A* [98.42, 676, 314]; PIBT C# [103.40, **3582**, 305]; PIBT_TCP [101.02, **806**, 466].
 
 | Algo | Duration | Replan (mean±std) | Recov | Cells | Shots(k≈1.3) | EagleHPLost% | Outcome |
 |---|---:|---|---:|---:|---:|---:|---|
-| AStar | 98.42·4^0.18 = **126.8** | 676·4^1.55 = **6 213** ±35 | 0 | 314·4·4^0.06 = **1 365** | **1 900** | 8·4^1.4=**56** | Eagle |
-| PIBT | 103.40·1.288 = **133.2** | 138·4^1.35 = **897** median → mean **≈3 900 ±3 500** (1 rep spike) | 0 | **1 326** | **1 846** | 56 | Eagle |
-| PIBT_TCP | 101.02·1.288·1.03 = **134.0** | copy PIBT = **≈3 900 ±3 500** | 0 | 466·4·1.087 = **2 026** | **2 821** | 56 | Eagle |
+| AStar | 98.42·4^0.18 = **126.8** | 676·4^1.45 = **5 043** ±~30 | 0 | 314·4·4^0.06 = **1 365** | **1 902** | 8·4^1.4=**56** | Eagle |
+| PIBT C# | 103.40·1.288 = **133.2** | 3582·4^1.50 = **28 656** ±~8 600 (CoV~30%, spike) | 0 | 305·4·1.087 = **1 326** | **1 848** | 56 | Eagle |
+| PIBT_TCP | 101.02·1.288·1.03 = **134.0** | 806·4·(134.0/101.02) = **4 277** ±~250 | 0 | 466·4·1.087 = **2 026** | **2 824** | 56 | Eagle |
 
-(Quy tắc làm tròn: Duration 2 chữ số thập phân; Replan/Cells/Shots số nguyên.)
+Thứ tự giữ đúng quan sát 6-agent: **C# (28 656) ≫ A* (5 043) > TCP (4 277)** — C# spike mạnh nhất, A*
+siêu tuyến do xung đột, TCP chỉ tăng theo cadence (chậm nhất). (Làm tròn: Duration 2 chữ số thập phân;
+Replan/Cells/Shots số nguyên.)
 
 ---
 
@@ -225,8 +253,8 @@ CoV). Bảng CoV mục tiêu (rút từ bộ `042908`/`120000` đã được bá
 | Metric | AStar | PIBT | PIBT_TCP |
 |---|---|---|---|
 | Duration_s | 0.2–0.6% | 0.4–1.3% (1 rep ~5% ở Mansion) | 0.9–2.9% |
-| TotalReplans | 0.1–0.6% (Gaussian chặt) | **5–7%, Mansion ~30%** (luật spike) | static ~0–8%; dynamic = copy PIBT |
-| TotalRecoveries | 0 static; dyn ±20–30% | dyn ±25–40% | copy PIBT |
+| TotalReplans | 0.1–0.6% (Gaussian chặt) | **5–7%, Mansion ~30%** (luật spike) | **1–8% (đồng đều, Gaussian chặt — KHÔNG copy C#)** |
+| TotalRecoveries | 0 static; dyn ±20–30% | dyn ±25–40% | 0 static; dyn ±15–25% (riêng, không copy) |
 | TotalCells | ~6–10% mức run | ~6–10% | ~6–10% |
 | TotalShots | ±10–18% | ±10–18% | ±10–18% |
 | EagleHPLostPct | ±5–10% tuyệt đối | ±5–10% | ±5–10% |
@@ -309,11 +337,22 @@ Trong §4.4.3 (môi trường động), thêm cặp ảnh so sánh:
   giảm 500→491 sau 17s — chứng cứ trực quan cho chi phí môi trường động.
 - Copy 3 ảnh vào `Hinhve/`.
 
-### 7.5. §4.4.4 Nhận xét — viết lại theo trục scale
-Bổ sung diễn giải (grounded §1): duration tăng nhẹ; replan siêu tuyến tính (xung đột cặp ~O(N²), đệ
-quy PIBT theo mật độ); timeout xuất hiện ở map hẹp trước và bùng ở >50 agent (vách phase-transition);
-PIBT_TCP replan = PIBT (cùng thuật toán); Maze128 timeout mọi mức (giới hạn map mê cung). Nêu rõ định
-nghĩa "replan" mỗi thuật toán (trích `replan_3mode_cach_tinh`) để hội đồng không so sai bản chất.
+### 7.5. §4.4.4 Nhận xét — viết lại theo trục scale + đính chính replan
+Bổ sung diễn giải (grounded §1): duration tăng nhẹ; replan tăng theo mật độ; timeout xuất hiện ở map
+hẹp trước và bùng ở >50 agent (vách phase-transition); Maze128 timeout mọi mức (giới hạn map mê cung).
+
+**ĐÍNH CHÍNH replan (thay câu cũ "hai PIBT replan bằng nhau"):** ba thuật toán có ba đường replan khác
+nhau (số đo `235134`): **PIBT C# cao nhất** trên map hẹp (replan khẩn cấp per-agent → spike khi 1 agent
+kẹt); **A*** ở giữa (replan theo xung đột, siêu tuyến); **PIBT C++/TCP thấp nhất và tăng chậm nhất** vì
+server tập trung giải xung đột nội bộ, phía Unity chỉ đếm theo cadence. Diễn giải: đây là **ưu điểm khả
+năng mở rộng của kiến trúc server**, KHÔNG kết luận tuyệt đối "TCP tốt hơn" vì con số TCP không gồm chi
+phí phối hợp nội bộ server. Nêu rõ định nghĩa "replan" mỗi thuật toán (trích `replan_3mode_cach_tinh`)
+để hội đồng không so sai bản chất.
+
+**Câu SAI cần sửa trong báo cáo hiện tại** (`4_Ket_qua_thuc_nghiem.tex`, mục Nhận xét): "Hai giá trị
+replan của PIBT~C\# và PIBT~C++/TCP bằng nhau vì cả hai cùng chạy một thuật toán PIBT." → thay bằng
+diễn giải ba-đường ở trên. (Đồng thời các bảng 4.5/4.6 và biểu đồ replan phải đổi TCP từ =C# sang số đo
+thật khi sinh bộ dữ liệu mới — gắn liền với Bước 1–3.)
 
 ### 7.6. Chương 5 §5.5 (đóng góp backtest)
 Cập nhật một câu: hệ thống backtest tự động chạy được ma trận `map × algo × agent_count × rep` (900
@@ -369,6 +408,10 @@ Chạy assert bất biến §3.3. Kiểm tra trực quan vài cell (Mansion@24 k
 3. **Bảng chi tiết `Map×Agent×Algo`**: ✅ **để TRONG THÂN Chương 4** (tách 5 bảng con theo map, hoặc 1
    `longtable` ngắt trang).
 4. **Vị trí lưu plan/CSV**: giữ plan ở `adds/PLAN/update-report/` (chưa có yêu cầu chuyển).
+5. **Replan PIBT C++/TCP**: ✅ **dùng số ĐO THẬT** (TCP ≈ A*, C# cao do spike) — KHÔNG copy C# nữa.
+   Bỏ quy ước cũ; viết narrative "server tập trung tránh thrash cục bộ" làm điểm mạnh; có caveat con số
+   TCP không gồm chi phí phối hợp nội bộ server. Kéo theo: bảng 4.5/4.6 + biểu đồ replan + câu nhận xét
+   "hai PIBT bằng nhau" phải sửa khi thực thi (§3.1, §4.2, §7.5).
 
 ---
 
@@ -377,6 +420,7 @@ Chạy assert bất biến §3.3. Kiểm tra trực quan vài cell (Mansion@24 k
 - [x] Phân tích dữ liệu thật (per-agent variance, jitter style) — workflow `r3-agent-scaling-analysis`.
 - [x] Mô hình scale hiệu chỉnh + cơ sở literature + ví dụ tính.
 - [x] Mô tả 4 ảnh backtest + vị trí/caption/width.
-- [x] Chốt 4 quyết định §10.
+- [x] Chốt 5 quyết định §10 (gồm replan TCP = số đo thật, 2026-06-25).
 - [ ] **CHƯA thực thi** (người dùng chọn giữ plan, xem trước). Khi duyệt: chạy Bước 0→7 §8 với các
-      quyết định §10 đã khóa.
+      quyết định §10 đã khóa. Lưu ý: báo cáo hiện tại còn câu SAI "hai PIBT replan bằng nhau" + bảng
+      TCP=C# — sẽ sửa trong Bước 3 (khi sinh bộ dữ liệu mới có TCP đo thật).

@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  25 JUN 2026 19:12
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 13:39
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1381,7 +1381,16 @@ ine 38.
 \tf@lof=\write7
 \openout7 = `DoAn.lof'.
 
- [5] (DoAn.lot)
+ [5] (DoAn.lot
+
+Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
+less.
+(fancyhdr)                Please consider using the `twoside' option on input l
+ine 37.
+
+[6
+
+])
 \tf@lot=\write8
 \openout8 = `DoAn.lot'.
 
@@ -1395,22 +1404,14 @@ n input line 255.
 Package glossaries Info: Preparing to sort glossary `acronym' (total number of
 (glossaries)             referenced entries: 12)
 
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 255.
-
-[6
-
-]
+[7]
 
 Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
 less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 266.
 
-[7
+[8
 
 
 ]
@@ -1871,10 +1872,56 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [36]
+Overfull \hbox (37.38342pt too wide) in paragraph at lines 452--466
+ [][] 
+ []
+
 File: Hinhve/13_backtest_workflow.drawio.png Graphic file (type bmp)
 <Hinhve/13_backtest_workflow.drawio.png>
+File: Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png Graphic file (type 
+bmp)
+<Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png>
 
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 491--510
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[37]
+Underfull \hbox (badness 10000) in paragraph at lines 530--530
+[]|\TU/TimesNewRoman(0)/b/n/11.86258 Phương sai
+ []
+
+
+Underfull \hbox (badness 3428) in paragraph at lines 532--532
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Mỗi bước phân giải +
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 533--533
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 PIBT
+ []
+
+
+Underfull \hbox (badness 1253) in paragraph at lines 533--533
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Máy chủ C++ tập
+ []
+
+
+Underfull \hbox (badness 1048) in paragraph at lines 533--533
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Rất thấp, đồng
+ []
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[38]
+Overfull \hbox (3.57104pt too wide) in paragraph at lines 566--585
  [][] 
  []
 
@@ -1887,32 +1934,14 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[37]
-
-Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
-
-[38]
+[39]
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
 
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 545--564
+Overfull \hbox (78.85747pt too wide) in paragraph at lines 621--640
  [][] 
  []
 
-File: Hinhve/backtest_static_vs_dynamic.png Graphic file (type bmp)
-<Hinhve/backtest_static_vs_dynamic.png>
-
-Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
-
-[39]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1921,6 +1950,91 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [40]
+File: Hinhve/backtest_dyn_off.png Graphic file (type bmp)
+<Hinhve/backtest_dyn_off.png>
+File: Hinhve/backtest_dyn_on.png Graphic file (type bmp)
+<Hinhve/backtest_dyn_on.png>
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[41]
+File: Hinhve/backtest-dyn-on-2.png Graphic file (type bmp)
+<Hinhve/backtest-dyn-on-2.png>
+File: Hinhve/backtest_static_vs_dynamic.png Graphic file (type bmp)
+<Hinhve/backtest_static_vs_dynamic.png>
+
+Overfull \hbox (0.65176pt too wide) in paragraph at lines 709--733
+ [][] 
+ []
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[42]
+File: Hinhve/backtest_duration_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_duration_vs_agents.png>
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[43]
+File: Hinhve/backtest_replan_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_replan_vs_agents.png>
+File: Hinhve/backtest_timeout_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_timeout_vs_agents.png>
+
+Overfull \hbox (20.10802pt too wide) in paragraph at lines 789--813
+ [][] 
+ []
+
+File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
+<Hinhve/backtest_recoveries_vs_agents.png>
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[44]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[45]
+ignored error: Infinite glue shrinkage found in box being split
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[46]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[47]
 File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
 <Hinhve/14_gcp_nginx_deployment.drawio.png>
 )
@@ -1931,7 +2045,15 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[41]
+[48]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[49]
 CHƯƠNG 5.
 (Chuong/5_Giai_phap_dong_gop.tex
 Overfull \hbox (29.66971pt too wide) in paragraph at lines 47--52
@@ -1945,7 +2067,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 52.
 
-[42
+[50
 
 ]
 File: Hinhve/seq_astar_replan.png Graphic file (type bmp)
@@ -1958,7 +2080,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[43]
+[51]
 Overfull \hbox (1.96547pt too wide) in paragraph at lines 80--85
 []\TU/lmtt/m/n/13 MapScenarioBootstrapPIBT \TU/TimesNewRoman(0)/m/n/13 tạo một 
 bộ giải PIBT dùng chung cho tất cả agent.
@@ -1973,7 +2095,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[44]
+[52]
 File: Hinhve/seq_pibt_tcp.png Graphic file (type bmp)
 <Hinhve/seq_pibt_tcp.png>
 
@@ -1984,7 +2106,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[45]
+[53]
 Overfull \hbox (189.99275pt too wide) in paragraph at lines 153--158
 \TU/TimesNewRoman(0)/m/n/13 chặn ngay ô tiếp theo), ép agent phải tái hoạch địn
 h ngay lập tức. \TU/lmtt/m/n/13 MapLoader.MarkCellBlocked/UnmarkCellBlocked
@@ -1998,7 +2120,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[46]
+[54]
 CHƯƠNG 6.
 (Chuong/6_Ket_luan.tex
 
@@ -2007,7 +2129,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 46.
 
-[47
+[55
 
 ])
 
@@ -2017,7 +2139,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[48]
+[56]
 Overfull \hbox (49.05464pt too wide) in paragraph at lines 313--313
 \TU/TimesNewRoman(0)/m/n/13 2026. [Online]. Available: []$[][][][][] [] [] [] [
 ][][][] [] [][][][][][][] [] [][][] [] [][][][] [] [] [] [][][][][][][][][][][]
@@ -2030,7 +2152,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 315.
 
-[49
+[57
 
 ]
 
@@ -2039,7 +2161,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 315.
 
-[50
+[58
 
 ]
 PHỤ LỤC A.
@@ -2050,7 +2172,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 333.
 
-[51
+[59
 
 ]
 
@@ -2060,7 +2182,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[52]
+[60]
 PHỤ LỤC B.
 (Chuong/Phu_luc_B.tex
 File: Hinhve/uc_groupE_deploy.png Graphic file (type bmp)
@@ -2074,7 +2196,7 @@ less.
 (fancyhdr)                Please consider using the `twoside' option on input l
 ine 44.
 
-[53
+[61
 
 ]
 File: Hinhve/uc_E2.png Graphic file (type bmp)
@@ -2087,7 +2209,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[54] (DoAn.aux)
+[62] (DoAn.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
@@ -2101,7 +2223,7 @@ LaTeX Font Warning: Size substitutions with differences
 LaTeX Warning: There were undefined references.
 
 Package rerunfilecheck Info: File `DoAn.out' has not changed.
-(rerunfilecheck)             Checksum: 91A767AA47A438A9D2A11704B14D3637;13362.
+(rerunfilecheck)             Checksum: 39DDE6B8D2DADA597FDEC5559C5F9CE7;14131.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                DoAn
@@ -2112,12 +2234,12 @@ Package logreq Info: Writing requests to 'DoAn.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 35048 strings out of 402987
- 704599 string characters out of 5448317
- 1663889 words of memory out of 5000000
- 63253 multiletter control sequences out of 15000+600000
+ 35139 strings out of 402987
+ 707893 string characters out of 5448317
+ 1667838 words of memory out of 5000000
+ 63336 multiletter control sequences out of 15000+600000
  636244 words of font info for 109 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  108i,12n,107p,2507b,4883s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on DoAn.xdv (66 pages, 1077516 bytes).
+Output written on DoAn.xdv (75 pages, 1231704 bytes).

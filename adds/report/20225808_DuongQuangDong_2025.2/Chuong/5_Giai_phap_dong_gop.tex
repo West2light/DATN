@@ -145,8 +145,8 @@ thống khi môi trường thay đổi trong khi agent đang di chuyển. Chạy
 bản là không thực tế và không tái lập được.
 
 \subsection*{Giải pháp}
-\texttt{BacktestRunner} tự động lặp qua tất cả tổ hợp (map × algorithm × rep) theo
-lịch trình định sẵn. Mỗi run: reset scene, spawn agent, chạy kịch bản, thu thập chỉ
+\texttt{BacktestRunner} tự động lặp qua toàn bộ ma trận tổ hợp (map × algorithm ×
+số lượng agent × rep) theo lịch trình định sẵn. Mỗi run: reset scene, spawn agent, chạy kịch bản, thu thập chỉ
 số ở cấp run (summary) và cấp agent (per-agent CSV). Sau khi hết run, gọi script Python
 để sinh biểu đồ HTML/PNG từ CSV.
 
@@ -157,12 +157,14 @@ chặn ngay ô tiếp theo), ép agent phải tái hoạch định ngay lập t�
 để cả ba thuật toán đều nhận được cập nhật nhất quán.
 
 \subsection*{Kết quả}
-Hệ thống đã chạy thành công 90 run (môi trường tĩnh) + 90 run (môi trường động),
-tổng cộng 180 run liên tục mà không crash. Khi bật chướng ngại động: số lần replan
-tăng trung bình 50\% với A* và 30\% với PIBT, thời gian hoàn thành tăng $\approx$15\%.
-Kết quả này xác nhận cả ba thuật toán đều phản ứng được với thay đổi môi trường
-thời gian thực, và PIBT (nhờ cơ chế phối hợp) tái hoạch định ít hơn A* khi môi
-trường bị xáo trộn.
+Hệ thống cho phép quét toàn bộ ma trận thực nghiệm gồm 5 bản đồ × 3 thuật toán × 5 mức
+số lượng agent (6, 12, 24, 36, 72) × 6 lần lặp × 2 môi trường, tương ứng 900 run, thu
+thập chỉ số nhất quán ở cả cấp run và cấp agent. Nhờ trục khảo sát theo số lượng agent,
+hệ thống không chỉ so sánh ba thuật toán ở một mức tải mà còn đánh giá được khả năng mở
+rộng của chúng khi tải tăng dần (chi tiết ở Chương~4). Khi bật chướng ngại động, cả ba
+thuật toán đều phản ứng được với thay đổi môi trường thời gian thực; số lần replan và số
+lần phục hồi sau kẹt đều tăng, trong đó PIBT~C\# phục hồi nhiều nhất nhờ cơ chế thoát kẹt
+cục bộ.
 
 \textbf{Kết chương~5:} Năm đóng góp kỹ thuật của đồ án -- từ hạ tầng bản đồ động
 đến ba cấp độ thuật toán MAPF và hệ thống backtest -- tạo thành một nền tảng hoàn

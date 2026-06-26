@@ -23,15 +23,20 @@
 \contentsline {table}{\numberline {4.2}{\ignorespaces Công cụ và thư viện sử dụng}}{31}{table.caption.16}%
 \contentsline {table}{\numberline {4.3}{\ignorespaces Thống kê mã nguồn C\# (tháng 6/2026)}}{32}{table.caption.17}%
 \contentsline {table}{\numberline {4.4}{\ignorespaces Cấu hình thực nghiệm}}{37}{table.caption.27}%
-\contentsline {table}{\numberline {4.5}{\ignorespaces Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}}{38}{table.caption.29}%
-\contentsline {table}{\numberline {4.6}{\ignorespaces Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}}{39}{table.caption.32}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Cơ chế phát sinh lệnh tái hoạch định của ba thuật toán}}{39}{table.caption.30}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Số lần tái hoạch định của từng agent trong một lượt chạy trên bản đồ Mansion (6 agent)}}{39}{table.caption.31}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}}{39}{table.caption.32}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}}{41}{table.caption.35}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Kết quả theo số lượng agent, môi trường tĩnh (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{43}{table.caption.39}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{45}{table.caption.43}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger \) = lượt timeout}}{46}{table.4.11}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {A.1}{\ignorespaces Kết quả backtest chi tiết -- môi trường tĩnh ($n=6$)}}{51}{table.caption.41}%
-\contentsline {table}{\numberline {A.2}{\ignorespaces Kết quả backtest chi tiết -- môi trường có chướng ngại động ($n=6$)}}{52}{table.caption.42}%
+\contentsline {table}{\numberline {A.1}{\ignorespaces Kết quả backtest chi tiết -- môi trường tĩnh ($n=6$)}}{59}{table.caption.52}%
+\contentsline {table}{\numberline {A.2}{\ignorespaces Kết quả backtest chi tiết -- môi trường có chướng ngại động ($n=6$)}}{60}{table.caption.53}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{53}{table.1.B.1}%
-\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case UC-E2 -- Chạy dedicated server}}{54}{table.1.B.2}%
+\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{61}{table.1.B.1}%
+\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case UC-E2 -- Chạy dedicated server}}{62}{table.1.B.2}%
 \contentsfinish 
 \contentsfinish 
