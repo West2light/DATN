@@ -1,0 +1,13 @@
+@startuml uc_E2
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Quản trị hệ thống\n(DevOps)" as Admin
+usecase "E2. Chạy dedicated server" as UC
+Admin --> UC
+@enduml

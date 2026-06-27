@@ -1,0 +1,19 @@
+@startuml uc_A1
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Người chơi" as P
+usecase "A1. Cấu hình & bắt đầu\nván chơi đơn" as UC
+usecase "Chọn mẫu xe tăng" as I0
+usecase "Chọn bản đồ" as I1
+usecase "Chọn thuật toán AI" as I2
+P --> UC
+UC ..> I0 : <<include>>
+UC ..> I1 : <<include>>
+UC ..> I2 : <<include>>
+@enduml

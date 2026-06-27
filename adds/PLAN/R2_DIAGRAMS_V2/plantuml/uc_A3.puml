@@ -1,0 +1,15 @@
+@startuml uc_A3
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Người chơi" as P
+actor "Agent AI" as AI
+usecase "A3. Kết thúc ván chơi\n(thắng/thua)" as UC
+P --> UC
+UC ..> AI
+@enduml

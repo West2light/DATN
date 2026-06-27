@@ -1,0 +1,15 @@
+@startuml uc_D2
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Nghiên cứu viên" as R
+actor "Máy chủ PIBT\n(C++)" as Server
+usecase "D2. Chạy backtest tự động" as UC
+R --> UC
+UC ..> Server
+@enduml
