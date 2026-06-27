@@ -23,10 +23,9 @@ using UnityEngine.UI;
 /// </summary>
 public static class UiFontProvider
 {
-    private const string FontResourcePath = "Fonts/NotoSans-Regular";
+    private const string FontResourcePath = "Fonts/Roboto-Regular";
 
-    // Characters needed by the in-game HUD and menus — one prewarm call at
-    // the most common size is enough; other sizes are handled by FontPreloader.
+    // Characters needed by the in-game HUD and menus
     private const string PrewarmChars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" +
         "0123456789 .,:;!?-/()[]" +
@@ -39,32 +38,25 @@ public static class UiFontProvider
 
     public static Font GetDefaultFont()
     {
-#if UNITY_EDITOR
-        Font ef = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (ef != null) return ef;
-#endif
         if (_font == null)
         {
             _font = Resources.Load<Font>(FontResourcePath);
+
             if (_font == null && !_warnedMissing)
             {
                 _warnedMissing = true;
-                Debug.LogWarning(
-                    $"[UiFontProvider] Cannot load Resources/{FontResourcePath}. " +
-                    "Falling back to LegacyRuntime.ttf.");
+                Debug.LogWarning($"[UiFontProvider] Cannot find {FontResourcePath}. Texts might be blank.");
             }
 
             if (_font != null)
             {
                 Subscribe();
-                // Kick off glyph baking early so atlas has content before any
-                // Text component requests characters during its first render.
                 _font.RequestCharactersInTexture(PrewarmChars, 14, FontStyle.Normal);
                 _font.RequestCharactersInTexture(PrewarmChars, 15, FontStyle.Bold);
             }
         }
 
-        return _font ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return _font;
     }
 
     /// <summary>
