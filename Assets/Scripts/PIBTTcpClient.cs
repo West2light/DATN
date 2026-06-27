@@ -17,8 +17,8 @@ public class PIBTTcpClient : MonoBehaviour
     [Tooltip("Raw TCP host name/IP or URL. Example: 110.172.28.110 or http://110.172.28.110:7777/")]
     public string host = "110.172.28.110";
     public int port = 7777;
-    [Min(1)] public int connectTimeoutMs = 5000;
-    [Min(1000)] public int helloTimeoutMs = 60000;
+    [Min(1)] public int connectTimeoutMs = 10000;
+    [Min(1000)] public int helloTimeoutMs = 10000;
     [Min(1000)] public int planTimeoutMs = 15000;
 
     private TcpClient _client;
@@ -81,11 +81,14 @@ public class PIBTTcpClient : MonoBehaviour
 
     public bool Shutdown()
     {
-        if (!_helloAccepted || string.IsNullOrEmpty(_sessionId))
+        if (!_helloAccepted || string.IsNullOrEmpty(_sessionId) || _client == null || _stream == null)
         {
             Disconnect();
             return true;
         }
+
+        // Set a very short timeout for shutdown response to avoid freezing Unity's main thread
+        try { _client.ReceiveTimeout = 500; } catch { }
 
         bool sent = SendLine($"{{\"type\":\"shutdown\",\"sessionId\":\"{Escape(_sessionId)}\"}}");
         string resp = sent ? RecvLine() : null;

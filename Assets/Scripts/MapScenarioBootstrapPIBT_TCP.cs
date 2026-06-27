@@ -156,40 +156,60 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int width, int height, string symbols, int agentCount,
         System.Threading.CancellationToken cancel)
     {
-        bool done    = false;
+        int attempts = 0;
+        int maxAttempts = maxReconnectAttempts + 1;
         bool success = false;
 
-        var thread = new System.Threading.Thread(() =>
-        {
-            if (cancel.IsCancellationRequested) { done = true; return; }
-            if (!client.Connect())              { done = true; return; }
-            if (cancel.IsCancellationRequested) { client.Disconnect(); done = true; return; }
-            success = client.Hello(sessionId, width, height, symbols, agentCount);
-            done = true;
-        });
-        thread.IsBackground = true;
-        thread.Start();
-
-        while (!done)
+        while (attempts < maxAttempts && !success)
         {
             if (cancel.IsCancellationRequested) yield break;
-            yield return null;
-        }
+            
+            attempts++;
+            bool done = false;
 
-        if (cancel.IsCancellationRequested)
-        {
-            client?.Disconnect();
-            yield break;
+            var thread = new System.Threading.Thread(() =>
+            {
+                if (cancel.IsCancellationRequested) { done = true; return; }
+                if (!client.Connect())              { done = true; return; }
+                if (cancel.IsCancellationRequested) { client.Disconnect(); done = true; return; }
+                success = client.Hello(sessionId, width, height, symbols, agentCount);
+                done = true;
+            });
+            thread.IsBackground = true;
+            thread.Start();
+
+            while (!done)
+            {
+                if (cancel.IsCancellationRequested) yield break;
+                yield return null;
+            }
+
+            if (cancel.IsCancellationRequested)
+            {
+                client?.Disconnect();
+                yield break;
+            }
+
+            if (!success)
+            {
+                Debug.LogWarning($"[PIBT_TCP] Connect/Hello failed (Attempt {attempts}/{maxAttempts}): {client.LastError}");
+                client.Disconnect();
+                if (attempts < maxAttempts)
+                {
+                    ShowToast($"Connection failed. Retrying {attempts}/{maxAttempts}...", reconnectDelaySec);
+                    yield return new WaitForSeconds(reconnectDelaySec);
+                }
+            }
         }
 
         if (!success)
         {
             string err = client.LastError ?? "Unknown error";
-            client.Disconnect();
-            StopAgentsForConnectionFailure($"Connection/hello failed: {err}");
+            StopAgentsForConnectionFailure($"Connection/hello failed after {maxAttempts} attempts: {err}");
             yield break;
         }
 
+        _reconnectAttempts = 0; // Reset runtime reconnect attempts
         _serverReady      = true;
         _nextTickTime     = Time.time + tcpTickInterval;
         Debug.Log($"[PIBT_TCP] Connected and initialized. {agentCount} agents, map {width}×{height}. _serverReady=true");
