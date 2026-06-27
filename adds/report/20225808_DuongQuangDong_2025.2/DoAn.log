@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  26 JUN 2026 17:17
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  27 JUN 2026 14:38
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1019,7 +1019,7 @@ Package: blx-case-expl3 2025/07/10 v3.21 expl3 case changing code for biblatex
 ))
 
 LaTeX Warning: \include should only be used after \begin{document} on input lin
-e 69.
+e 74.
 
 No file lstlisting.
 (Tu_viet_tat.tex)
@@ -1144,26 +1144,26 @@ LaTeX Warning: Unused global option(s):
 )
 \openout1 = `DoAn.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 173.
-LaTeX Font Info:    ... okay on input line 173.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 181.
+LaTeX Font Info:    ... okay on input line 181.
 
 Package fontspec Info: 
 (fontspec)             Adjusting the maths setup (use [no-math] to avoid
@@ -1171,64 +1171,64 @@ Package fontspec Info:
 
 \symlegacymaths=\mathgroup7
 LaTeX Font Info:    Overwriting symbol font `legacymaths' in version `bold'
-(Font)                  OT1/cmr/m/n --> OT1/cmr/bx/n on input line 173.
-LaTeX Font Info:    Redeclaring math accent \acute on input line 173.
-LaTeX Font Info:    Redeclaring math accent \grave on input line 173.
-LaTeX Font Info:    Redeclaring math accent \ddot on input line 173.
-LaTeX Font Info:    Redeclaring math accent \tilde on input line 173.
-LaTeX Font Info:    Redeclaring math accent \bar on input line 173.
-LaTeX Font Info:    Redeclaring math accent \breve on input line 173.
-LaTeX Font Info:    Redeclaring math accent \check on input line 173.
-LaTeX Font Info:    Redeclaring math accent \hat on input line 173.
-LaTeX Font Info:    Redeclaring math accent \dot on input line 173.
-LaTeX Font Info:    Redeclaring math accent \mathring on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Gamma on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Delta on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Theta on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Lambda on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Xi on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Pi on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Sigma on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Upsilon on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Phi on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Psi on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \Omega on input line 173.
-LaTeX Font Info:    Redeclaring math symbol \mathdollar on input line 173.
-LaTeX Font Info:    Redeclaring symbol font `operators' on input line 173.
+(Font)                  OT1/cmr/m/n --> OT1/cmr/bx/n on input line 181.
+LaTeX Font Info:    Redeclaring math accent \acute on input line 181.
+LaTeX Font Info:    Redeclaring math accent \grave on input line 181.
+LaTeX Font Info:    Redeclaring math accent \ddot on input line 181.
+LaTeX Font Info:    Redeclaring math accent \tilde on input line 181.
+LaTeX Font Info:    Redeclaring math accent \bar on input line 181.
+LaTeX Font Info:    Redeclaring math accent \breve on input line 181.
+LaTeX Font Info:    Redeclaring math accent \check on input line 181.
+LaTeX Font Info:    Redeclaring math accent \hat on input line 181.
+LaTeX Font Info:    Redeclaring math accent \dot on input line 181.
+LaTeX Font Info:    Redeclaring math accent \mathring on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Gamma on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Delta on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Theta on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Lambda on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Xi on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Pi on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Sigma on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Upsilon on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Phi on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Psi on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \Omega on input line 181.
+LaTeX Font Info:    Redeclaring math symbol \mathdollar on input line 181.
+LaTeX Font Info:    Redeclaring symbol font `operators' on input line 181.
 LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
-(Font)              `operators' in the math version `normal' on input line 173.
+(Font)              `operators' in the math version `normal' on input line 181.
 
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
 (Font)                  OT1/cmr/m/n --> TU/TimesNewRoman(0)/m/n on input line 1
-73.
+81.
 LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
-(Font)              `operators' in the math version `bold' on input line 173.
+(Font)              `operators' in the math version `bold' on input line 181.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
 (Font)                  OT1/cmr/bx/n --> TU/TimesNewRoman(0)/m/n on input line 
-173.
+181.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
 (Font)                  TU/TimesNewRoman(0)/m/n --> TU/TimesNewRoman(0)/m/n on 
-input line 173.
+input line 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
 (Font)                  OT1/cmr/m/it --> TU/TimesNewRoman(0)/m/it on input line
- 173.
+ 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
 (Font)                  OT1/cmr/bx/n --> TU/TimesNewRoman(0)/b/n on input line 
-173.
+181.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> TU/lmss/m/n on input line 173.
+(Font)                  OT1/cmss/m/n --> TU/lmss/m/n on input line 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 173.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 181.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
 (Font)                  TU/TimesNewRoman(0)/m/n --> TU/TimesNewRoman(0)/b/n on 
-input line 173.
+input line 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
 (Font)                  OT1/cmr/bx/it --> TU/TimesNewRoman(0)/b/it on input lin
-e 173.
+e 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 173.
+(Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 181.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 173.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 181.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -1273,7 +1273,7 @@ Package caption Info: supertabular package is loaded.
 Package caption Info: End \AtBeginDocument code.
 \c@lstlisting=\count530
 Package tocbasic Info: omitting babel extension for `lol'
-(tocbasic)             because of missing \bbl@set@language on input line 173.
+(tocbasic)             because of missing \bbl@set@language on input line 181.
 Package biblatex Info: Trying to load language 'english'...
 Package biblatex Info: ... file 'english.lbx' found.
 
@@ -1294,51 +1294,51 @@ Package biblatex Info: Data encoding 'utf8' specified.
 Package biblatex Info: Trying to load bibliographic data...
 Package biblatex Info: ... file 'DoAn.bbl' found.
  (DoAn.bbl)
-Package biblatex Info: Reference section=0 on input line 173.
-Package biblatex Info: Reference segment=0 on input line 173.
-Package hyperref Info: Link coloring OFF on input line 173.
+Package biblatex Info: Reference section=0 on input line 181.
+Package biblatex Info: Reference segment=0 on input line 181.
+Package hyperref Info: Link coloring OFF on input line 181.
  (DoAn.out) (DoAn.out)
 \@outlinefile=\write5
 \openout5 = `DoAn.out'.
 
  (Bia.tex
-LaTeX Font Info:    Calculating math sizes for size <13> on input line 33.
+LaTeX Font Info:    Calculating math sizes for size <13> on input line 32.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <13> not available
-(Font)              size <12> substituted on input line 33.
+(Font)              size <12> substituted on input line 32.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <6.5> not available
-(Font)              size <6> substituted on input line 33.
+(Font)              size <6> substituted on input line 32.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <13> not available
-(Font)              size <12> substituted on input line 33.
+(Font)              size <12> substituted on input line 32.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <6.5> not available
-(Font)              size <6> substituted on input line 33.
+(Font)              size <6> substituted on input line 32.
 
-LaTeX Font Info:    Trying to load font information for U+lasy on input line 33
+LaTeX Font Info:    Trying to load font information for U+lasy on input line 32
 .
 (C:\Users\LENOVO\AppData\Local\Programs\MiKTeX\tex/latex/base\ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <13> not available
-(Font)              size <12> substituted on input line 33.
+(Font)              size <12> substituted on input line 32.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <6.5> not available
-(Font)              size <6> substituted on input line 33.
+(Font)              size <6> substituted on input line 32.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 33.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 32.
 
 (C:\Users\LENOVO\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 33.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 32.
 
 
 (C:\Users\LENOVO\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
@@ -1346,11 +1346,11 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <13> not available
-(Font)              size <12> substituted on input line 33.
+(Font)              size <12> substituted on input line 32.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <6.5> not available
-(Font)              size <6> substituted on input line 33.
+(Font)              size <6> substituted on input line 32.
 
 [1
 
@@ -1362,33 +1362,14 @@ LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <6.5> not available
 \tf@toc=\write6
 \openout6 = `DoAn.toc'.
 
- [3] (DoAn.lof
-Overfull \hbox (0.82791pt too wide) in paragraph at lines 33--33
- [][] []\TU/TimesNewRoman(0)/m/n/13 Hình []Màn hình menu chính với hai chế độ S
-INGLE PLAY và MUL- 
- []
+ [3] (DoAn.lof [1
 
 
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 38.
-
-[4
-
-
-])
+] [2])
 \tf@lof=\write7
 \openout7 = `DoAn.lof'.
 
- [5] (DoAn.lot
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 37.
-
-[6
+ [3] (DoAn.lot [4
 
 ])
 \tf@lot=\write8
@@ -1398,32 +1379,18 @@ ine 37.
 
 Package glossaries Warning: Empty glossary for \printnoidxglossary[type={main}]
 . Rerun may be required (or you may have forgotten to use commands like \gls) o
-n input line 255.
+n input line 275.
 
 
 Package glossaries Info: Preparing to sort glossary `acronym' (total number of
 (glossaries)             referenced entries: 12)
 
-[7]
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 266.
-
-[8
+[5] [6
 
 
 ]
 CHƯƠNG 1.
-(Chuong/1_Gioi_thieu.tex
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 48.
-
-[1
+(Chuong/1_Gioi_thieu.tex [1
 
 ]
 
@@ -1454,14 +1421,7 @@ CHƯƠNG 2.
 (Chuong/2_Khao_sat.tex
 LaTeX Font Info:    Calculating math sizes for size <11.86258> on input line 48
 .
-
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 58.
-
-[5
+ [5
 
 ]
 File: Hinhve/uc_overview.png Graphic file (type bmp)
@@ -1647,14 +1607,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 
 [20]
 CHƯƠNG 3.
-(Chuong/3_Cong_nghe.tex
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 53.
-
-[21
+(Chuong/3_Cong_nghe.tex [21
 
 ]
 
@@ -1674,14 +1627,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 
 [23]
 CHƯƠNG 4.
-(Chuong/4_Ket_qua_thuc_nghiem.tex
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 40.
-
-[24
+(Chuong/4_Ket_qua_thuc_nghiem.tex [24
 
 ]
 File: Hinhve/arch_packages.png Graphic file (type bmp)
@@ -1781,10 +1727,6 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 [29]
 File: Hinhve/seq_internet_ready_start.png Graphic file (type bmp)
 <Hinhve/seq_internet_ready_start.png>
-
-Overfull \hbox (35.86641pt too wide) in paragraph at lines 245--258
- [][] 
- []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1889,7 +1831,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [38]
-Overfull \hbox (3.57104pt too wide) in paragraph at lines 564--583
+Overfull \hbox (3.57104pt too wide) in paragraph at lines 566--585
  [][] 
  []
 
@@ -1905,45 +1847,40 @@ File: Hinhve/backtest_duration_static.png Graphic file (type bmp)
 <Hinhve/backtest_duration_static.png>
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
-LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 62
-2.
+LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 64
+4.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <7.58339> not available
-(Font)              size <8> substituted on input line 622.
+(Font)              size <8> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <5.41673> not available
-(Font)              size <5> substituted on input line 622.
+(Font)              size <5> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 622.
+(Font)              size <8> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 622.
+(Font)              size <5> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 622.
+(Font)              size <8> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 622.
+(Font)              size <5> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 622.
+(Font)              size <8> substituted on input line 644.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 622.
-
-
-Overfull \hbox (14.27823pt too wide) in paragraph at lines 622--641
- [][] 
- []
+(Font)              size <5> substituted on input line 644.
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1957,14 +1894,9 @@ File: Hinhve/backtest_dyn_off.png Graphic file (type bmp)
 <Hinhve/backtest_dyn_off.png>
 File: Hinhve/backtest_dyn_on.png Graphic file (type bmp)
 <Hinhve/backtest_dyn_on.png>
-
-Overfull \hbox (81.59462pt too wide) in paragraph at lines 668--672
-\TU/TimesNewRoman(0)/m/n/13 ngại động, bản đồ chỉ có các thùng tĩnh màu tím (tr
-ái); khi bật, hệ thống \TU/lmtt/m/n/13 DynamicObstacleSpawner
- []
-
 File: Hinhve/backtest-dyn-on-2.png Graphic file (type bmp)
 <Hinhve/backtest-dyn-on-2.png>
+
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -1984,7 +1916,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [42]
-Overfull \hbox (0.65176pt too wide) in paragraph at lines 710--734
+Overfull \hbox (0.65176pt too wide) in paragraph at lines 714--738
  [][] 
  []
 
@@ -2011,12 +1943,9 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [44]
-Overfull \hbox (20.10802pt too wide) in paragraph at lines 792--816
- [][] 
- []
-
 File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
 <Hinhve/backtest_recoveries_vs_agents.png>
+
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2042,8 +1971,22 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [47]
-File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
-<Hinhve/14_gcp_nginx_deployment.drawio.png>
+Underfull \hbox (badness 1067) in paragraph at lines 953--958
+[]\TU/TimesNewRoman(0)/m/n/13 Để phục vụ người dùng cuối qua trình duyệt, hệ th
+ống được triển khai
+ []
+
+
+Underfull \hbox (badness 1616) in paragraph at lines 971--973
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443
+
+ []
+
+
+Underfull \hbox (badness 2608) in paragraph at lines 973--975
+[]|\TU/lmtt/m/n/11.86258 tankmapf-tank-mapf-artifacts \TU/TimesNewRoman(0)/m/n/
+11.86258 lưu trữ artifact
+ []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -2052,7 +1995,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[48])
+[48]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 31.86446pt, for example:
@@ -2061,20 +2004,75 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [49]
-CHƯƠNG 5.
-(Chuong/5_Giai_phap_dong_gop.tex
-Overfull \hbox (29.66971pt too wide) in paragraph at lines 47--52
-\TU/lmtt/m/n/13 GridEnemyAgent \TU/TimesNewRoman(0)/m/n/13 quản lý vòng lặp điề
-u hướng: tái hoạch định sau mỗi \TU/lmtt/m/n/13 replanInterval
+Overfull \hbox (3.50667pt too wide) in paragraph at lines 1022--1027
+[]\TU/TimesNewRoman(0)/b/n/13 Proxy WebSocket cho máy chủ trò chơi. \TU/TimesNe
+wRoman(0)/m/n/13 Tên miền phụ \TU/lmtt/m/n/13 game.luminx.io.vn
  []
 
 
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 52.
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
-[50
+[50]
+Underfull \hbox (badness 5345) in paragraph at lines 1095--1097
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Kiểm tra định dạng Ter-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1095--1097
+\TU/TimesNewRoman(0)/m/n/11.86258 raform, cú pháp Python
+ []
+
+
+Underfull \hbox (badness 7081) in paragraph at lines 1095--1097
+\TU/TimesNewRoman(0)/m/n/11.86258 (Registry), cú pháp shell
+ []
+
+
+Underfull \hbox (badness 1552) in paragraph at lines 1095--1097
+\TU/TimesNewRoman(0)/m/n/11.86258 script; phát hiện tệp nhạy
+ []
+
+
+Underfull \hbox (badness 5862) in paragraph at lines 1098--1100
+\TU/TimesNewRoman(0)/m/n/11.86258 chạy \TU/lmtt/m/n/11.86258 terraform plan \TU
+/TimesNewRoman(0)/m/n/11.86258 để
+ []
+
+
+Underfull \hbox (badness 4366) in paragraph at lines 1101--1103
+[]|\TU/TimesNewRoman(0)/m/n/11.86258 Build artifact Linux Ded-
+ []
+
+
+Underfull \hbox (badness 5548) in paragraph at lines 1101--1103
+\TU/TimesNewRoman(0)/m/n/11.86258 icated Server và WebGL,
+ []
+
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[51]
+File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
+<Hinhve/14_gcp_nginx_deployment.drawio.png>
+)
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 31.86446pt, for example:
+(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+
+[52]
+CHƯƠNG 5.
+(Chuong/5_Giai_phap_dong_gop.tex [53
 
 ]
 File: Hinhve/seq_astar_replan.png Graphic file (type bmp)
@@ -2087,14 +2085,10 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[51]
-Overfull \hbox (1.96547pt too wide) in paragraph at lines 80--85
-[]\TU/lmtt/m/n/13 MapScenarioBootstrapPIBT \TU/TimesNewRoman(0)/m/n/13 tạo một 
-bộ giải PIBT dùng chung cho tất cả agent.
- []
-
+[54]
 File: Hinhve/seq_pibt_csharp.png Graphic file (type bmp)
 <Hinhve/seq_pibt_csharp.png>
+
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 16.2645pt, for example:
@@ -2102,7 +2096,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[52]
+[55]
 File: Hinhve/seq_pibt_tcp.png Graphic file (type bmp)
 <Hinhve/seq_pibt_tcp.png>
 
@@ -2113,13 +2107,10 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[53]
-Overfull \hbox (189.99275pt too wide) in paragraph at lines 153--158
-\TU/TimesNewRoman(0)/m/n/13 chặn ngay ô tiếp theo), ép agent phải tái hoạch địn
-h ngay lập tức. \TU/lmtt/m/n/13 MapLoader.MarkCellBlocked/UnmarkCellBlocked
- []
+[56]
+File: Hinhve/12_pibt_to_epibt_path.drawio.png Graphic file (type bmp)
+<Hinhve/12_pibt_to_epibt_path.drawio.png>
 
-)
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 16.2645pt, for example:
@@ -2127,16 +2118,33 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[54]
+[57]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 16.2645pt, for example:
+(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+
+[58]
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 16.2645pt, for example:
+(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+
+[59])
+
+Package fancyhdr Warning: \headheight is too small (10.0pt): 
+(fancyhdr)                Make it at least 16.2645pt, for example:
+(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+
+[60]
 CHƯƠNG 6.
-(Chuong/6_Ket_luan.tex
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 46.
-
-[55
+(Chuong/6_Ket_luan.tex [61
 
 ])
 
@@ -2146,42 +2154,15 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[56]
-Overfull \hbox (49.05464pt too wide) in paragraph at lines 313--313
-\TU/TimesNewRoman(0)/m/n/13 2026. [Online]. Available: []$[][][][][] [] [] [] [
-][][][] [] [][][][][][][] [] [][][] [] [][][][] [] [] [] [][][][][][][][][][][]
-[][] []
- []
+[62] [63
 
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 315.
-
-[57
-
-]
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 315.
-
-[58
+] [64
 
 ]
 PHỤ LỤC A.
-(Chuong/Phu_luc_A.tex)
+(Chuong/Phu_luc_A.tex [65
 
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 333.
-
-[59
-
-]
+])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 16.2645pt, for example:
@@ -2189,21 +2170,14 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[60]
+[66]
 PHỤ LỤC B.
 (Chuong/Phu_luc_B.tex
 File: Hinhve/uc_groupE_deploy.png Graphic file (type bmp)
 <Hinhve/uc_groupE_deploy.png>
 File: Hinhve/uc_E1.png Graphic file (type bmp)
 <Hinhve/uc_E1.png>
-
-
-Package fancyhdr Warning: \fancyfoot's `E' option without twoside option is use
-less.
-(fancyhdr)                Please consider using the `twoside' option on input l
-ine 44.
-
-[61
+ [67
 
 ]
 File: Hinhve/uc_E2.png Graphic file (type bmp)
@@ -2216,7 +2190,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
 
-[62] (DoAn.aux)
+[68] (DoAn.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
@@ -2230,7 +2204,7 @@ LaTeX Font Warning: Size substitutions with differences
 LaTeX Warning: There were undefined references.
 
 Package rerunfilecheck Info: File `DoAn.out' has not changed.
-(rerunfilecheck)             Checksum: 39DDE6B8D2DADA597FDEC5559C5F9CE7;14131.
+(rerunfilecheck)             Checksum: B10C03E9A7943F5D833E71288A479E09;16389.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                DoAn
@@ -2241,12 +2215,12 @@ Package logreq Info: Writing requests to 'DoAn.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 35171 strings out of 402987
- 708575 string characters out of 5448317
- 1674838 words of memory out of 5000000
- 63365 multiletter control sequences out of 15000+600000
+ 35196 strings out of 402987
+ 709321 string characters out of 5448317
+ 1667430 words of memory out of 5000000
+ 63389 multiletter control sequences out of 15000+600000
  639307 words of font info for 125 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 108i,12n,107p,2507b,4883s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 108i,12n,107p,2507b,5071s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on DoAn.xdv (75 pages, 1233516 bytes).
+Output written on DoAn.pdf (82 pages).

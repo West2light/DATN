@@ -611,8 +611,10 @@ Hậu điều kiện  & Người dùng nắm được kết quả định lượ
 
 \textbf{Hiệu năng}: Thuật toán A* phải hoàn thành tìm đường cho mỗi agent trong dưới
 5\,ms trên bản đồ nhỏ (Alpha32), để tổng thời gian tính toán mỗi khung hình không vượt
-quá 16\,ms (60\,FPS). PIBT phải hoàn thành một bước phối hợp cho 6 agent trong dưới
-10\,ms.
+quá 16\,ms (60\,FPS). Bộ giải PIBT -- cả bản C\# chạy trong tiến trình lẫn bản C++ giao
+tiếp qua TCP -- phải trả về kết quả lập kế hoạch cho mỗi bước phối hợp trong dưới 1 giây
+(không quá 1 giây), đủ nhanh để người chơi không cảm nhận được độ trễ và bảo đảm trải
+nghiệm chơi mượt mà.
 
 \textbf{Tính ổn định}: Mỗi run backtest phải tái lập được với cùng seed; hệ thống không
 được crash trong suốt 90 run liên tiếp.

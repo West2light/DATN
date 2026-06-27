@@ -64,7 +64,12 @@
 \renewcommand\appendixtocname{PHỤ LỤC}
 
 
-\addbibresource{Danh_sach_tai_lieu_tham_khao.bib} % chèn file chứa danh mục tài liệu tham khảo vào 
+\addbibresource{Danh_sach_tai_lieu_tham_khao.bib} % chèn file chứa danh mục tài liệu tham khảo vào
+
+% Cho phép ngắt dòng URL dài trong danh mục tài liệu tham khảo (tránh tràn lề phải)
+\setcounter{biburlnumpenalty}{9000}
+\setcounter{biburlucpenalty}{9000}
+\setcounter{biburllcpenalty}{9000}
 
 \include{lstlisting} % Phần này cho phép chèn code và formatting code như C, C++, Python
 
@@ -166,6 +171,9 @@
 \setlength{\parskip}{6pt}
 %Lùi đầu dòng
 \setlength{\parindent}{15pt}
+% Last-resort: cho phép giãn nhẹ khoảng cách từ ở các dòng có từ/định danh quá dài,
+% kết hợp với \allowbreak để tránh chữ tràn ra lề phải (overfull \hbox)
+\setlength{\emergencystretch}{3em}
 
 
 
@@ -198,6 +206,14 @@
 % \pagestyle{empty} % Header và footer rỗng
 \newpage
 \pagenumbering{roman} % Xóa page numbering ở cuối trang
+% Số trang phần đầu (chữ số La Mã) căn sát lề phải ở footer, đồng nhất với phần thân
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[R]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\pagestyle{empty} % Mục lục: KHÔNG hiện số trang (số La Mã chỉ bắt đầu từ Danh mục hình vẽ)
 \renewcommand*\contentsname{MỤC LỤC}
 
 \titlecontents{chapter}
@@ -229,6 +245,10 @@
 \tableofcontents
 \thispagestyle{empty}
 \clearpage
+
+% Bắt đầu đánh số trang La Mã (căn sát lề phải) từ Danh mục hình vẽ trở đi
+\pagenumbering{roman}
+\pagestyle{plain}
 
 % \pagenumbering{roman}
 %Tạo danh mục hình vẽ.

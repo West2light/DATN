@@ -41,6 +41,18 @@ Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 1440$\pm$59 & 0 \\ \hline
 bản đồ Mansion với PIBT có độ lệch chuẩn replan lớn (khoảng 1013), phản ánh tính ngẫu
 nhiên cao của quá trình phân giải xung đột trong hành lang hẹp.
 
+Một quan sát đáng chú ý là hai biến thể PIBT (C\# và C++/TCP) có cùng số lần tái hoạch
+định trên mọi bản đồ -- chẳng hạn 137 lần trên Alpha32, 3\,408 lần trên Mansion hay
+4\,769 lần trên Gallows -- bởi cả hai cùng được điều khiển bởi một nhịp lập kế hoạch PIBT
+như nhau; khác biệt giữa chúng chủ yếu nằm ở thời gian hoàn thành và số phát bắn, phản
+ánh độ trễ một nhịp của kênh TCP ở biến thể C++/TCP. Ngược lại, A* gần như tất định với
+độ lệch chuẩn thời gian bằng 0 trên Alpha32 và Maze128. Trên bản đồ mê cung Maze128, cả
+ba thuật toán đều chạm trần thời gian 180~giây: không gian quá hẹp khiến agent hiếm khi
+tiếp cận được Eagle, thể hiện qua số phát bắn rất thấp (302 với A*) hoặc bằng 0 (PIBT
+C++/TCP). Đây cũng là lý do số liệu chi tiết được tách riêng ở phụ lục thay vì đưa hết
+vào Chương~\ref{chapter:Experiment}: chúng phục vụ kiểm chứng độ ổn định hơn là so sánh
+tổng quan.
+
 \section{Kết quả môi trường có chướng ngại động}
 
 Bảng~\ref{tab:appendix_dynamic} liệt kê kết quả chi tiết khi bật chướng ngại động.
@@ -73,5 +85,17 @@ Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 1871$\pm$76 & 0 \\ \hline
 
 So với môi trường tĩnh, số lần replan tăng trên mọi tổ hợp, xác nhận cả ba thuật toán
 đều phản ứng với thay đổi môi trường bằng cách tái hoạch định nhiều hơn.
+
+Mức tăng này thể hiện rõ nhất trên các bản đồ thoáng: với A* trên Alpha32, số lần tái
+hoạch định tăng từ 159 lên 238 (khoảng 50\%) khi bật chướng ngại động; với PIBT trên
+Gallows, con số này tăng từ 4\,769 lên 6\,201. Dù vậy, độ lệch chuẩn của A* vẫn xấp xỉ
+0, cho thấy thuật toán giữ được tính tất định ngay cả khi môi trường thay đổi -- phần
+biến thiên còn lại đến từ thời điểm và vị trí spawn của chướng ngại chứ không phải từ
+bản thân thuật toán. Bản đồ Maze128 tiếp tục chạm trần 180~giây ở cả ba thuật toán, xác
+nhận rằng giới hạn tại đây là độ khó tô-pô của bản đồ chứ không phải tải tính toán. Nhìn
+chung, dữ liệu chi tiết trong hai bảng củng cố nhận định ở Chương~\ref{chapter:Experiment}:
+A* ổn định và rẻ trên bản đồ thoáng, trong khi PIBT phối hợp tốt hơn ở khu vực đông đúc
+nhưng đánh đổi bằng số lần tái hoạch định cao hơn nhiều, và chênh lệch đó càng nới rộng
+khi môi trường trở nên động.
 
 \end{document}
