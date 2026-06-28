@@ -275,6 +275,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private IEnumerator DoStepWeb()
     {
+        CleanupDeadAgents();
         int rows = mapLoader.BuildHeight;
         int cols = mapLoader.BuildWidth;
         var data = BuildStepData(rows, cols);
@@ -324,9 +325,25 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private bool _firstStepLogged;
 
+    private void CleanupDeadAgents()
+    {
+        for (int i = _agents.Count - 1; i >= 0; i--)
+        {
+            if (_agents[i] == null)
+            {
+                _agents.RemoveAt(i);
+                if (i < _agentOrientations.Count)
+                {
+                    _agentOrientations.RemoveAt(i);
+                }
+            }
+        }
+    }
+
     private IEnumerator DoStepAsync()
     {
         _stepInFlight = true;
+        CleanupDeadAgents();
 
         if (!_firstStepLogged)
         {
