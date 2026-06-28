@@ -111,7 +111,7 @@ public class MapLoader : MonoBehaviour
         }
 
         grid = ReadMapFile(mapPath, out width, out height);
-        FinalizeLoadedMap();
+        StartCoroutine(FinalizeLoadedMapCoroutine());
 #endif
     }
 
@@ -119,8 +119,6 @@ public class MapLoader : MonoBehaviour
     {
         using UnityWebRequest request = UnityWebRequest.Get(mapUrl);
         yield return request.SendWebRequest();
-
-        _isLoading = false;
 
         if (request.result != UnityWebRequest.Result.Success)
         {
@@ -136,16 +134,17 @@ public class MapLoader : MonoBehaviour
         }
 
         grid = ReadMapText(text, out width, out height);
-        FinalizeLoadedMap();
+        yield return StartCoroutine(FinalizeLoadedMapCoroutine());
     }
 
-    private void FinalizeLoadedMap()
+    private IEnumerator FinalizeLoadedMapCoroutine()
     {
         ComputeBuildWindow();
-        BuildTiles();
+        yield return StartCoroutine(BuildTilesCoroutine());
         CreateMapBounds();
         StaticBatchingUtility.Combine(tilesParent.gameObject);
         FitCamera();
+        _isLoading = false;
         _lastLoadError = null;
     }
 
@@ -535,9 +534,12 @@ public class MapLoader : MonoBehaviour
         buildHeight = maxBuildHeight > 0 ? Mathf.Min(maxBuildHeight, availableHeight) : availableHeight;
     }
 
-    private void BuildTiles()
+    private IEnumerator BuildTilesCoroutine()
     {
         CreateGroundBackground();
+        int tilesCreated = 0;
+        int maxTilesPerFrame = 150; // Instantiating too many in one frame freezes WebGL
+
         for (int localY = 0; localY < buildHeight; localY++)
         {
             int mapY = buildStartY + localY;
@@ -546,7 +548,15 @@ public class MapLoader : MonoBehaviour
                 int mapX = buildStartX + localX;
                 char cell = grid[mapY][mapX];
                 if (!IsCellWalkable(cell))
+                {
                     CreateTile(cell, new Vector2Int(mapX, mapY));
+                    tilesCreated++;
+                    if (tilesCreated >= maxTilesPerFrame)
+                    {
+                        tilesCreated = 0;
+                        yield return null;
+                    }
+                }
             }
         }
     }
