@@ -53,7 +53,18 @@ public class MapWinController : MonoBehaviour
         // In LAN mode we can't reload the scene directly (NM manages scene loading);
         // hide the replay button and only offer returning to the lobby/menu.
         bool isLan = LanSessionManager.IsActive;
-        bool showContinue = !isLan && currentScene == astarSceneName;
+        
+        string nextScene = "";
+        string nextSceneLabel = "";
+
+        if (!isLan)
+        {
+            if (currentScene == "Lvl1") { nextScene = "Lvl2"; nextSceneLabel = "CONTINUE  ▶  LEVEL 2"; }
+            else if (currentScene == "Lvl2") { nextScene = astarSceneName; nextSceneLabel = "CONTINUE  ▶  ASTAR MODE"; }
+            else if (currentScene == astarSceneName) { nextScene = pibtSceneName; nextSceneLabel = "CONTINUE  ▶  PIBT MODE"; }
+        }
+
+        bool showContinue = !string.IsNullOrEmpty(nextScene);
         float panelH = showContinue ? 440f : 380f;
 
         // ── Canvas ─────────────────────────────────────────────────────────────
@@ -91,16 +102,46 @@ public class MapWinController : MonoBehaviour
             new Vector2(0f, -8f), new Vector2(0f, 0f),
             GoldColor);
 
+        // Determine text based on mode
+        string mainTitle = "VICTORY!";
+        string subTitle = "All enemies have been eliminated!";
+
+        if (isLan)
+        {
+            mainTitle = "TEAM VICTORY!";
+            subTitle = "Your squad has successfully cleared the sector in Co-op mode!";
+        }
+        else if (currentScene == "Lvl1")
+        {
+            mainTitle = "LEVEL 1 COMPLETE!";
+            subTitle = "You have defended the base successfully. Prepare for the next wave!";
+        }
+        else if (currentScene == "Lvl2")
+        {
+            mainTitle = "LEVEL 2 CLEARED!";
+            subTitle = "Outstanding performance! The enemy forces have been pushed back.";
+        }
+        else if (currentScene == astarSceneName) // A* Mode
+        {
+            mainTitle = "SECTOR CLEARED!";
+            subTitle = "Great job! All hostile units eliminated.\nReady to tackle the advanced PIBT mode?";
+        }
+        else if (currentScene == pibtSceneName) // PIBT Mode
+        {
+            mainTitle = "PIBT DOMINATION!";
+            subTitle = "Excellent coordination! The enemy swarm has been decisively defeated.";
+        }
+
         // "VICTORY!"  (anchor top-centre)
-        MakeLabel(panel, "VictoryText", "VICTORY!", 64, FontStyle.Bold, GoldColor,
+        MakeLabel(panel, "VictoryText", mainTitle, 56, FontStyle.Bold, GoldColor,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -44f), new Vector2(480f, 82f));
 
         // Subtitle
-        MakeLabel(panel, "SubText", "All enemies have been eliminated!", 19, FontStyle.Italic,
+        MakeLabel(panel, "SubText", subTitle, 19, FontStyle.Italic,
             new Color(0.72f, 0.72f, 0.72f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -140f), new Vector2(440f, 30f));
+            new Vector2(0f, -140f), new Vector2(480f, 60f));
 
         // Thin separator
         MakeStretch(panel, "Sep",
@@ -128,9 +169,9 @@ public class MapWinController : MonoBehaviour
                 new Vector2(0f, y3), new Vector2(BtnW, BtnH),
                 () => SceneManager.LoadScene(currentScene));
 
-            MakeButton(panel, "ContinueBtn", "CONTINUE  ▶  PIBT", BtnGreen, Color.white,
+            MakeButton(panel, "ContinueBtn", nextSceneLabel, BtnGreen, Color.white,
                 new Vector2(0f, y2), new Vector2(BtnW, BtnH),
-                () => SceneManager.LoadScene(pibtSceneName));
+                () => SceneManager.LoadScene(nextScene));
 
             MakeButton(panel, "MainMenuBtn", "MAIN MENU", BtnDark, Color.white,
                 new Vector2(0f, y1), new Vector2(BtnW, BtnH),
