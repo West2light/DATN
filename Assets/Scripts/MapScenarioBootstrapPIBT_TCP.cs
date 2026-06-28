@@ -738,6 +738,11 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         if (d == null) return;
         d.MaxHealth = enemyMaxHealth;
         d.Health    = enemyMaxHealth;
+
+        DestroyUtil du = enemy.AddComponent<DestroyUtil>();
+        d.OnDead.AddListener(du.DestroyHelper);
+
+        TrackEnemyDeath(enemy);
     }
 
     private void ConfigureEnemyHealthBar(GameObject enemy)
