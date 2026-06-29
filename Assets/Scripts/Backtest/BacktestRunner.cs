@@ -23,6 +23,7 @@ public class BacktestRunner : MonoBehaviour
     // ── Config ─────────────────────────────────────────────────────────────
     public const int   Reps          = 3;   // default; caller can override via Launch()
     public const float RunTimeoutSec = 180f;
+    private const float BacktestTimeScale = 3f; // x3 tua nhanh giống YouTube
 
     private static readonly string[] MapFiles =
     {
@@ -80,6 +81,7 @@ public class BacktestRunner : MonoBehaviour
     // ── Public entry / cleanup ─────────────────────────────────────────────
     public static void Cleanup()
     {
+        Time.timeScale = 1f; // reset về tốc độ bình thường khi cancel/cleanup
         if (_instance == null) return;
         if (_instance._overlayCanvas != null) Destroy(_instance._overlayCanvas);
         Destroy(_instance.gameObject);
@@ -151,8 +153,14 @@ public class BacktestRunner : MonoBehaviour
     // ── Main coroutine ─────────────────────────────────────────────────────
     private IEnumerator RunAll()
     {
+        Time.timeScale = BacktestTimeScale; // x3 tua nhanh toàn bộ backtest
+        Debug.Log($"[BacktestRunner] Time.timeScale set to {BacktestTimeScale}x");
+
         for (_jobIndex = 0; _jobIndex < _jobs.Count; _jobIndex++)
             yield return RunJob(_jobs[_jobIndex]);
+
+        Time.timeScale = 1f; // reset về tốc độ bình thường khi xong
+        Debug.Log("[BacktestRunner] Time.timeScale reset to 1x");
 
         BacktestMode.Deactivate();
 
