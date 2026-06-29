@@ -48,12 +48,12 @@
 \contentsline {subsection}{\numberline {4.4.2}Ba thuật toán điều hướng và cách đo số lần tái hoạch định}{42}{subsection.4.4.2}%
 \contentsline {subsection}{\numberline {4.4.3}Kết quả thực nghiệm -- Môi trường tĩnh}{44}{subsection.4.4.3}%
 \contentsline {subsection}{\numberline {4.4.4}Kết quả thực nghiệm -- Môi trường có chướng ngại động}{45}{subsection.4.4.4}%
-\contentsline {subsection}{\numberline {4.4.5}Khảo sát khả năng mở rộng theo số lượng agent}{47}{subsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.4.5}Khảo sát khả năng mở rộng theo số lượng agent}{48}{subsection.4.4.5}%
 \contentsline {subsection}{\numberline {4.4.6}Nhận xét và đánh giá}{52}{subsection.4.4.6}%
 \contentsline {section}{\numberline {4.5}Triển khai}{53}{section.4.5}%
-\contentsline {subsection}{\numberline {4.5.1}Triển khai cục bộ}{53}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.1}Triển khai cục bộ}{54}{subsection.4.5.1}%
 \contentsline {subsection}{\numberline {4.5.2}Hạ tầng triển khai trên Google Cloud Platform}{54}{subsection.4.5.2}%
-\contentsline {subsection}{\numberline {4.5.3}Tên miền và chứng chỉ TLS}{54}{subsection.4.5.3}%
+\contentsline {subsection}{\numberline {4.5.3}Tên miền và chứng chỉ TLS}{55}{subsection.4.5.3}%
 \contentsline {subsection}{\numberline {4.5.4}Nginx -- Reverse proxy và phục vụ WebGL}{55}{subsection.4.5.4}%
 \contentsline {subsection}{\numberline {4.5.5}Máy chủ PIBT C++ và mô hình client-server TCP}{56}{subsection.4.5.5}%
 \contentsline {subsection}{\numberline {4.5.6}Tích hợp liên tục và triển khai liên tục (CI/CD)}{56}{subsection.4.5.6}%
