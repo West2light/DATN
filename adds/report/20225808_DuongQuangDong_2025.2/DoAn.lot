@@ -29,19 +29,19 @@
 \contentsline {table}{\numberline {4.7}{\ignorespaces Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}}{44}{table.caption.32}%
 \contentsline {table}{\numberline {4.8}{\ignorespaces Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}}{46}{table.caption.35}%
 \contentsline {table}{\numberline {4.9}{\ignorespaces Kết quả theo số lượng agent, môi trường tĩnh (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{48}{table.caption.39}%
-\contentsline {table}{\numberline {4.10}{\ignorespaces Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{51}{table.caption.43}%
-\contentsline {table}{\numberline {4.11}{\ignorespaces Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger \) = lượt timeout}}{52}{table.4.11}%
-\contentsline {table}{\numberline {4.12}{\ignorespaces Thành phần hạ tầng GCP}}{55}{table.caption.45}%
-\contentsline {table}{\numberline {4.13}{\ignorespaces Ba khối cấu hình Nginx trên máy ảo GCP}}{56}{table.caption.46}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{50}{table.caption.43}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger \) = lượt timeout}}{51}{table.4.11}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Thành phần hạ tầng GCP}}{54}{table.caption.45}%
+\contentsline {table}{\numberline {4.13}{\ignorespaces Ba khối cấu hình Nginx trên máy ảo GCP}}{55}{table.caption.46}%
 \contentsline {table}{\numberline {4.14}{\ignorespaces Các workflow CI/CD trên GitHub Actions}}{57}{table.caption.47}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {A.1}{\ignorespaces Kết quả backtest chi tiết -- môi trường tĩnh ($n=6$)}}{72}{table.caption.56}%
-\contentsline {table}{\numberline {A.2}{\ignorespaces Kết quả backtest chi tiết -- môi trường có chướng ngại động ($n=6$)}}{73}{table.caption.57}%
+\contentsline {table}{\numberline {A.1}{\ignorespaces Kết quả backtest chi tiết -- môi trường tĩnh ($n=6$)}}{71}{table.caption.56}%
+\contentsline {table}{\numberline {A.2}{\ignorespaces Kết quả backtest chi tiết -- môi trường có chướng ngại động ($n=6$)}}{72}{table.caption.57}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{74}{table.1.B.1}%
-\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case UC-E2 -- Chạy dedicated server}}{75}{table.1.B.2}%
-\contentsline {table}{\numberline {B.3}{\ignorespaces Năm giai đoạn của quy trình triển khai end-to-end}}{76}{table.1.B.3}%
+\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{73}{table.1.B.1}%
+\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case UC-E2 -- Chạy dedicated server}}{74}{table.1.B.2}%
+\contentsline {table}{\numberline {B.3}{\ignorespaces Năm giai đoạn của quy trình triển khai end-to-end}}{75}{table.1.B.3}%
 \contentsfinish 
 \contentsfinish 
