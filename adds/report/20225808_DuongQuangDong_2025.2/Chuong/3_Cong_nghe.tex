@@ -1,0 +1,209 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương~2 đã xác định A* và PIBT là hai thuật toán cần triển khai, Unity Engine là
+nền tảng phát triển, và TCP là giao thức tích hợp máy chủ ngoài. Chương này trình bày
+cơ sở lý thuyết và lý do lựa chọn từng công nghệ.
+
+% ============================================================
+\section{Bài toán MAPF}
+\label{section:3.1}
+
+MAPF được định nghĩa trên đồ thị $G = (V, E)$ với $k$ agent. Mỗi agent $i$ có vị trí
+xuất phát $s_i \in V$ và đích $g_i \in V$. Tại mỗi bước thời gian, agent di chuyển
+sang ô lân cận hoặc đứng yên. Ràng buộc: (i)~\textit{vertex conflict} -- hai agent
+không được ở cùng ô cùng bước; (ii)~\textit{edge conflict} -- hai agent không được
+đổi chỗ cho nhau trong cùng một bước. Mục tiêu: tìm tập kế hoạch $\pi_1, \ldots, \pi_k$
+tối thiểu hóa tổng chi phí (số bước di chuyển) và không vi phạm ràng buộc \cite{stern2019mapf}.
+
+Chất lượng lời giải thường được đo bằng hai hàm mục tiêu: \emph{makespan} -- số bước của
+agent về đích muộn nhất, và \emph{sum-of-costs} (tổng chi phí) -- tổng số bước của tất cả
+agent. Tìm lời giải tối ưu theo hai hàm này là bài toán NP-khó \cite{stern2019mapf}; do đó,
+khi số agent lớn và có ràng buộc thời gian thực, các thuật toán dựa trên luật như PIBT chấp
+nhận hi sinh tính tối ưu toàn cục để đổi lấy tốc độ phản hồi.
+
+Trong bối cảnh game thời gian thực, bài toán được đơn giản hóa: agent không cần đạt
+đích cố định mà liên tục tiến gần mục tiêu cố định (Eagle Base), và phải tái lập kế
+hoạch khi bản đồ thay đổi (chướng ngại mới xuất hiện, agent bị tiêu diệt).
+
+Cũng cần phân biệt giữa MAPF \emph{cổ điển} (offline, một lần) -- mọi agent có đích cố định
+và toàn bộ lời giải được tính trước khi thực thi -- với MAPF \emph{trọn đời} (Lifelong MAPF,
+viết tắt LMAPF) -- agent liên tục được gán nhiệm vụ mới và hệ thống lập kế hoạch lại theo
+từng bước thời gian. Kịch bản của đồ án gần với LMAPF: đích là Eagle Base nhưng môi trường
+thay đổi liên tục (chướng ngại động, agent bị tiêu diệt), nên lời giải phải được cập nhật
+trực tuyến mỗi bước thay vì tính trọn một lần. Đây là lý do đồ án chọn họ thuật toán chạy
+theo bước thời gian (A* tái hoạch định định kỳ và PIBT) thay vì các solver offline tối ưu.
+
+\section{Thuật toán A*}
+\label{section:3.2}
+
+A* \cite{hart1968astar} tìm đường ngắn nhất trên đồ thị có trọng số bằng cách mở
+rộng các nút theo hàm ước lượng $f(n) = g(n) + h(n)$, trong đó $g(n)$ là chi phí
+thực từ điểm xuất phát đến nút $n$, và $h(n)$ là heuristic ước lượng chi phí từ $n$
+đến đích. Khi $h(n)$ nhất quán (consistent), A* đảm bảo tìm được đường ngắn nhất.
+
+Trong đồ án, heuristic Manhattan $h(n) = |x_n - x_g| + |y_n - y_g|$ được dùng cho
+lưới 4 láng giềng (lên, xuống, trái, phải), đảm bảo tính nhất quán và phù hợp với
+cấu trúc bản đồ dạng ô vuông. A* được chọn làm baseline vì: (i) đã được kiểm chứng
+rộng rãi trong game 2D; (ii) hiệu quả trên lưới thưa; (iii) dễ tích hợp và hiểu kết quả.
+
+Về cài đặt, A* duy trì hai tập nút: \emph{open set} chứa các nút chờ mở rộng (lấy ra theo
+$f(n)$ nhỏ nhất qua một hàng đợi ưu tiên) và \emph{closed set} chứa các nút đã xét. Trên lưới
+4 láng giềng, heuristic Manhattan vừa \emph{chấp nhận được} (không bao giờ ước lượng vượt quá
+chi phí thật) vừa \emph{nhất quán}, nên A* không phải mở lại nút đã đóng mà vẫn bảo đảm đường
+ngắn nhất. Chi phí tính toán tỉ lệ với số ô được mở rộng: trên bản đồ thoáng vùng mở rộng nhỏ
+nên A* chạy rất nhanh, còn trên mê cung A* phải dò gần như toàn bộ không gian khiến chi phí
+tăng vọt -- điều này dự báo trước hành vi khác biệt của A* giữa năm bản đồ ở
+Chương~\ref{chapter:Experiment}.
+
+Hạn chế của A* trong bối cảnh MAPF: mỗi agent tính đường độc lập, không có cơ chế
+phối hợp, dẫn đến va chạm và replan phản ứng liên tục.
+
+\section{Thuật toán PIBT}
+\label{section:3.3}
+
+PIBT (Priority Inheritance with Backtracking) \cite{okumura2022pibt} là thuật toán MAPF
+chạy theo bước thời gian (time-step based). Tại mỗi bước, các agent được xếp hạng ưu
+tiên; agent ưu tiên cao hơn di chuyển trước, agent ưu tiên thấp hơn kế thừa ưu tiên
+nếu bị chặn (\textit{priority inheritance}) và có thể hoàn tác bước di chuyển nếu
+không tìm được ô trống (\textit{backtracking}).
+
+Để minh họa cơ chế, xét tình huống sau: agent $A$ (ưu tiên cao) muốn tiến vào ô đang bị agent
+$B$ (ưu tiên thấp) chiếm. Theo kế thừa ưu tiên, $B$ tạm thời nhận mức ưu tiên của $A$ và buộc
+phải tìm một ô trống để nhường đường; nếu quanh $B$ còn ô hợp lệ, $B$ dịch sang đó và $A$ tiến
+vào -- cả hai cùng tiến mà không va chạm. Ngược lại, nếu $B$ bị vây kín không còn ô nào hợp lệ,
+thuật toán hoàn tác: $A$ rút lại nước đi và thử hướng khác. Nhờ đệ quy kế thừa--hoàn tác này,
+PIBT gỡ xung đột cục bộ chỉ trong một lần quét theo thứ tự ưu tiên, đạt độ phức tạp gần tuyến
+tính theo số agent trong trường hợp trung bình.
+
+Ưu điểm của PIBT: hoàn chỉnh trên bất kỳ bản đồ nào có đường đi tồn tại; thời gian
+tính toán thực tế tỷ lệ tuyến tính với số agent trong trường hợp trung bình; phù hợp
+với môi trường thời gian thực. PIBT được chọn vì nó cân bằng tốt giữa hiệu năng và
+khả năng phối hợp đa agent, và đã được dùng thành công trong cuộc thi điều phối robot
+quốc tế \cite{lorr2024}.
+
+Tính hoàn chỉnh của PIBT được bảo đảm khi đồ thị thỏa một điều kiện hình học: mọi cặp ô kề
+nhau đều nằm trên một chu trình đơn có độ dài tối thiểu ba. Điều kiện này cho phép agent ưu
+tiên cao luôn đẩy được agent chặn đường ra khỏi ô mong muốn; những bản đồ có nhiều hành lang
+cụt một ô vi phạm điều kiện nên dễ phát sinh deadlock cục bộ hơn, đòi hỏi cơ chế thoát kẹt bổ trợ.
+
+PIBT tiếp tục là nền tảng của nhiều phương pháp MAPF hiện đại. Gần đây, biến thể mở rộng
+EPIBT \cite{yukhnevich2025epibt} bổ sung các thao tác đa hành động (multi-action
+operations) kết hợp graph guidance và large neighborhood search, đạt kết quả tốt nhất
+hiện tại trên bài toán Lifelong MAPF trực tuyến có ràng buộc xoay hướng. Điều này cho
+thấy hướng tiếp cận PIBT mà đồ án lựa chọn vẫn đang được nghiên cứu tích cực và bám sát
+hiệu năng hàng đầu.
+
+Một điểm cần lưu ý khi áp dụng PIBT cho xe tăng là \emph{mô hình hành động có xoay}
+(rotation action model). PIBT cổ điển giả định mỗi agent có thể bước sang một ô kề bất kỳ
+ngay trong một bước thời gian; nhưng xe tăng có hướng thân và phải xoay trước khi tiến, nên
+trạng thái của agent gồm cả vị trí lẫn hướng, với bốn hành động cơ bản: tiến, xoay phải, xoay
+trái và chờ. Khi đó, việc di chuyển sang một ô bên cạnh có thể tốn hai đến ba bước (xoay rồi
+tiến) thay vì một bước. Đây chính là cơ sở cho cải tiến EPIBT được trình bày ở
+Mục~\ref{section:5.5}, nơi mỗi agent nhìn trước một chuỗi hành động ngắn để tính được chi phí
+xoay mà PIBT một bước bỏ sót.
+
+EPIBT khái quát ý tưởng này bằng \emph{thao tác đa hành động} (multi-action operation): thay vì
+chọn một hành động đơn, mỗi agent chọn cả một chuỗi hành động ngắn có độ dài cố định rồi chỉ
+thực thi hành động đầu tiên ở bước hiện tại. Độ dài ba là tối thiểu để từ một hướng bất kỳ vẫn
+tới được mọi ô kề, nhờ đó agent dự đoán trước được chi phí xoay; tăng độ dài cho tầm nhìn xa hơn
+nhưng làm số phương án tăng nhanh. Bảng~\ref{tab:mao_reach} minh họa sự đánh đổi này theo số liệu
+của \cite{yukhnevich2025epibt}.
+
+\begin{center}
+\captionof{table}{Số ô và số chuỗi ô đạt được theo độ dài thao tác}
+\label{tab:mao_reach}
+\small
+\begin{tabular}{ccc}
+\hline
+\textbf{Độ dài thao tác} & \textbf{Số ô đạt được} & \textbf{Số chuỗi ô khác nhau} \\ \hline
+1 & 2  & 2   \\
+2 & 5  & 6   \\
+3 & 11 & 17  \\
+4 & 21 & 48  \\
+5 & 35 & 136 \\ \hline
+\end{tabular}
+\end{center}
+
+Hai cơ chế bổ trợ của EPIBT là \emph{kế thừa thao tác} (tái dùng chuỗi đã chọn ở bước trước, bỏ
+hành động đầu và nối thêm một bước chờ) và \emph{xét lại agent} có giới hạn để gỡ các xung đột
+phức tạp. Phần cài đặt cụ thể cùng cách tích hợp vào máy chủ C++ được trình bày ở
+Mục~\ref{section:5.5}.
+
+Đồ án tiến hành triển khai thuật toán PIBT theo hai phương pháp tiếp cận khác nhau. Phương pháp thứ nhất là cài đặt trực tiếp trong môi trường Unity bằng ngôn ngữ C\# thông qua lớp \texttt{GridEnemyAgentPIBT}, giúp hệ thống hoạt động độc lập mà không cần phụ thuộc vào hạ tầng bên ngoài. Phương pháp thứ hai là giao tiếp qua giao thức TCP với một máy chủ C++ có tốc độ xử lý cao, được hiện thực hóa thông qua lớp \texttt{GridEnemyAgentPIBT\_TCP}, nhằm minh chứng cho khả năng tích hợp một hệ thống tìm đường (planner) độc lập bên ngoài Unity.
+
+\section{Unity Engine và C\#}
+\label{section:3.4}
+
+Unity Engine \cite{unity2024engine} phiên bản 6000.3.10f1 (Unity~6) được lựa chọn vì:
+(i) hỗ trợ xuất bản đa nền tảng bao gồm WebGL; (ii) hệ thống vật lý 2D (Rigidbody2D,
+Collider2D) hoàn chỉnh; (iii) hệ sinh thái lớn và tài liệu đầy đủ; (iv) hỗ trợ
+scripting~C\# với IL2CPP cho hiệu năng tốt. Unity NavMesh không được dùng làm hệ thống
+điều hướng chính vì không tương thích với định dạng bản đồ \texttt{.map} và không
+hỗ trợ ràng buộc MAPF ở lớp lập kế hoạch.
+
+C\# được chọn (thay vì C++) vì tích hợp trực tiếp với Unity mà không cần lớp binding
+bổ sung, giúp code dễ đọc và kiểm tra trong quá trình nghiên cứu.
+
+Cụ thể, đồ án khai thác các thành phần vật lý 2D của Unity làm nền chung cho cả ba thuật toán:
+\texttt{Rigidbody2D} và \texttt{Collider2D} cho chuyển động và va chạm có quán tính của xe tăng;
+hệ thống \emph{layer} và \emph{layer mask} để tách biệt nhóm tường, đạn và agent, phục vụ kiểm tra
+tầm nhìn (line-of-sight) khi bắn; cùng \texttt{Physics2D.Linecast} để phát hiện trúng đích. Chính
+lớp vật lý này khiến việc tích hợp MAPF trở nên không tầm thường: lời giải rời rạc trên lưới phải
+được chuyển thành lực đẩy và mô-men xoay hợp lệ, đồng thời chấp nhận sai số do quán tính -- điều
+mà benchmark MAPF thuần túy không phải xử lý. Đây cũng là lý do đồ án giữ \texttt{TankController}
+làm điểm hội tụ chung: cả người chơi lẫn ba thuật toán AI đều điều khiển xe tăng qua cùng một giao
+diện, bảo đảm so sánh công bằng giữa các thuật toán.
+
+Các lựa chọn thay thế đã xem xét: Godot Engine (thiếu hệ sinh thái C\# MAPF),
+Unreal Engine (quá phức tạp cho 2D top-down), pygame (thiếu vật lý và mạng).
+
+\section{Giao tiếp TCP giữa Unity và máy chủ C++}
+\label{section:3.5}
+
+Để tích hợp thuật toán PIBT viết bằng C++ (từ cuộc thi robot đua The League of Robot
+Runners 2024) vào Unity mà không cần port toàn bộ sang C\#, đồ án sử dụng kết nối
+TCP/IP theo mô hình client--server. Phía Unity đóng vai trò client: sau mỗi bước, Unity
+gửi trạng thái hiện tại gồm vị trí các agent và kích thước bản đồ, rồi nhận lại ô mục
+tiêu tiếp theo cho từng agent. Phía máy chủ C++ đóng vai trò server: chạy thuật toán
+PIBT, duy trì trạng thái lập kế hoạch và lắng nghe trên cổng~7777 (localhost).
+
+Hướng tiếp cận PIBT này vẫn đang được nghiên cứu tích cực: bản mở rộng EPIBT
+\cite{yukhnevich2025epibt} (phiên bản đầy đủ được chấp nhận tại hội nghị AAAI-26) còn
+vượt qua chính lời giải vô địch LoRR~2024 trên bài toán Lifelong MAPF có ràng buộc xoay
+hướng. Việc nhúng máy chủ PIBT~C++ vào Unity vì vậy không chỉ là giải pháp kỹ thuật mà
+còn là cách đưa một dòng thuật toán đang dẫn đầu vào trải nghiệm chơi trực quan.
+
+TCP được chọn thay vì UDP vì đảm bảo thứ tự và toàn vẹn gói tin -- yếu tố quan trọng khi
+mỗi gói lệnh di chuyển đều cần thiết và không chấp nhận mất mát. Giao tiếp qua mạng nội
+bộ (localhost/WSL) đảm bảo độ trễ thấp đủ cho ứng dụng thời gian thực.
+
+Về mô hình tương tác, đồ án chọn kiểu \emph{đồng bộ theo nhịp} (synchronous cadence): mỗi bước,
+Unity gửi trạng thái và chờ máy chủ trả lời trước khi áp dụng hành động, thay vì để hai phía chạy
+bất đồng bộ tự do. Cách này giữ trạng thái hai phía luôn nhất quán và giúp việc gỡ lỗi, tái lập kết
+quả đơn giản hơn, đổi lại độ trễ một nhịp mỗi bước. Máy chủ duy trì một \emph{phiên lập kế hoạch}
+riêng cho mỗi kết nối để lưu trạng thái xuyên suốt ván chơi, còn phía Unity có cơ chế tự kết nối
+lại khi đường truyền gián đoạn, nhờ đó trận đấu không bị treo khi mạng không ổn định. Chi tiết định
+dạng thông điệp và vòng đời phiên được trình bày ở Mục~\ref{section:5.4}.
+
+\section{Các tiêu chí đánh giá thuật toán điều hướng}
+\label{section:3.6}
+
+Để so sánh ba thuật toán một cách khách quan, đồ án dựa trên một tập tiêu chí thống nhất, bắt
+nguồn từ các chỉ số chuẩn của bài toán MAPF \cite{stern2019mapf} nhưng được điều chỉnh cho bối
+cảnh game. \emph{Tỉ lệ hoàn thành nhiệm vụ} (success rate) đo phần trăm lượt mà agent phá được
+Eagle Base trước khi hết giờ -- tương ứng khái niệm tính hoàn chỉnh trên thực tế. \emph{Thời gian
+hoàn thành} (makespan thực thi) đo độ dài một lượt cho tới khi kết thúc, phản ánh tốc độ tiếp cận
+mục tiêu. \emph{Số lần tái hoạch định} (replan count) đo tần suất thuật toán phải tính lại đường,
+gián tiếp thể hiện mức độ phối hợp và độ ổn định của lời giải. \emph{Số lần phục hồi sau kẹt}
+(recovery count) đo số lần agent kích hoạt cơ chế thoát kẹt cục bộ, nổi bật trong môi trường động.
+Cuối cùng, \emph{khả năng mở rộng} (scalability) đo mức độ các chỉ số trên biến thiên khi tăng số
+agent. Toàn bộ tiêu chí được đo tự động qua hệ thống backtest và phân tích định lượng ở
+Chương~\ref{chapter:Experiment}.
+
+\textbf{Kết chương~3:} Chương này đã trình bày cơ sở lý thuyết của MAPF, A* và PIBT (gồm cả mô
+hình hành động có xoay và tập tiêu chí đánh giá), đồng thời giải thích lý do lựa chọn từng công
+nghệ dựa trên yêu cầu xác định ở Chương~2. Các nền tảng lý thuyết và kỹ thuật này là cơ sở để
+Chương~4 trình bày chi tiết thiết kế và triển khai hệ thống.
+
+\end{document}

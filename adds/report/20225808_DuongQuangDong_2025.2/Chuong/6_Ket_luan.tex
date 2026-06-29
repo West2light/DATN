@@ -1,0 +1,73 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Kết luận}
+
+Đồ án đã nghiên cứu và triển khai thành công bài toán tìm đường đa tác nhân (MAPF)
+trong game bắn xe tăng 2D nhiều người chơi xây dựng trên Unity Engine. Ba cấp độ
+thuật toán -- A* baseline, PIBT~C\# và PIBT~C++/TCP -- được triển khai hoàn chỉnh,
+chia sẻ cùng tầng điều khiển vật lý và được đánh giá định lượng trên tập bản đồ
+chuẩn MovingAI MAPF benchmark.
+
+Về các kết quả chính, đồ án đã xây dựng được hệ thống đọc và dựng bản đồ động từ tệp
+\texttt{.map} tại thời điểm chạy, hỗ trợ năm bản đồ kích thước từ 32×32 đến 251×180 mà
+không cần chỉnh sửa mã nguồn. Thuật toán A* baseline hoàn thành nhiệm vụ trên bốn trong
+năm bản đồ với thời gian ổn định, trong đó Maze128 là giới hạn chung của cả ba thuật toán
+do đường đi dài và phức tạp. Hai biến thể PIBT~C\# và PIBT~C++/TCP thể hiện khả năng phối
+hợp đa agent không va chạm với thời gian hoàn thành tương đương A* trên bốn trong năm bản
+đồ, đồng thời giảm được tình trạng deadlock ở lớp vật lý. Trên nền PIBT~C++/TCP, đồ án còn
+cải tiến mô hình xoay của Enemy Agent dựa trên EPIBT, loại bỏ hiện tượng xe tăng xoay giật
+$90^\circ$ tại chỗ. Cuối cùng, hệ thống backtest tự động chạy ổn định 900 run (450 tĩnh và
+450 động) trên năm mức agent từ 6 đến 72, xuất kết quả CSV và biểu đồ; kết quả xác nhận cả
+ba thuật toán duy trì được nhiệm vụ khi môi trường có chướng ngại động, đồng thời cho thấy tỉ lệ
+phá Eagle đạt đỉnh ở dải mật độ trung gian (24--36 agent) chứ không suy giảm đơn điệu theo số agent.
+
+So với mục tiêu đề ra tại Mục~\ref{section:1.2}, cả bốn mục tiêu đều đã hoàn thành. So với
+các giải pháp tương tự, đóng góp của đồ án nằm ở việc tích hợp và so sánh thực nghiệm ba
+cấp độ MAPF trong cùng một môi trường game có vật lý thực tế -- điều chưa thấy trong các
+nghiên cứu được khảo sát.
+
+\section{Hạn chế của đồ án}
+
+Bên cạnh các kết quả đạt được, đồ án còn một số hạn chế. Thứ nhất, quy mô thực nghiệm dừng ở 72
+agent trên năm bản đồ -- nhỏ hơn nhiều so với quy mô hàng nghìn agent của các benchmark LMAPF
+chuyên dụng, nên chưa kiểm chứng được hành vi ở mật độ rất cao. Thứ hai, số lần tái hoạch định
+được định nghĩa khác nhau giữa ba thuật toán nên hiện chỉ so sánh được \emph{xu hướng} phía máy
+khách, chưa phản ánh chi phí phối hợp bên trong máy chủ C++; bổ sung trường đếm replan thật từ
+phía server là cần thiết để so sánh tuyệt đối. Thứ ba, cơ chế xét lại agent cùng hai mở rộng LNS và
+Graph Guidance của EPIBT hiện được giữ ở mức tối thiểu, nên tiềm năng của chúng trong bối cảnh game
+chưa được khai thác. Những hạn chế này đồng thời mở ra các hướng phát triển trình bày dưới đây.
+
+\section{Hướng phát triển}
+
+Trong ngắn hạn, một số việc cần làm để hoàn thiện hệ thống hiện tại. Trước hết là bổ sung
+trường \texttt{replan\_count} vào giao thức TCP \texttt{plan\_result} để server C++ trả về
+số lần replan thật thay vì phải suy ra từ PIBT~C\#. Tiếp theo là thêm seed tất định cho từng
+run để đảm bảo tái lập được hoàn toàn và loại bỏ nhiễu từ quá trình spawn ngẫu nhiên.
+
+Trong dài hạn, đồ án có thể được nâng cấp về cả thuật toán lẫn hệ thống. Hướng đầu tiên
+là tích hợp LNS2 \cite{li2021anytime}, một thuật toán MAPF anytime hiệu năng cao cho phép
+cải thiện dần chất lượng giải pháp theo thời gian tính toán còn lại. Hướng thứ hai là bổ
+sung cơ chế phối hợp tấn công theo đội hình, thay cho việc các agent tấn công Eagle một
+cách độc lập như hiện tại, nhằm tăng hiệu quả và tính hấp dẫn của gameplay. Hướng thứ ba
+là mở rộng hỗ trợ bản đồ động hoàn toàn, trong đó agent có thể phá hủy tường và thay đổi
+đồ thị bản đồ trong thời gian thực, đòi hỏi thuật toán MAPF có khả năng tái hoạch định
+toàn cục. Hướng cuối cùng là triển khai WebGL với PIBT server đặt trên cloud thay vì
+localhost, mở ra khả năng chạy backtest phân tán và demo trực tuyến không cần cài đặt.
+
+Riêng với nhánh EPIBT, đồ án mới khai thác phần lõi (thao tác đa hành động và kế thừa thao tác)
+trong khi giữ cơ chế xét lại agent ở mức tối thiểu và chưa bật hai mở rộng Large Neighborhood
+Search và Graph Guidance. Bật và tinh chỉnh các thành phần này -- vốn là yếu tố giúp EPIBT đạt
+hiệu năng hàng đầu trên benchmark LMAPF -- là một hướng nâng cấp tự nhiên nhằm cải thiện thêm khả
+năng phối hợp và giảm tắc nghẽn ở các bản đồ nhiều hành lang hẹp.
+
+Về khả năng mở rộng quy mô, hệ thống có thể phát triển theo ba trục song song. Trục thứ
+nhất là số lượng agent: nâng từ vài agent hiện tại lên hàng chục rồi hàng trăm agent như
+quy mô benchmark của LoRR, đòi hỏi tối ưu bộ giải và truyền thông TCP theo lô. Trục thứ
+hai là số người chơi đồng thời: mở rộng tầng mạng nhiều người chơi với cơ chế phòng chờ,
+ghép trận và đồng bộ trạng thái tin cậy khi nhiều người cùng tham gia một trận. Trục thứ
+ba là hạ tầng: triển khai PIBT server trên cloud có cân bằng tải và khả năng co giãn theo
+nhu cầu, cho phép phục vụ đồng thời nhiều trận đấu và chạy backtest phân tán khi cả số
+agent lẫn số người chơi cùng tăng.
+
+\end{document}

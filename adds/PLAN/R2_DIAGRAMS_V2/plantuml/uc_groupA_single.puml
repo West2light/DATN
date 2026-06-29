@@ -1,0 +1,29 @@
+@startuml uc_groupA_single
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Người chơi" as P
+actor "Agent AI" as AI
+
+title Chơi đơn
+rectangle " " as Sys {
+  usecase "A1. Cấu hình & bắt đầu\nván chơi đơn" as A1
+  usecase "A2. Điều khiển xe tăng" as A2
+  usecase "A3. Kết thúc ván\n(thắng/thua)" as A3
+  usecase "Chọn mẫu xe tăng" as a
+  usecase "Chọn bản đồ" as b
+  usecase "Chọn thuật toán AI" as c
+}
+P --> A1
+P --> A2
+P --> A3
+A1 ..> a : <<include>>
+A1 ..> b : <<include>>
+A1 ..> c : <<include>>
+A2 ..> AI
+@enduml

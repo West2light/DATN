@@ -1,0 +1,161 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương 1 giới thiệu bối cảnh, động lực và phạm vi của đồ án. Từ bài toán điều hướng
+đa tác nhân trong game, chương này xác định mục tiêu cụ thể, đề xuất định hướng giải
+pháp và trình bày tổng quan cấu trúc báo cáo.
+
+% ============================================================
+\section{Đặt vấn đề}
+\label{section:1.1}
+
+Trong các trò chơi điện tử chiến thuật thời gian thực (Real-Time Strategy -- RTS),
+điều hướng đồng thời nhiều nhân vật AI đến mục tiêu là một thách thức kỹ thuật cốt lõi.
+Khi số lượng nhân vật AI tăng lên, xác suất xảy ra va chạm, tình trạng deadlock và
+đường đi không hiệu quả cũng tăng theo. Đây chính là bài toán MAPF Multi-Agent
+Pathfinding -- được nghiên cứu rộng rãi trong lĩnh vực trí tuệ nhân tạo và robot học
+\cite{stern2019mapf}.
+
+MAPF yêu cầu lập kế hoạch đồng thời cho $k$ agent trên đồ thị lưới để đảm bảo mỗi
+agent đến đích trong thời gian tối thiểu mà không va chạm nhau tại bất kỳ bước thời
+gian nào. Trong môi trường game thời gian thực, bài toán này đặt ra thêm ràng buộc
+về thời gian tính toán: thuật toán phải phản hồi gần như tức thời -- A* cỡ mili-giây mỗi
+khung hình, còn bộ lập kế hoạch phối hợp đa agent trong dưới một giây mỗi bước -- và phải
+tái lập kế hoạch liên tục khi môi trường thay đổi.
+
+Các thuật toán tìm đường agent đơn như A* \cite{hart1968astar} được sử dụng phổ biến
+trong game nhờ độ đơn giản và hiệu quả, nhưng khi áp dụng độc lập cho nhiều agent,
+chúng không đảm bảo tránh va chạm. Các thuật toán MAPF tối ưu như CBS
+\cite{sharon2015cbs} đảm bảo tính tối ưu toàn cục nhưng có độ phức tạp tính toán
+tăng theo hàm mũ với số agent, không phù hợp cho game thời gian thực. PIBT (Priority
+Inheritance with Backtracking) \cite{okumura2022pibt} là một hướng tiếp cận cân bằng:
+chạy theo bước thời gian, hoàn chỉnh và hiệu quả cho môi trường thời gian thực, song
+chấp nhận thay thế lời giải tối ưu toàn cục bằng lời giải khả thi đủ tốt theo từng
+bước thời gian để đạt tốc độ phản hồi thời gian thực.
+
+PIBT trong đồ án được tham khảo từ cuộc thi điều phối robot The League of Robot Runners
+(LoRR) \cite{lorr2024} do Amazon Robotics tài trợ, nơi nhóm Team No Man's Sky không chỉ
+giành giải nhất ở một hạng mục mà còn đứng nhất cả ba bảng đấu Combined, Planner và
+Scheduler -- đồng thời đoạt giải Line Honours (nhất toàn đoàn với số lời giải tốt nhất
+nhiều nhất) trong Main Round 2024. Tuy nhiên, các cài đặt đoạt giải đều ở dạng máy chủ
+C++ chạy benchmark, không thể chơi hay tương tác trực tiếp. Đồ án kế thừa ý tưởng và
+thuật toán của Team No Man's Sky rồi đưa vào Unity, để người chơi có thể trực tiếp trải
+nghiệm và quan sát hành vi phối hợp đa agent một cách trực quan ngay trong game.
+
+Độ khó của bài toán đến từ hai phía. Về quy mô, các lời giải dẫn đầu ở LoRR phải điều phối tới
+hàng nghìn, thậm chí hơn mười nghìn agent và trả lời trong ngân sách thời gian chặt chẽ mỗi
+bước; tuy game của đồ án chạy ở quy mô nhỏ hơn nhiều, việc khảo sát từ 6 đến 72 agent đã đủ để
+bộc lộ ảnh hưởng của mật độ agent tới hiệu năng, kể cả hiện tượng tồn tại một dải mật độ tối ưu. Về tích hợp, đưa một bộ lập kế hoạch MAPF vào
+engine vật lý thời gian thực đặt ra ràng buộc mà benchmark thuần túy không có: agent là xe tăng
+có hướng thân, phải xoay trước khi tiến, nên lời giải trên lưới phải được chuyển thành chuyển
+động vật lý mượt mà -- ràng buộc xoay này về sau được xử lý bằng cải tiến EPIBT ở
+Mục~\ref{section:5.5}.
+
+Thực tế trong ngành game, phần lớn các tựa game RTS và tower-defense hiện tại sử dụng
+thuật toán tìm đường đơn giản hoặc Unity NavMesh mà không giải quyết bài toán va chạm
+đa agent ở lớp lập kế hoạch. Điều này dẫn đến các hiện tượng nhân vật xếp hàng chờ
+hoặc chen lấn không tự nhiên, làm giảm chất lượng trải nghiệm người chơi.
+
+Đồ án này xuất phát từ nhu cầu nghiên cứu và so sánh thực nghiệm ba cấp độ thuật toán
+MAPF -- từ baseline A* đến PIBT phối hợp đa agent và PIBT tích hợp máy chủ C++ bên
+ngoài -- trong bối cảnh game bắn xe tăng 2D nhiều người chơi xây dựng trên Unity Engine.
+Kết quả sẽ cung cấp bằng chứng thực nghiệm về ưu nhược điểm của từng hướng tiếp cận
+trong môi trường game thực tế.
+
+% ============================================================
+\section{Mục tiêu và phạm vi đề tài}
+\label{section:1.2}
+
+Các sản phẩm và nghiên cứu liên quan hiện tại có thể phân thành ba nhóm. Nhóm thứ nhất
+là các game thương mại sử dụng tìm đường đơn giản: phần lớn game RTS và tower-defense
+dùng A* hoặc Unity NavMesh cho từng agent độc lập, không giải quyết va chạm đa agent ở
+lớp lập kế hoạch, dẫn đến hiện tượng nhân vật xếp hàng hoặc chen lấn không tự nhiên.
+Nhóm thứ hai là các nghiên cứu MAPF học thuật như CBS, EECBS hay PIBT, được nghiên cứu
+sâu trong cộng đồng trí tuệ nhân tạo nhưng thường chỉ được đánh giá trên benchmark thuần
+túy mà không tích hợp trực tiếp vào engine game thương mại. Nhóm thứ ba là một số nghiên
+cứu thử tích hợp MAPF vào game \cite{de2013cooperative}, song thường chỉ chạy trên môi
+trường giả lập đơn giản, thiếu một engine vật lý đầy đủ.
+
+Từ ba nhóm trên, có thể thấy khoảng trống hiện tại là thiếu một so sánh thực nghiệm đầy
+đủ giữa các cấp độ MAPF trong môi trường game có vật lý thực tế (Unity physics) trên tập
+bản đồ benchmark chuẩn. Đây chính là khoảng trống mà đồ án hướng tới lấp đầy.
+
+Trên cơ sở đó, đồ án đặt ra bốn mục tiêu cụ thể. Thứ nhất, xây dựng một game bắn xe tăng 2D
+nhiều người chơi trên Unity, sử dụng bản đồ chuẩn MovingAI MAPF benchmark. Thứ hai, triển khai
+và tích hợp ba cấp độ thuật toán MAPF -- A* làm baseline, PIBT~C\# và PIBT~C++/TCP -- chia sẻ
+cùng tầng điều khiển vật lý để có thể so sánh khách quan. Thứ ba, xây dựng hệ thống backtest
+tự động đo lường định lượng trên năm bản đồ, kèm chế độ chướng ngại động để kiểm tra khả năng
+tái hoạch định. Thứ tư, phân tích, so sánh kết quả và rút ra nhận xét về khả năng ứng dụng của
+từng thuật toán trong game thời gian thực.
+
+Về phạm vi, đồ án giới hạn ở game 2D góc nhìn từ trên xuống, môi trường lưới rời rạc
+(discrete grid), khảo sát từ 6 đến 72 agent AI (năm mức: 6, 12, 24, 36, 72) trong kịch bản
+thực nghiệm, và không xét tối ưu hóa đa mục tiêu phức tạp.
+
+% ============================================================
+\section{Định hướng giải pháp}
+\label{section:1.3}
+
+Từ phân tích ở Mục~\ref{section:1.2}, đồ án đề xuất ba bước triển khai:
+
+Thứ nhất, xây dựng hạ tầng bản đồ thống nhất dựa trên đọc tệp \texttt{.map} MovingAI
+và dựng lưới ô tại thời điểm chạy trong Unity, thay vì bake cứng vào scene. Cách này
+cho phép thử nghiệm trên nhiều bản đồ mà không cần thay đổi code.
+
+Thứ hai, triển khai tuần tự ba thuật toán MAPF chia sẻ cùng tầng điều khiển vật lý
+(\texttt{TankController}), đảm bảo hành vi vật lý nhất quán khi so sánh thuật toán.
+A* đóng vai trò baseline; PIBT~C\# thêm phối hợp đa agent ngay trong Unity; PIBT~C++/TCP
+mở rộng tích hợp máy chủ ngoài.
+
+Thứ ba, xây dựng hệ thống backtest tự động chạy kịch bản, thu thập chỉ số và xuất CSV,
+cho phép so sánh định lượng trên tập bản đồ lớn mà không cần can thiệp thủ công. Thêm
+vào đó, module chướng ngại động (spawn/despawn thùng cản đường trực tiếp trên path
+của agent) dùng để stress-test khả năng tái hoạch định của từng thuật toán.
+
+Một nguyên tắc xuyên suốt ba bước trên là bảo đảm tính công bằng khi so sánh: cả ba thuật toán
+dùng chung một bộ nạp bản đồ, chung tầng điều khiển vật lý \texttt{TankController} và chung bộ
+chỉ số đo lường, nên khác biệt quan sát được phản ánh đúng bản chất thuật toán chứ không phải do
+chênh lệch hạ tầng. Nhờ vậy, kết luận rút ra từ thực nghiệm có độ tin cậy cao và có thể tái lập.
+
+Ngoài ba bước trên, thiết kế hệ thống còn hướng tới khả năng mở rộng quy mô về sau trên
+ba trục: tăng số lượng agent AI, tăng số người chơi đồng thời, và mở rộng hạ tầng máy
+chủ (đưa PIBT server lên cloud, cân bằng tải). Các hướng mở rộng này được trình bày chi
+tiết ở Chương~\ref{chapter:conclusion}.
+
+Đóng góp chính: hệ thống tích hợp MAPF đầy đủ trong Unity với ba cấp độ thuật toán, cải tiến
+mô hình xoay của Enemy Agent dựa trên EPIBT, cơ sở hạ tầng backtest định lượng, và bộ kết quả
+thực nghiệm trên benchmark chuẩn.
+
+% ============================================================
+\section{Bố cục đồ án}
+\label{section:1.4}
+
+Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ chức như sau.
+
+Chương~2 trình bày khảo sát hiện trạng các giải pháp điều hướng đa agent trong game,
+phân tích yêu cầu chức năng và phi chức năng của hệ thống, đặc tả các use case chính
+thông qua biểu đồ use case và đặc tả luồng sự kiện.
+
+Chương~3 trình bày nền tảng lý thuyết và công nghệ được sử dụng: bài toán MAPF và
+cách biểu diễn, thuật toán A* và heuristic Manhattan, thuật toán PIBT và cơ chế kế
+thừa ưu tiên có hoàn tác, cùng với lý do lựa chọn Unity Engine và giao thức TCP cho
+tích hợp máy chủ ngoài.
+
+Chương~4 trình bày phân tích thiết kế kiến trúc hệ thống theo mô hình phân tầng,
+thiết kế chi tiết các lớp MAPF AI, quá trình xây dựng ứng dụng với thống kê mã nguồn,
+và đánh giá thực nghiệm với số liệu backtest trên 900 run gồm môi trường tĩnh và môi
+trường có chướng ngại động (năm mức agent từ 6 đến 72).
+
+Chương~5 trình bày sáu đóng góp kỹ thuật nổi bật: hệ thống đọc bản đồ động, triển khai
+A* thời gian thực, tích hợp PIBT phối hợp đa agent, cầu nối TCP đến máy chủ C++, cải tiến
+mô hình xoay của Enemy Agent dựa trên EPIBT, và hệ thống backtest tự động với chướng ngại động.
+
+Chương~6 tổng kết kết quả đã đạt được, so sánh với mục tiêu đề ra, và định hướng
+phát triển trong tương lai.
+
+\textbf{Kết chương~1:} Chương này đã xác định bài toán MAPF trong game thời gian thực,
+nêu rõ khoảng trống nghiên cứu và đề xuất hướng giải quyết bằng cách tích hợp và so
+sánh ba thuật toán (A*, PIBT~C\#, PIBT~C++/TCP) trong môi trường Unity. Các chương tiếp
+theo sẽ trình bày chi tiết quá trình phân tích, thiết kế, triển khai và đánh giá hệ thống.
+
+\end{document}

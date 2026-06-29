@@ -1,0 +1,19 @@
+@startuml uc_groupC
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Người chơi" as P
+
+title Tạm dừng & điều hướng
+rectangle " " as Sys {
+  usecase "C1. Tạm dừng / Tiếp tục ván" as C1
+  usecase "C2. Quay lại menu chính" as C2
+}
+P --> C1
+P --> C2
+@enduml

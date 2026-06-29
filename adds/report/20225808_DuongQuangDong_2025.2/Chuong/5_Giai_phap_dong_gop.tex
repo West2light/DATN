@@ -1,0 +1,279 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương~4 đã trình bày tổng quan thiết kế kiến trúc và kết quả thực nghiệm. Chương này
+đi sâu vào sáu đóng góp kỹ thuật cốt lõi của đồ án, mỗi mục trình bày rõ bài toán,
+giải pháp và kết quả đạt được.
+
+% ============================================================
+\section{Hệ thống đọc bản đồ động và dựng lưới thống nhất}
+\label{section:5.1}
+
+\subsection*{Bài toán}
+Game thường bake cứng bản đồ vào scene Unity, khiến việc thay đổi bản đồ đòi hỏi
+mở lại scene và chỉnh sửa thủ công. Khi cần chạy backtest trên 5 bản đồ khác nhau
+với kịch bản MAPF, cách tiếp cận này không khả thi.
+
+\subsection*{Giải pháp}
+Lớp \texttt{MapLoader} đọc tệp \texttt{.map} theo chuẩn MovingAI tại thời điểm
+chạy (runtime): phân tích header (\texttt{height}, \texttt{width}) và ma trận ký tự
+(\texttt{.} = ô đi được, \texttt{@} = tường), sau đó tạo \texttt{GameObject} cho mỗi
+ô theo đúng tọa độ. Ô tường nhận \texttt{BoxCollider2D} trên layer~\texttt{ObstaclesMovement}
+(chặn vật lý) và trigger collider trên layer~\texttt{Hittable} (nhận đạn). Bốn tường
+biên được tạo tự động bao quanh bản đồ.
+
+Hệ thống expose ba API thống nhất mà mọi thuật toán MAPF và spawner đều dùng:
+\texttt{IsWalkable(cell)}, \texttt{CellToWorld(cell)}, \texttt{WorldToCell(pos)}.
+Tọa độ ô dùng quy ước góc trên-trái, Y tăng xuống dưới (khớp với hàng trong tệp
+\texttt{.map}); tọa độ thế giới Unity tâm ở $(0,0)$, trục XY.
+
+\subsection*{Kết quả}
+Chuyển đổi bản đồ trong backtest chỉ tốn vài mili-giây (không cần reload scene).
+Cùng một bản đồ \texttt{.map} chạy được trên cả ba thuật toán mà không cần chỉnh sửa.
+Hệ thống đã xử lý thành công 5 bản đồ kích thước từ 32×32 đến 251×180 ô, bao gồm
+cả bản đồ mê cung 128×128 với 14\,818 ô đi được.
+
+% ============================================================
+\section{Triển khai A* thời gian thực với tái hoạch định định kỳ}
+\label{section:5.2}
+
+\subsection*{Bài toán}
+A* truyền thống tính một đường đi tĩnh từ điểm đầu đến đích. Trong game thời gian thực,
+đích có thể thay đổi (Eagle di chuyển hoặc bị che khuất), bản đồ có thể thay đổi (thùng
+cản mới xuất hiện), và agent bị cản bởi agent khác. Cần cơ chế tái hoạch định tự động
+mà không làm giật game.
+
+\subsection*{Giải pháp}
+\texttt{GridAStarPathfinder} thực thi A* 4 láng giềng với heuristic Manhattan trên
+ma trận \texttt{char[][]}, tái sử dụng \texttt{List<Vector2Int>} để tránh garbage
+collection. \texttt{GridEnemyAgent} quản lý vòng lặp điều hướng: tái hoạch định sau
+mỗi \texttt{replan\allowbreak Interval} giây (mặc định), chuyển sang chế độ bắn khi Eagle trong
+tầm và line-of-sight, phục hồi khi bị kẹt quá 2 giây.
+
+Ngưỡng tiếp cận waypoint dùng dot-product 0.96 (thay vì khoảng cách Euclidean) để
+tránh rung lắc ở các waypoint gần: agent chỉ chuyển sang waypoint tiếp theo khi hướng
+di chuyển gần như song song với hướng đến waypoint. Hình~\ref{fig:seq_astar} mô tả luồng
+tương tác giữa agent, bộ tìm đường và bộ điều khiển trong một chu kỳ tái hoạch định.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_astar_replan.png}
+    \caption{Biểu đồ trình tự chu kỳ tái hoạch định của A*}
+    \label{fig:seq_astar}
+\end{figure}
+
+\subsection*{Kết quả}
+Thực nghiệm trên Alpha32 (90\% ô đi được, 6 agent): thời gian hoàn thành trung bình
+25,1 giây, 144 lần replan. Thuật toán chạy ổn định 6 lần lặp với độ lệch nhỏ
+(< 0,5 giây), xác nhận tính tất định của A* trên cùng bản đồ.
+
+% ============================================================
+\section{Tích hợp PIBT phối hợp đa agent không va chạm}
+\label{section:5.3}
+
+\subsection*{Bài toán}
+Khi nhiều agent A* chạy độc lập, chúng thường cố tranh vào cùng một ô tại cùng thời
+điểm, gây va chạm ở lớp vật lý và replan phản ứng liên tục. Cần cơ chế phối hợp ở
+lớp lập kế hoạch để loại bỏ xung đột từ gốc.
+
+\subsection*{Giải pháp}
+\texttt{MapScenarioBootstrapPIBT} tạo một bộ giải PIBT dùng chung cho tất cả agent.
+Tại mỗi tick lập kế hoạch, bộ giải nhận vị trí hiện tại của tất cả agent, chạy một
+bước PIBT, và trả về ô di chuyển tiếp theo cho từng agent. Agent nhận lệnh di chuyển
+qua \texttt{GridEnemyAgentPIBT.SetNextWaypoint()} và thực thi qua \texttt{TankController}
+-- cùng pipeline với A*.
+
+Cơ chế kế thừa ưu tiên đảm bảo nếu agent ưu tiên thấp bị agent ưu tiên cao chặn ô,
+nó tạm nhường ô đó và chờ hoặc tìm ô thay thế. Nếu không có ô nào khả dụng (deadlock
+cục bộ), thuật toán hoàn tác (backtracking) lên agent ưu tiên cao để thử phương án khác.
+Hình~\ref{fig:seq_pibt} mô tả luồng một tick lập kế hoạch của bộ giải PIBT dùng chung.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_pibt_csharp.png}
+    \caption{Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}
+    \label{fig:seq_pibt}
+\end{figure}
+
+\subsection*{Kết quả}
+PIBT C\# hoàn thành nhiệm vụ trên 4/5 bản đồ với thời gian tương đương A* (chênh
+lệch < 10\%). Số lần replan chỉ nhỉnh hơn A* một chút -- PIBT đếm mỗi bước phối hợp là một
+replan, song trên phiên bản đã hoàn thiện không bùng nổ. Nhờ phối hợp ở lớp lập kế hoạch, PIBT
+giảm được va chạm vật lý so với khi chạy nhiều A* độc lập, đồng thời dùng cơ chế thoát kẹt nhiều
+hơn khi có chướng ngại động.
+
+% ============================================================
+\section{Cầu nối TCP đến máy chủ PIBT C++}
+\label{section:5.4}
+
+\subsection*{Bài toán}
+Thuật toán PIBT chuẩn được triển khai tối ưu bằng C++. Việc port toàn bộ sang C\#
+sẽ mất nhiều công sức và dễ mất đi tối ưu hóa. Cần cách tích hợp thuật toán C++ vào
+Unity mà không sửa engine game.
+
+\subsection*{Giải pháp}
+Giao thức TCP nội bộ tại localhost cổng 7777 sử dụng ba loại thông điệp JSON. Thông điệp
+Hello được Unity gửi kèm kích thước bản đồ và số agent để server khởi tạo bộ lập kế hoạch
+và xác nhận. Thông điệp PlanStep được Unity gửi kèm vị trí tất cả agent ở mỗi bước, và
+server chạy một bước PIBT rồi trả về ô mục tiêu cho từng agent. Thông điệp Shutdown kết
+thúc phiên khi ván chơi kết thúc. Phía Unity, lớp \texttt{PIBTTcpClient} quản lý kết nối
+bất đồng bộ, timeout và tự động kết nối lại, còn \texttt{GridEnemyAgentPIBT\_TCP} nhận
+lệnh từ client và điều khiển \texttt{TankController} như hai biến thể kia.
+Hình~\ref{fig:seq_pibt_tcp} mô tả luồng trao đổi thông điệp giữa Unity và server C++.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_pibt_tcp.png}
+    \caption{Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}
+    \label{fig:seq_pibt_tcp}
+\end{figure}
+
+\subsection*{Kết quả}
+PIBT C++/TCP hoàn thành nhiệm vụ trên cùng 4/5 bản đồ với thời gian tương đương
+(chênh lệch < 5\% so với PIBT C\#). Agent TCP di qua nhiều ô hơn rõ rệt (khoảng 50--120\%) do độ
+trễ TCP (một tick) khiến agent đôi khi chờ lệnh; đây là chi phí của kiến trúc
+client--server mà có thể giảm bằng cách tăng tần suất tick. Kết nối TCP ổn định
+trong suốt quá trình thực nghiệm mà không gặp lỗi mất kết nối.
+
+% ============================================================
+\section{Cải tiến mô hình xoay của Enemy Agent dựa trên EPIBT}
+\label{section:5.5}
+
+Bộ giải PIBT (cả bản C\# ở Mục~\ref{section:5.3} lẫn bản C++ qua TCP ở
+Mục~\ref{section:5.4}) coi mỗi agent như một chất điểm vô hướng: tại mỗi bước, agent
+được giả định có thể bước thẳng sang một ô kề bất kỳ. Tank trong game lại có
+\emph{hướng thân} và phải xoay trước khi tiến, nên giả định này không còn đúng. Mục
+này trình bày việc nâng cấp máy chủ C++ từ PIBT sang EPIBT để xử lý ràng buộc xoay
+hướng đó. Hình~\ref{fig:pibt_epibt} tóm tắt lộ trình cải tiến: từ khái niệm trong bài
+báo, qua phần thích ứng cho game, đến phần tích hợp vào máy chủ.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Hinhve/12_pibt_to_epibt_path.drawio.png}
+    \caption{Lộ trình chuyển từ PIBT sang EPIBT cho Enemy Agent: khái niệm trong bài
+    báo (vấn đề xoay hướng), phần thích ứng cho game (multi-action operation, kế thừa
+    operation) và phần tích hợp máy chủ (phiên lập kế hoạch, trả về hành động đầu tiên)}
+    \label{fig:pibt_epibt}
+\end{figure}
+
+\subsection*{Bài toán}
+PIBT một bước (1-step) giả định rằng agent ưu tiên cao luôn có thể tiến gần đích hơn
+vì agent đang chặn ô sẽ rời đi ngay ở bước kế tiếp. Với mô hình có xoay hướng, giả
+định này đổ vỡ: để sang một ô bên cạnh, tank phải xoay thân rồi mới tiến nên một
+nước đi thực chất tốn hai đến ba bước. PIBT không "nhìn thấy" các bước xoay này, khiến
+agent đang chặn chưa kịp rời ô thì chuỗi kế thừa ưu tiên đã thất bại. Hệ quả quan sát
+được trong game là tank xoay giật $90^\circ$ tại chỗ, dừng khựng giữa đường hoặc kẹt vì
+quay sai hướng. Causal PIBT diễn giải mỗi lần xoay như một độ trễ tất định, nhưng vẫn
+bị giới hạn bởi tầm nhìn một bước nên chưa giải quyết triệt để vấn đề.
+
+\subsection*{Giải pháp}
+Đồ án áp dụng EPIBT (Enhanced PIBT) \cite{yukhnevich2025epibt} -- biến thể đa hành động
+của PIBT mà chính nhóm tác giả đã dùng để giành ngôi vô địch cuộc thi League of Robot
+Runners 2024 \cite{lorr2024}. Bộ giải C++ ở Mục~\ref{section:5.4} được nâng cấp với ba
+thành phần, tương ứng nhóm \emph{thích ứng cho game} trong Hình~\ref{fig:pibt_epibt}.
+
+\emph{Mô hình hành động có xoay.} Trạng thái của mỗi agent gồm vị trí và hướng
+($\text{Đông}, \text{Nam}, \text{Tây}, \text{Bắc}$), cùng bốn hành động: \texttt{FW}
+(tiến), \texttt{CR} (xoay phải $90^\circ$), \texttt{CCR} (xoay trái $90^\circ$) và
+\texttt{W} (chờ). Giao thức \texttt{plan\_step} đã thiết kế ở Mục~\ref{section:5.4} vốn
+gửi sẵn trường \texttt{orientation} và \texttt{goalLoc} cho từng agent, nên không cần
+đổi định dạng thông điệp.
+
+\emph{Multi-action Operation (MAO).} Thay vì chọn một hành động đơn lẻ, mỗi agent chọn
+một \emph{operation} -- chuỗi hành động có độ dài cố định $op\_len = 3$ (ví dụ
+\texttt{CR\,FW\,W}: xoay phải, tiến, chờ). Độ dài~3 là tối thiểu để từ một hướng bất
+kỳ vẫn tới được mọi ô kề. Máy chủ dựng sẵn tập $4^3 = 64$ operation ứng viên, mở rộng
+mỗi operation thành một chuỗi bốn trạng thái rồi loại các operation đi ra ngoài bản đồ
+hoặc đâm vào tường. Nhờ nhìn trước ba bước, agent thấy trước được chi phí xoay mà PIBT
+một bước bỏ sót.
+
+\emph{Kế thừa operation (Operation Inheritance).} Operation đã chọn ở bước trước vốn đã
+không va chạm trong ba bước, nên ở bước sau nó được tái sử dụng bằng cách bỏ hành động
+đầu và nối thêm một \texttt{W} ở cuối. Khi không tìm được operation nào tốt hơn, agent
+giữ lại operation kế thừa thay vì đứng yên hoàn toàn -- đây là điểm khác biệt then chốt
+so với PIBT gốc, vốn buộc agent chờ khi chuỗi kế thừa ưu tiên thất bại.
+
+Bộ giải vẫn dùng bảng đặt chỗ (reservation table) để kiểm tra cả xung đột đỉnh
+(vertex conflict) lẫn xung đột hoán đổi cạnh (edge-swap conflict) theo từng bước;
+operation gây va chạm với hơn một agent bị loại để tránh nhập nhằng khi kế thừa ưu
+tiên. Mỗi operation được chấm điểm theo khoảng cách heuristic tới đích, cộng thưởng cho
+phần tiến gần đích và phạt cho số lần xoay, chờ -- nhờ đó agent luôn ưu tiên tiến hơn
+xoay, xoay hơn chờ, tránh tự rơi vào trạng thái đứng yên vô hạn.
+
+\subsection*{Tích hợp máy chủ -- Unity}
+EPIBT được thêm vào dưới dạng một mô-đun riêng và bật bằng cờ cấu hình (biến môi trường
+\texttt{PIBT\_TCP\_PLANNER=epibt} hoặc trường \texttt{plannerMode} trong thông điệp
+\texttt{hello}), trong khi bộ lập kế hoạch PIBT mặc định vẫn được giữ để có thể quay
+lui (rollback) khi cần. Toàn bộ trạng thái xuyên suốt các bước -- operation kế thừa,
+tập operation ứng viên và bảng heuristic -- được lưu trong một \emph{phiên lập kế
+hoạch} (\texttt{PlannerSession}), mỗi kết nối Unity ứng với một phiên; đây chính là lý
+do vòng đời \texttt{hello}\,$\to$\,\texttt{plan\_step}\,$\to$\,\texttt{shutdown} ở
+Mục~\ref{section:5.4} là cần thiết. Theo nguyên tắc tái hoạch định liên tục, mỗi bước
+máy chủ chỉ trả về \emph{hành động đầu tiên} của operation từng agent; phía Unity, lớp
+\texttt{GridEnemyAgentPIBT\_TCP} nhận ô mục tiêu tương ứng và lái tank trơn tru tới đó
+bằng cơ chế căn hướng nhiều ngưỡng (đi thẳng khi đã thẳng hàng, vừa xoay vừa tiến khi
+lệch ít, xoay tại chỗ khi lệch nhiều) thay cho kiểu xoay giật $90^\circ$.
+
+Bản EPIBT đầy đủ còn có cơ chế xét lại agent (revisiting, giới hạn $L$ lần) cùng hai
+mở rộng Large Neighborhood Search và Graph Guidance. Trong phạm vi đồ án, do số lượng
+agent trong game nhỏ (tối đa 72) và mục tiêu khử hiện tượng xoay giật đã đạt, các cơ
+chế này được giữ ở mức tối thiểu (giới hạn revisiting đặt bằng~0) và xem là hướng phát
+triển ở Chương~\ref{chapter:conclusion}. Toàn bộ bước lập kế hoạch luôn được máy chủ xử
+lý và trả về trong dưới 1 giây mỗi bước, đáp ứng yêu cầu phi chức năng ở
+Mục~\ref{section:2.4}.
+
+\subsection*{Kết quả}
+Sau cải tiến, Enemy Agent xoay liên tục rồi tiến thay vì bật $90^\circ$ tại chỗ, loại bỏ
+hiện tượng giật và kẹt do quay sai hướng quan sát thấy ở bản PIBT thuần. Nhờ cờ cấu
+hình, có thể chuyển qua lại giữa PIBT và EPIBT để so sánh A/B và quay lui an toàn mà
+không cần build lại ứng dụng Unity. Với số agent của game (tối đa 72), máy chủ trả về
+kết quả lập kế hoạch mỗi bước trong dưới 1 giây; do lời gọi TCP chạy bất đồng bộ ngoài
+luồng kết xuất nên không gây giật khung hình. Đây
+cũng chính là máy chủ C++ đứng sau cấp thuật toán "PIBT C++/TCP" được đánh giá ở
+Chương~\ref{chapter:Experiment}; mục này tài liệu hóa phần nâng cấp xử lý xoay hướng
+bên dưới các thực nghiệm đó.
+
+% ============================================================
+\section{Hệ thống backtest tự động với chướng ngại động}
+\label{section:5.6}
+
+\subsection*{Bài toán}
+Để so sánh thuật toán một cách khách quan, cần chạy hàng chục kịch bản lặp lại trên
+nhiều bản đồ và thuật toán, thu thập chỉ số nhất quán, và kiểm tra khả năng của hệ
+thống khi môi trường thay đổi trong khi agent đang di chuyển. Chạy thủ công từng kịch
+bản là không thực tế và không tái lập được.
+
+\subsection*{Giải pháp}
+\texttt{BacktestRunner} tự động lặp qua toàn bộ ma trận tổ hợp (map × algorithm ×
+số lượng agent × rep) theo lịch trình định sẵn. Mỗi run: reset scene, spawn agent, chạy kịch bản, thu thập chỉ
+số ở cấp run (summary) và cấp agent (per-agent CSV). Sau khi hết run, gọi script Python
+để sinh biểu đồ HTML/PNG từ CSV.
+
+\texttt{Dynamic\allowbreak Obstacle\allowbreak Spawner} bổ sung chế độ stress-test: thùng kim loại tối màu
+liên tục spawn/despawn trực tiếp trên 1--6 ô phía trước đường đi của agent (ưu tiên
+chặn ngay ô tiếp theo), ép agent phải tái hoạch định ngay lập tức.
+\texttt{MapLoader.\allowbreak MarkCellBlocked/\allowbreak UnmarkCellBlocked} cập nhật ma trận grid đồng thời
+để cả ba thuật toán đều nhận được cập nhật nhất quán.
+
+\subsection*{Kết quả}
+Hệ thống cho phép quét toàn bộ ma trận thực nghiệm gồm 5 bản đồ × 3 thuật toán × 5 mức
+số lượng agent (6, 12, 24, 36, 72) × 6 lần lặp × 2 môi trường, tương ứng 900 run, thu
+thập chỉ số nhất quán ở cả cấp run và cấp agent. Nhờ trục khảo sát theo số lượng agent,
+hệ thống không chỉ so sánh ba thuật toán ở một mức tải mà còn đánh giá được khả năng mở
+rộng của chúng khi tải tăng dần (chi tiết ở Chương~4). Khi bật chướng ngại động, cả ba
+thuật toán đều phản ứng được với thay đổi môi trường thời gian thực; số lần replan và số
+lần phục hồi sau kẹt đều tăng, trong đó PIBT~C\# phục hồi nhiều nhất nhờ cơ chế thoát kẹt
+cục bộ.
+
+Điểm mới của đồ án không nằm ở việc phát minh thuật toán mới, mà ở việc hợp nhất ba cấp độ
+MAPF -- từ baseline A* tới PIBT phối hợp và PIBT/EPIBT hiệu năng cao -- vào cùng một game có vật
+lý thực tế, dưới chung một tầng điều khiển và một hệ thống đo lường. Cách tiếp cận này đưa các
+thuật toán vốn chỉ được đánh giá trên benchmark trừu tượng vào một môi trường game có thể chơi,
+quan sát và so sánh định lượng trực tiếp -- điều hiếm thấy trong các nghiên cứu đã khảo sát.
+
+\textbf{Kết chương~5:} Sáu đóng góp kỹ thuật của đồ án -- từ hạ tầng bản đồ động, ba
+cấp độ thuật toán MAPF và cải tiến mô hình xoay hướng bằng EPIBT, đến hệ thống backtest
+-- tạo thành một nền tảng hoàn chỉnh để nghiên cứu và so sánh thuật toán MAPF trong môi
+trường game thực tế. Kết quả thực nghiệm được trình bày chi tiết trong Chương~4.
+
+\end{document}

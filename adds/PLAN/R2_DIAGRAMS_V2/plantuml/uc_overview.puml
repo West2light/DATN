@@ -1,0 +1,33 @@
+@startuml uc_overview
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Người chơi" as P
+actor "Nghiên cứu viên" as R
+actor "Quản trị hệ thống\n(DevOps)" as Admin
+actor "Agent AI" as AI
+actor "Máy chủ\nRelay/PIBT" as Server
+
+title Hệ thống game MAPF
+rectangle " " as Sys {
+  usecase "Chơi đơn" as UCS
+  usecase "Chơi nhiều người" as UCM
+  usecase "Chạy backtest" as UCB
+  usecase "Xem kết quả backtest" as UCV
+  usecase "Triển khai &\nvận hành máy chủ" as UCD
+}
+P --> UCS
+P --> UCM
+R --> UCB
+R --> UCV
+Admin --> UCD
+UCS ..> AI
+UCM ..> Server
+UCB ..> Server
+note bottom of UCB : Ẩn ở bản production; chỉ có ở bản local
+@enduml

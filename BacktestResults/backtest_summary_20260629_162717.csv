@@ -1,0 +1,16 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Alpha32,AStar,1,EagleDestroyed,25.97,-1,500,0.0,24,24,707,12,4383,206
+2,Alpha32,PIBT,1,EagleDestroyed,26.04,-1,500,0.0,24,24,1224,142,2157,151
+3,Alpha32,PIBT_TCP,1,EagleDestroyed,28.13,-1,500,0.0,24,24,1108,24,15221,336
+4,Mansion,AStar,1,EagleDestroyed,88.85,-1,500,0.0,24,24,2346,13,429,590
+5,Mansion,PIBT,1,EagleDestroyed,126.99,-1,500,0.0,24,24,3012,72,120,0
+6,Mansion,PIBT_TCP,1,Timeout,180.01,500,500,0.0,24,24,195,0,0,120
+7,Chantry,AStar,1,EagleDestroyed,89.83,-1,500,0.0,24,24,2738,16,616,759
+8,Chantry,PIBT,1,EagleDestroyed,105.71,-1,500,0.0,24,24,2537,84,90,0
+9,Chantry,PIBT_TCP,1,EagleDestroyed,119.22,-1,500,0.0,24,24,4023,113,2079,1707
+10,Gallows,AStar,1,EagleDestroyed,117.92,-1,500,0.0,24,24,3181,17,337,664
+11,Gallows,PIBT,1,EagleDestroyed,167.10,-1,500,0.0,24,24,4049,134,86,0
+12,Gallows,PIBT_TCP,1,Timeout,180.04,500,500,0.0,24,24,0,0,0,0
+13,Maze128,AStar,1,EagleDestroyed,133.76,-1,500,0.0,24,24,4141,49,1769,1512
+14,Maze128,PIBT,1,Timeout,180.70,254,500,49.2,24,24,4489,116,43,0
+15,Maze128,PIBT_TCP,1,EagleDestroyed,139.82,-1,500,0.0,24,24,5971,102,8040,2436

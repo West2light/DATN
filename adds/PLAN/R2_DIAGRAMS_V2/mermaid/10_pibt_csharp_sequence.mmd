@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant Bootstrap as MapScenarioBootstrapPIBT
+    participant Agent as GridEnemyAgentPIBT
+    participant Path as GridPIBTPathfinder
+    participant Planner as PIBTPlanner
+    participant Runtime as Enemy Runtime
+
+    Bootstrap->>Planner: Initialize grid
+    Bootstrap->>Agent: Spawn enemy
+    Agent->>Planner: Register agent
+
+    loop Replan tick
+        Agent->>Path: TryFindPath
+        Path->>Planner: FrankWolfe
+        Planner-->>Path: Path result
+        Path-->>Agent: Path
+        Agent->>Runtime: Follow path
+        opt Threat found
+            Agent->>Runtime: Shoot or recover
+        end
+    end

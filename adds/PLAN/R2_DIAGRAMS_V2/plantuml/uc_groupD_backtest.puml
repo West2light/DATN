@@ -1,0 +1,23 @@
+@startuml uc_groupD_backtest
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Nghiên cứu viên" as R
+actor "Máy chủ PIBT\n(C++)" as Server
+
+title Backtest (chỉ bản local/Editor)
+rectangle " " as Sys {
+  usecase "D1. Cấu hình backtest" as D1
+  usecase "D2. Chạy backtest tự động" as D2
+  usecase "D3. Xem kết quả backtest" as D3
+}
+R --> D1
+R --> D2
+R --> D3
+D2 ..> Server : PIBT_TCP
+@enduml

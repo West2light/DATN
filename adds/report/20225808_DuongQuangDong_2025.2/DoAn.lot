@@ -1,0 +1,47 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces So sánh các giải pháp điều hướng đa agent}}{5}{table.2.1}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Năm bản đồ benchmark sử dụng trong đồ án}}{6}{table.2.2}%
+\contentsline {table}{\numberline {2.3}{\ignorespaces Đặc tả use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}}{8}{table.2.3}%
+\contentsline {table}{\numberline {2.4}{\ignorespaces Đặc tả use case UC-A2 -- Điều khiển xe tăng}}{9}{table.2.4}%
+\contentsline {table}{\numberline {2.5}{\ignorespaces Đặc tả use case UC-A3 -- Kết thúc ván chơi}}{10}{table.2.5}%
+\contentsline {table}{\numberline {2.6}{\ignorespaces Đặc tả use case UC-B1 -- Tạo phòng LAN}}{11}{table.2.6}%
+\contentsline {table}{\numberline {2.7}{\ignorespaces Đặc tả use case UC-B2 -- Tham gia phòng LAN}}{12}{table.2.7}%
+\contentsline {table}{\numberline {2.8}{\ignorespaces Đặc tả use case UC-B3 -- Tạo phòng Internet}}{13}{table.2.8}%
+\contentsline {table}{\numberline {2.9}{\ignorespaces Đặc tả use case UC-B4 -- Tham gia phòng Internet}}{13}{table.2.9}%
+\contentsline {table}{\numberline {2.10}{\ignorespaces Đặc tả use case UC-B5 -- Phòng chờ \& bắt đầu trận}}{14}{table.2.10}%
+\contentsline {table}{\numberline {2.11}{\ignorespaces Đặc tả use case UC-B6 -- Chơi mạng nhiều người}}{15}{table.2.11}%
+\contentsline {table}{\numberline {2.12}{\ignorespaces Đặc tả use case UC-B7 -- Rời phòng / Huỷ kết nối}}{16}{table.2.12}%
+\contentsline {table}{\numberline {2.13}{\ignorespaces Đặc tả use case UC-C1 -- Tạm dừng / Tiếp tục ván}}{16}{table.2.13}%
+\contentsline {table}{\numberline {2.14}{\ignorespaces Đặc tả use case UC-C2 -- Quay lại menu chính}}{17}{table.2.14}%
+\contentsline {table}{\numberline {2.15}{\ignorespaces Đặc tả use case UC-D1 -- Cấu hình backtest}}{18}{table.2.15}%
+\contentsline {table}{\numberline {2.16}{\ignorespaces Đặc tả use case UC-D2 -- Chạy backtest tự động}}{18}{table.2.16}%
+\contentsline {table}{\numberline {2.17}{\ignorespaces Đặc tả use case UC-D3 -- Xem kết quả backtest}}{19}{table.2.17}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Số ô và số chuỗi ô đạt được theo độ dài thao tác}}{24}{table.3.1}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Cấu trúc trường của hai tệp CSV kết quả backtest}}{31}{table.caption.12}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Công cụ và thư viện sử dụng}}{34}{table.caption.16}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Thống kê mã nguồn C\# (tháng 6/2026)}}{35}{table.caption.17}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Cấu hình thực nghiệm}}{41}{table.caption.27}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Cơ chế phát sinh lệnh tái hoạch định của ba thuật toán}}{43}{table.caption.30}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Số lần tái hoạch định của từng agent trong một lượt chạy trên bản đồ Mansion (6 agent)}}{43}{table.caption.31}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}}{44}{table.caption.32}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}}{45}{table.caption.35}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Kết quả theo số lượng agent, môi trường tĩnh (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{48}{table.caption.39}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times \) 6 lần lặp)}}{50}{table.caption.43}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger \) = lượt timeout}}{51}{table.4.11}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Thành phần hạ tầng GCP}}{54}{table.caption.45}%
+\contentsline {table}{\numberline {4.13}{\ignorespaces Ba khối cấu hình Nginx trên máy ảo GCP}}{55}{table.caption.46}%
+\contentsline {table}{\numberline {4.14}{\ignorespaces Các workflow CI/CD trên GitHub Actions}}{57}{table.caption.47}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {A.1}{\ignorespaces Kết quả backtest chi tiết -- môi trường tĩnh ($n=6$)}}{71}{table.caption.56}%
+\contentsline {table}{\numberline {A.2}{\ignorespaces Kết quả backtest chi tiết -- môi trường có chướng ngại động ($n=6$)}}{72}{table.caption.57}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{73}{table.1.B.1}%
+\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case UC-E2 -- Chạy dedicated server}}{74}{table.1.B.2}%
+\contentsline {table}{\numberline {B.3}{\ignorespaces Năm giai đoạn của quy trình triển khai end-to-end}}{75}{table.1.B.3}%
+\contentsfinish 
+\contentsfinish 

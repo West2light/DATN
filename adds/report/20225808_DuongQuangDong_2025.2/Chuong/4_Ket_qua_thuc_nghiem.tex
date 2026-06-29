@@ -1,0 +1,1251 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+% ============================================================
+%  CHƯƠNG 4 – PHÂN TÍCH THIẾT KẾ, TRIỂN KHAI VÀ ĐÁNH GIÁ
+% ============================================================
+
+\section{Thiết kế kiến trúc}
+
+\subsection{Lựa chọn kiến trúc phần mềm}
+
+Hệ thống được xây dựng theo kiến trúc phân tầng kết hợp với kiến trúc thành phần
+(layered + component-based), đặc trưng của các dự án trên nền tảng Unity Engine, gồm
+năm tầng theo chiều phụ thuộc từ dưới lên (biểu đồ gói tổng thể ở
+Hình~\ref{fig:arch_packages}). Tầng dữ liệu ở dưới cùng chứa tệp bản đồ định
+dạng \texttt{.map} chuẩn MovingAI MAPF benchmark và các \texttt{ScriptableObject} lưu
+thông số vật lý xe tăng và đạn, hoàn toàn độc lập với logic gameplay. Trên đó là tầng lõi
+MAPF gồm các lớp tìm đường và điều phối đa tác nhân (\texttt{GridAStarPathfinder},
+\texttt{GridEnemyAgent}, \texttt{GridEnemyAgentPIBT}, \texttt{GridEnemyAgentPIBT\_TCP}),
+không phụ thuộc vào giao diện người dùng. Tiếp nối là tầng bootstrap, đóng vai trò
+khởi tạo bản đồ thông qua lớp \texttt{MapLoader}. Tầng này còn đảm nhiệm việc sinh ra
+(spawn) các nhân vật và kết nối tầng lõi thuật toán với hệ thống vật lý của Unity,
+thông qua hai lớp \texttt{MapTankTestBootstrap} cùng \texttt{MapScenarioBootstrap}. Tầng gameplay gồm
+\texttt{TankController}, \texttt{TankMover} và \texttt{Turret} xử lý vật lý, điều khiển
+và bắn đạn cho cả agent AI lẫn người chơi. Trên cùng là tầng backtest với
+\texttt{BacktestRunner}, \texttt{BacktestConfigUI} và \texttt{BacktestMode} điều khiển
+kịch bản tự động, thu thập chỉ số và xuất CSV.
+
+Việc giữ tầng lõi MAPF tách biệt với giao diện và vật lý giúp thay thế thuật toán
+(A*, PIBT C\#, PIBT C++/TCP) mà không thay đổi phần còn lại của hệ thống.
+
+\subsection{Thiết kế tổng quan}
+
+Hình~\ref{fig:arch_packages} mô tả biểu đồ gói UML của hệ thống. Kiến trúc tổng thể được xây dựng tuân thủ theo nguyên lý phân tầng nghiêm ngặt, đảm bảo tính đóng gói và dễ dàng bảo trì. Các gói thành phần được tổ chức thành ba nhóm chính theo chiều dọc, đi từ mức nền tảng hệ thống cho tới mức tương tác với người dùng:
+
+Thứ nhất, nhóm hạ tầng bản đồ và tệp dữ liệu nằm ở tầng thấp nhất. Nhóm này chịu trách nhiệm lưu trữ các tham số thiết lập môi trường, thông số vật lý của các thực thể (ScriptableObject), cũng như quản lý thao tác nạp bản đồ từ định dạng chuẩn của cộng đồng nghiên cứu MAPF.
+
+Thứ hai, nhóm lõi thuật toán MAPF và điều khiển xe tăng nằm ở tầng giữa, đóng vai trò cốt lõi của hệ thống. Tầng này chứa các thuật toán tìm đường (A*, PIBT) và các lớp xử lý hành vi của tác nhân. Nó hoạt động hoàn toàn độc lập, tiếp nhận dữ liệu từ tầng dưới và cung cấp các giao tiếp (API) điều khiển cho tầng trên.
+
+Thứ ba, nhóm bootstrap, backtest và giao diện người dùng nằm ở tầng trên cùng. Tầng bootstrap thực hiện chức năng khởi tạo và kết nối (wiring) các thành phần khi bắt đầu trò chơi. Tầng backtest hỗ trợ chạy tự động các kịch bản thử nghiệm để thu thập dữ liệu. Cuối cùng, tầng giao diện chịu trách nhiệm hiển thị thông tin trực quan và tiếp nhận thao tác điều khiển từ người chơi.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/arch_packages.png}
+    \caption{Biểu đồ gói UML của hệ thống Unity MAPF}
+    \label{fig:arch_packages}
+\end{figure}
+
+Đặc tính quan trọng của thiết kế này là chiều phụ thuộc chỉ đi một chiều từ trên xuống dưới. Các thành phần ở tầng thấp hoàn toàn không phụ thuộc hay cần biết về sự tồn tại của các thành phần ở tầng cao hơn. Điều này giúp loại bỏ triệt để vấn đề vòng phụ thuộc ngược (circular dependency), giúp mã nguồn dễ dàng nâng cấp hoặc tích hợp các thuật toán mới trong tương lai.
+
+% ============================================================
+\section{Thiết kế chi tiết}
+
+\subsection{Thiết kế giao diện}
+
+Ứng dụng chạy trên màn hình độ phân giải tối thiểu 1280\,×\,720, tỷ lệ 16:9, và hỗ trợ
+xuất bản WebGL để chạy trên trình duyệt. Giao diện gồm ba màn hình chính. Menu chính cho
+phép người dùng lựa chọn chế độ chơi đơn, chơi nhiều người qua Internet hoặc chạy backtest.
+Giao diện gameplay sử dụng góc nhìn từ trên xuống (top-down 2D), kèm bảng HUD hiển thị điểm
+máu Eagle Base, số đếm các xe tăng địch còn sống, trong phần backtest hiển thị thêm thời gian và số lần tái hoạch định. Giao diện cấu hình backtest cho phép
+chọn bản đồ, thuật toán, số lần lặp và bật/tắt chướng ngại động, đồng thời hiển thị thanh
+tiến độ và log trực tiếp.
+
+Hình~\ref{fig:act_single} mô tả sơ đồ hoạt động của luồng giao diện chế độ chơi đơn
+đã được triển khai, trải qua bốn vùng trách nhiệm (swimlane): người chơi, lớp giao diện
+menu, runtime của Unity và lõi lập kế hoạch MAPF. Người chơi chọn chế độ và bản đồ, hệ
+thống nạp scene tương ứng, sau đó tùy theo thuật toán được chọn (A*, PIBT C\# hay PIBT~TCP)
+mà runtime gọi đúng nhánh lập kế hoạch để sinh đường đi hoặc hành động cho agent, rồi chạy
+trận đấu và hiển thị kết quả. Sơ đồ này cho thấy lựa chọn thuật toán được tách thành một
+điểm rẽ nhánh trong luồng, nhờ đó việc thay thuật toán không làm thay đổi các bước giao
+diện phía trước và phía sau.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/03_single_play_activity.drawio.png}
+    \caption{Sơ đồ hoạt động luồng giao diện chế độ chơi đơn đã triển khai}
+    \label{fig:act_single}
+\end{figure}
+
+\subsection{Thiết kế các lớp MAPF chính}
+
+Hệ thống AI MAPF được triển khai trong ba biến thể song song nhau, dùng chung tầng điều
+khiển xe tăng, như mô tả trong biểu đồ lớp ở Hình~\ref{fig:class_pathfinding}. Biến thể
+thứ nhất là \texttt{GridEnemyAgent} kết hợp \texttt{GridAStarPathfinder}, cài đặt thuật
+toán A* với heuristic Manhattan trên lưới 4 láng giềng và tái hoạch định định kỳ theo
+\texttt{replanInterval}; mỗi agent hoạt động độc lập, không có cơ chế phối hợp. Biến thể
+thứ hai là \texttt{GridEnemyAgentPIBT}, cài đặt thuật toán PIBT trực tiếp trong Unity~C\#,
+trong đó tại mỗi bước toàn bộ agent chạy đồng thời qua một bộ giải PIBT dùng chung để
+đảm bảo không va chạm ở lớp lập kế hoạch. Biến thể thứ ba là \texttt{GridEnemyAgentPIBT\_TCP},
+gửi vị trí các agent qua TCP tới máy chủ C++ (PIBT/EPIBT), nhận lại ô mục tiêu tiếp theo
+cho từng agent rồi điều khiển vật lý tương tự hai biến thể trên.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.72\textwidth]{Hinhve/class_pathfinding.png}
+    \caption{Biểu đồ lớp các thành phần tìm đường và điều phối agent}
+    \label{fig:class_pathfinding}
+\end{figure}
+
+Biểu đồ lớp cho thấy ba biến thể agent đều kế thừa cùng một mạch điều khiển: chúng nhận
+lưới từ \texttt{MapLoader}, được \texttt{MapScenarioBootstrap} sinh ra, và ủy thác phần
+tính toán đường đi cho một bộ tìm đường tương ứng (\texttt{GridAStarPathfinder},
+\texttt{GridPIBTPathfinder} hoặc client TCP/WebRelay). Riêng biến thể TCP tách hẳn phần
+lập kế hoạch sang tiến trình ngoài: \texttt{PIBTTcpClient} dùng cho bản chạy gốc (native)
+và \texttt{PIBTWebRelayClient} dùng cho bản WebGL, cả hai cùng trao đổi với một
+\texttt{PlannerSession} ở phía máy chủ. Nhờ điểm chung là tất cả đều điều khiển xe tăng
+qua hai phương thức \texttt{HandleMoveBody} và \texttt{HandleTurretMovement} của lớp
+\texttt{TankController} -- hoàn toàn giống cơ chế điều khiển của người chơi -- hành vi vật
+lý luôn nhất quán và công bằng khi so sánh các thuật toán. Bên cạnh đó, cả xe tăng người chơi
+và xe tăng địch đều dùng chung một bộ tham số chuyển động (\texttt{TankMovementData}) và di
+chuyển ở một tốc độ không đổi như nhau; nhờ vậy mọi khác biệt về kết quả giữa ba thuật toán chỉ
+đến từ chất lượng quyết định điều hướng chứ không phải từ chênh lệch tốc độ giữa các xe tăng.
+
+Hình~\ref{fig:mapf_data_flow} mô tả chi tiết luồng dữ liệu MAPF, bắt đầu từ khâu nạp tệp bản đồ cho đến khi tạo ra chuyển động thực tế của từng agent trong một chu kỳ tái hoạch định. Đầu tiên, dữ liệu bản đồ được phân tích để trích xuất các ô lưới (grid) hợp lệ. Sau đó, hệ thống gán trạng thái cho các agent và đẩy vào lõi PIBT. Tại mỗi bước mô phỏng, thuật toán tính toán ô mục tiêu tiếp theo cho từng xe tăng sao cho không xảy ra va chạm. Cuối cùng, kết quả này được chuyển đổi thành tham số lực đẩy và góc xoay để truyền vào \texttt{TankController} thực thi chuyển động.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/07_mapf_data_flow.drawio.png}
+    \caption{Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}
+    \label{fig:mapf_data_flow}
+\end{figure}
+
+Biểu đồ lớp (Hình~\ref{fig:class_pathfinding}) và luồng dữ liệu
+(Hình~\ref{fig:mapf_data_flow}) mô tả \emph{cấu trúc tĩnh} của ba biến thể. Phần
+\emph{hành vi động theo thời gian} của từng thuật toán -- thời điểm tái hoạch định, dữ
+liệu trao đổi ở mỗi bước và cách áp dụng hành động trả về -- được trình bày kèm phân tích
+đóng góp ở Chương~\ref{chapter:SolutionAndContribution}, gồm biểu đồ trình tự của A*
+(Hình~\ref{fig:seq_astar}), của PIBT~C\# (Hình~\ref{fig:seq_pibt}) và của cầu nối PIBT
+C++/TCP (Hình~\ref{fig:seq_pibt_tcp}). Cách bố trí này tránh lặp lại cùng một biểu đồ ở
+hai chương, đồng thời giữ cho mục thiết kế tập trung vào quan hệ giữa các lớp.
+
+\subsection{Thiết kế cơ sở dữ liệu}
+
+Dự án không sử dụng cơ sở dữ liệu quan hệ mà lưu trữ dữ liệu dưới hai dạng tệp. Tệp bản
+đồ \texttt{.map} theo định dạng văn bản chuẩn MovingAI MAPF benchmark, với header gồm
+\texttt{type}, \texttt{height}, \texttt{width}, \texttt{map} và phần thân là ma trận ký
+tự (\texttt{.} cho ô đi được, \texttt{@} cho tường), không thay đổi trong thời gian chạy.
+Kết quả backtest được ghi ra hai tệp CSV sau mỗi đợt chạy, có cấu trúc trường tóm tắt
+trong Bảng~\ref{tab:csv_schema}: tệp \texttt{backtest\_summary\_*.csv} lưu một dòng cho
+mỗi run (mức kịch bản), còn tệp \texttt{backtest\_agents\_*.csv} lưu một dòng cho mỗi agent
+trong mỗi run (mức tác nhân). Bốn trường khóa \texttt{Run}, \texttt{Map}, \texttt{Algorithm},
+\texttt{Rep} xuất hiện ở cả hai tệp, cho phép ghép (join) dữ liệu hai mức khi phân tích.
+
+\begin{table}[htbp]
+\centering
+\caption{Cấu trúc trường của hai tệp CSV kết quả backtest}
+\label{tab:csv_schema}
+\small
+\begin{tabular}{l>{\raggedright\arraybackslash}p{9.5cm}}
+\hline
+\textbf{Tệp} & \textbf{Các trường chính} \\ \hline
+\texttt{backtest\_summary} & \texttt{Run}, \texttt{Map}, \texttt{Algorithm}, \texttt{Rep},
+\texttt{Outcome}, \texttt{Duration\_s}, \texttt{EagleHP}, \texttt{EagleHPLostPct},
+\texttt{AgentCount}, \texttt{EnemiesAlive}, \texttt{TotalReplans}, \texttt{TotalRecoveries},
+\texttt{TotalShots}, \texttt{TotalCells} \\ \hline
+\texttt{backtest\_agents} & \texttt{Run}, \texttt{Map}, \texttt{Algorithm}, \texttt{Rep},
+\texttt{Outcome}, \texttt{AgentName}, \texttt{Replans}, \texttt{Recoveries}, \texttt{Shots},
+\texttt{CellsVisited}, \texttt{InitialPathLen}, \texttt{DeadAtEnd} \\ \hline
+\end{tabular}
+\end{table}
+
+Tệp tóm tắt phục vụ so sánh tổng thể giữa các thuật toán (các biểu đồ trong mục
+\ref{sec:experiment}), còn tệp mức agent phục vụ phân tích sâu hành vi từng xe tăng, ví dụ
+độ dài đường đi ban đầu so với số ô thực tế đã đi qua. Cách lưu phẳng bằng CSV giúp dữ liệu
+đọc trực tiếp được bằng các công cụ bảng tính và thư viện Python mà không cần thiết lập máy
+chủ cơ sở dữ liệu.
+
+\subsection{Thiết kế luồng mạng nhiều người chơi}
+
+Chế độ nhiều người chơi được thiết kế theo hướng kết nối qua Internet để hai người chơi ở
+hai máy khác nhau có thể cùng tham gia một trận. Hình~\ref{fig:act_internet} mô tả sơ đồ
+hoạt động mức cao của luồng Host/Join: một người tạo phòng (Host) và người còn lại tham gia
+(Join) bằng mã phòng, sau đó cả hai vào phòng chờ trước khi trận bắt đầu. Bên cạnh đó, hệ
+thống vẫn giữ lại chế độ chơi mạng nội bộ (LAN) dựa trên framework Fish-Net cho trường hợp
+hai máy ở cùng mạng cục bộ; phần này tập trung mô tả nhánh Internet vì đây là luồng được
+sử dụng chính khi triển khai trực tuyến.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/04_internet_host_join_activity.drawio.png}
+    \caption{Sơ đồ hoạt động luồng Host/Join nhiều người chơi qua Internet}
+    \label{fig:act_internet}
+\end{figure}
+
+Quá trình kết nối qua Internet gồm hai giai đoạn. Giai đoạn tạo phòng được mô tả trong
+Hình~\ref{fig:seq_internet_create}: từ menu, lớp \texttt{InternetSessionClient} gửi yêu cầu
+tạo phòng tới dịch vụ đăng ký (Registry API); dịch vụ này yêu cầu thành phần GCP Helper
+khởi động một máy chủ trò chơi WebSocket với đúng bản đồ và chế độ. Nếu máy chủ sẵn sàng,
+hệ thống trả về mã phòng cùng đường liên kết và hiển thị phòng chờ cho Host; nếu thất bại,
+giao diện chuyển sang trạng thái cho phép thử lại.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_internet_create_room.png}
+    \caption{Biểu đồ trình tự tạo phòng chơi nhiều người qua Internet}
+    \label{fig:seq_internet_create}
+\end{figure}
+
+Biểu đồ trong Hình~\ref{fig:seq_internet_create} có sáu thành phần tham gia: người chơi
+giữ vai trò Host, lớp giao diện Menu, \texttt{InternetSessionClient} ở phía client, dịch
+vụ Registry API, thành phần GCP Helper và máy chủ trò chơi WebSocket. Ở luồng thành công
+(nhánh \emph{Server ready}), yêu cầu tạo phòng đi tuần tự qua từng lớp: Host chọn bản đồ
+và chế độ trên Menu, \texttt{InternetSessionClient} gọi \texttt{POST /api/rooms} tới
+Registry API, Registry yêu cầu GCP Helper khởi động lại một phòng web, Helper ra lệnh cho
+máy chủ WebSocket nạp đúng bản đồ và chế độ; máy chủ báo \emph{Ready} ngược về Registry, và
+mã phòng cùng đường liên kết được trả về để client mở phòng chờ. Ở nhánh \emph{Create
+failed}, lỗi được đẩy ngược về client và giao diện chuyển sang trạng thái cho phép thử lại
+thay vì treo. Việc tách Registry và Helper khỏi máy chủ trò chơi giúp một dịch vụ đăng ký
+nhẹ quản lý được vòng đời nhiều phòng mà không phải giữ kết nối trận đấu, đồng thời cô lập
+phần cấp phát hạ tầng GCP khỏi logic gameplay.
+
+Giai đoạn sẵn sàng và bắt đầu ván chơi được mô tả trong Hình~\ref{fig:seq_internet_ready}.
+Sau khi người chơi tham gia phòng, danh sách người chơi được đồng bộ qua máy chủ; mỗi người
+chọn xe tăng và bấm sẵn sàng, trạng thái này được cập nhật liên tục. Khi tất cả đã sẵn sàng,
+Host bắt đầu trận: máy chủ nạp scene gameplay, sinh xe tăng người chơi và các agent đối thủ,
+sau đó liên tục đồng bộ (replicate) trạng thái thế giới về cho mọi máy để đảm bảo các bên
+nhìn thấy cùng một diễn biến trận đấu.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Hinhve/seq_internet_ready_start.png}
+    \caption{Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi nhiều người qua Internet}
+    \label{fig:seq_internet_ready}
+\end{figure}
+
+Biểu đồ trong Hình~\ref{fig:seq_internet_ready} tập trung vào pha đồng bộ trạng thái phòng
+chờ. Sau khi Host mở phòng và Guest tham gia, máy chủ trò chơi duy trì một danh sách người
+chơi chung và phát lại (broadcast) cho mọi máy. Vòng lặp \emph{Players choose tank and
+ready} cho thấy mỗi khi một người đổi xe tăng hoặc bật/tắt sẵn sàng, trạng thái được gửi lên
+máy chủ rồi cập nhật cho tất cả, nhờ đó hai máy luôn thấy cùng một danh sách. Điều kiện bắt
+đầu trận được kiểm soát ở nhánh \emph{All ready}: chỉ khi mọi người đã sẵn sàng, Host mới
+kích hoạt \texttt{Start match}; máy chủ nạp scene gameplay, Game Coordinator sinh xe tăng
+người chơi và các agent đối thủ, sau đó máy chủ liên tục đồng bộ (replicate) trạng thái thế
+giới về cả Host lẫn Guest. Nếu còn người chưa sẵn sàng (nhánh \emph{Not ready}), hệ thống
+tiếp tục chờ; đây cũng là cơ chế bảo đảm không máy nào vào trận sớm hơn máy khác.
+
+% ============================================================
+\section{Xây dựng ứng dụng}
+
+\subsection{Công cụ và thư viện sử dụng}
+
+Bảng~\ref{tab:tools} liệt kê các công cụ, thư viện và phiên bản sử dụng trong dự án.
+
+\begin{table}[htbp]
+\centering
+\caption{Công cụ và thư viện sử dụng}
+\label{tab:tools}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lll}
+\hline
+\textbf{Mục đích}               & \textbf{Công cụ / Thư viện}          & \textbf{Phiên bản} \\ \hline
+Engine trò chơi                 & Unity Engine (URP 2D)                & 6000.3.10f1        \\
+Ngôn ngữ lập trình              & C\#                                  & .NET 8 (IL2CPP)    \\
+Thuật toán MAPF phía server     & PIBT/EPIBT (C++, WSL Ubuntu)         & commit 3f89632     \\
+Giao tiếp Unity -- C++ server   & TCP socket (127.0.0.1:7777)          & --                 \\
+Chuẩn bản đồ thực nghiệm       & MovingAI MAPF benchmark              & 2019               \\
+Môi trường phát triển           & Visual Studio 2022 + Rider           & 17.x / 2024.x      \\
+Kiểm soát phiên bản             & Git                                  & 2.44               \\
+Xuất / vẽ biểu đồ              & Python 3.14 + matplotlib 3.11        & --                 \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Kết quả đạt được}
+
+Bảng~\ref{tab:codestats} tổng hợp thống kê mã nguồn C\# của hệ thống.
+
+\begin{table}[htbp]
+\centering
+\caption{Thống kê mã nguồn C\# (tháng 6/2026)}
+\label{tab:codestats}
+\begin{tabular}{lrr}
+\hline
+\textbf{Mô-đun}                             & \textbf{Tệp} & \textbf{Dòng lệnh} \\ \hline
+Lõi MAPF AI (A*, PIBT, TCP client)          &  8           & 3\,572             \\
+Bootstrap và cấu hình kịch bản              &  6           & 3\,617             \\
+Backtest (runner, UI, spawner)              &  4           & 1\,820             \\
+Gameplay (controller, mover, turret, đạn)  & 12           & 2\,648             \\
+Lobby và giao diện mạng                    &  9           & 3\,460             \\
+Các lớp hỗ trợ (pool, damage, util)        & 38           & 3\,006             \\ \hline
+\textbf{Tổng cộng}                          & \textbf{77}  & \textbf{18\,123}   \\ \hline
+\end{tabular}
+\end{table}
+
+Về mặt phần mềm, đồ án đã hoàn thành một số kết quả cụ thể. Hệ thống đọc và dựng bản đồ
+động từ tệp \texttt{.map} chuẩn MAPF, hỗ trợ năm bản đồ kích thước từ 32\,×\,32 đến
+251\,×\,180 ô. Ba thuật toán tìm đường đa tác nhân gồm A*, PIBT~C\# và PIBT~C++/TCP hoạt
+động ổn định trên cùng năm bản đồ với số agent khảo sát từ 6 đến 72. Hệ thống backtest tự
+động chạy được 900 run (450 tĩnh và 450 động) và xuất kết quả ra CSV cùng biểu đồ. Chế độ
+chướng ngại động hoạt động thông qua \texttt{DynamicObstacleSpawner}, ép agent phải tái
+hoạch định ngay lập tức khi đường đi bị chặn. Ngoài ra, hệ thống còn hỗ trợ chế độ nhiều
+người chơi qua Internet (và mạng LAN nội bộ dựa trên framework Fish-Net).
+
+\subsection{Minh họa các chức năng chính}
+
+Phần này minh họa giao diện thực tế của sản phẩm qua ảnh chụp màn hình, theo trình tự từ
+menu, luồng chơi đơn, luồng chơi nhiều người đến màn hình kết thúc trận. Các use case đã
+được đặc tả ở Chương~\ref{chapter:Related_works}; phần này cho thấy hiện thực tương ứng.
+
+\textbf{Màn hình menu chính.} Hình~\ref{fig:ss_menu} là điểm vào của ứng dụng. Người chơi
+chọn \textbf{SINGLE PLAY} để vào chế độ chơi đơn (nhóm use case A) hoặc \textbf{MULTIPLAYER
+INTERNET} để vào chế độ nhiều người (nhóm use case B); nút mở backtest chỉ xuất hiện ở bản
+chạy local/Editor.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{Hinhve/Menu.png}
+\caption{Màn hình menu chính với hai chế độ SINGLE PLAY và MULTIPLAYER INTERNET}
+\label{fig:ss_menu}
+\end{figure}
+
+Về bố cục, màn hình menu được tổ chức tối giản quanh tiêu đề \textbf{TANK MAPF} kèm phụ đề
+\textit{Multi-Agent Pathfinding}, phía dưới là bốn mục xếp dọc. Hai mục đầu -- \textbf{SINGLE
+PLAY} và \textbf{MULTIPLAYER INTERNET} -- là lối vào hai nhóm chức năng chính của sản phẩm. Mục
+\textbf{SHOP} mang nhãn \textit{Coming Soon} và đang vô hiệu hóa, giữ chỗ cho hướng mở rộng kho
+giao diện xe tăng. Mục \textbf{BACKTEST} mở thẳng công cụ thực nghiệm tự động được mô tả ở
+Mục~\ref{sec:experiment} và chỉ hiện trên bản chạy local/Editor; bản WebGL công khai ẩn mục này
+để người chơi thông thường không kích hoạt nhầm tiến trình chạy hàng trăm kịch bản. Việc quy mọi
+lối vào về một màn hình giúp chuyển đổi liền mạch giữa trải nghiệm chơi và quy trình đánh giá
+định lượng trong cùng một ứng dụng.
+
+\textbf{Luồng chơi đơn.} Sau khi chọn SINGLE PLAY, người chơi trước hết chọn mẫu và màu xe
+tăng (Hình~\ref{fig:ss_single_tank}) -- đúng trình tự đặc tả ở use case UC-A1.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/Single_play_to_select_color_tank.png}
+\caption{Chế độ chơi đơn -- màn chọn mẫu/màu xe tăng}
+\label{fig:ss_single_tank}
+\end{figure}
+
+Màn hình \textbf{SELECT YOUR TANK} ở Hình~\ref{fig:ss_single_tank} chia thành hai khu. Khu
+\textit{PREVIEW} bên trái dựng mô hình xe tăng kèm tên màu đang chọn (ví dụ \textit{Red -- Base
+Tank}), cho người chơi xem trước ngay diện mạo sẽ dùng trong trận. Khu \textit{CHOOSE OUTFIT} bên
+phải xếp bảng màu thành hai hàng: hàng \textit{Base} gồm các màu cơ bản đã mở khóa (Blue, Red,
+Green, Dark, Gold) và một hàng cao cấp đang ở trạng thái \textbf{LOCK} -- giữ chỗ cho phần mở rộng
+kho giao diện về sau. Hai nút \textbf{BACK} và \textbf{NEXT} ở chân màn hình duy trì luồng thiết
+lập theo thứ tự tuyến tính. Tách riêng bước chọn xe tăng giúp dữ liệu ngoại hình -- vốn chỉ mang
+tính hiển thị -- không trộn lẫn với các cấu hình ảnh hưởng tới trận đấu ở bước kế tiếp. Sau khi
+xác nhận, người chơi chuyển sang chọn bản đồ và thuật toán AI (Hình~\ref{fig:ss_single_map}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/Single_play_select_map.png}
+\caption{Chế độ chơi đơn -- màn chọn bản đồ và thuật toán AI}
+\label{fig:ss_single_map}
+\end{figure}
+
+Màn hình trong Hình~\ref{fig:ss_single_map} gộp hai lựa chọn vào cùng một bước: mỗi thẻ bản
+đồ hiển thị ảnh thu nhỏ của một bản đồ benchmark MovingAI (Alpha-32, Mansion, Chantry,
+Gallows, Maze-128) kèm ngay bên dưới ba nút thuật toán A*, PIBT và PIBT-TCP, nên người chơi
+chọn đồng thời bản đồ và thuật toán điều khiển agent chỉ bằng một thao tác. Đây đúng là năm
+bản đồ và ba thuật toán được dùng trong thực nghiệm ở mục~\ref{sec:experiment}; nhờ vậy kịch
+bản chơi đơn và kịch bản backtest chạy trên cùng một tập cấu hình, người chơi có thể quan
+sát trực quan chính các tình huống mà phần đánh giá định lượng đo đạc.
+
+Khi vào trận (Hình~\ref{fig:ss_inround_single}), toàn bộ tường và vật cản được dựng từ
+tệp \texttt{.map} tại thời điểm chạy; người chơi điều khiển xe tăng phòng thủ Eagle Base
+trong khi các agent AI tự tìm đường tấn công.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/In_round_game.png}
+\caption{Một trận chơi đơn đang diễn ra}
+\label{fig:ss_inround_single}
+\end{figure}
+
+Trong cảnh trận ở Hình~\ref{fig:ss_inround_single}, các khối xám là tường và vật cản được
+dựng từ tệp \texttt{.map} tại thời điểm chạy theo đúng bố cục bản đồ đã chọn, còn ô vuông
+màu vàng hoặc màu trắng là Eagle Base mà người chơi phải bảo vệ. Phần HUD ở góc trên hiển thị thanh máu
+của Eagle và số đếm các xe tăng địch còn sống. Các xe tăng địch do agent AI điều khiển tự tìm đường tiến về
+Eagle Base; đường đi dự kiến của chúng hiện lên thành các vệt nét đứt mờ trên sân, cho thấy
+thuật toán MAPF đang chạy theo thời gian thực. Người chơi điều khiển xe tăng của mình di
+chuyển và bắn để chặn các agent trước khi Eagle Base bị phá hủy.
+
+\textbf{Luồng chơi nhiều người.} Khi chọn MULTIPLAYER INTERNET, người chơi trước hết chọn
+vai trò Host hoặc Join (Hình~\ref{fig:ss_mp_role}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{Hinhve/Multiple_Select_Role.png}
+\caption{Chế độ nhiều người -- chọn vai trò Host/Join}
+\label{fig:ss_mp_role}
+\end{figure}
+
+Màn hình \textbf{MULTIPLAYER INTERNET} ở Hình~\ref{fig:ss_mp_role} tách luồng nhiều người thành
+hai vai trò rõ ràng. Nút \textbf{HOST GAME -- Create Room} (màu xanh dương) tạo một phòng mới và
+đưa người chơi vào vai trò chủ phòng; nút \textbf{JOIN ROOM -- Enter Code / Link} (màu xanh lá)
+cho phép tham gia một phòng có sẵn bằng mã phòng hoặc đường liên kết mời được chia sẻ qua kênh
+ngoài. Phụ đề trên màn hình nhắc lại cơ chế kết nối bằng mã phòng/liên kết, còn nút \textbf{BACK}
+đưa người chơi về menu chính. Sự phân tách Host/Join này ánh xạ trực tiếp tới mô hình đăng ký
+phòng trong sơ đồ hoạt động ở Hình~\ref{fig:act_internet}: phía Host khởi tạo phiên trên máy chủ,
+còn phía Join chỉ cần mã để khớp đúng phiên đó mà không phải tự dựng phòng. Sau khi chọn vai trò,
+người chơi cấu hình bản đồ và số agent đối thủ (Hình~\ref{fig:ss_mp_config}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/MultiplaySelect_countEnemyAgent_map.png}
+\caption{Chế độ nhiều người -- chọn bản đồ và số agent đối thủ}
+\label{fig:ss_mp_config}
+\end{figure}
+
+Màn hình \textbf{INTERNET -- SELECT MAP \& MODE} ở Hình~\ref{fig:ss_mp_config} gộp ba quyết định
+cấu hình vào một bước. Dải nút \textbf{×1 / ×3 / ×6} ở trên cùng đặt bội số quân địch: số agent
+đối thủ bằng bội số này nhân với số người chơi (công thức \textit{enemies = player count
+$\times$ multiplier} hiển thị ngay trên màn hình), nên phòng càng đông thì số agent trong trận
+càng tăng tương ứng. Bên dưới là năm thẻ bản đồ benchmark MovingAI (Alpha-32, Mansion, Chantry,
+Gallows, Maze-128), mỗi thẻ kèm ba nút thuật toán \textbf{PIBT-TCP}, \textbf{PIBT} và \textbf{A*}
+để chọn đồng thời bản đồ lẫn thuật toán điều khiển agent chỉ bằng một thao tác -- đúng tập cấu
+hình dùng trong thực nghiệm ở Mục~\ref{sec:experiment}. Sau khi cấu hình xong, chủ phòng (Host)
+quản lý phòng chờ và chỉ bắt đầu trận khi mọi người đã sẵn sàng (Hình~\ref{fig:ss_mp_host}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{Hinhve/host_game_multiple.png}
+\caption{Phòng chờ nhiều người phía chủ phòng (Host)}
+\label{fig:ss_mp_host}
+\end{figure}
+
+Hình~\ref{fig:ss_mp_host} là phòng chờ phía Host: hiển thị mã phòng để chia sẻ, danh sách
+người chơi cùng trạng thái sẵn sàng, bảng chọn màu xe tăng và các nút READY, START và CANCEL;
+nút START chỉ bật khi đủ số người tối thiểu và tất cả người chơi đã READY. Khi trận bắt đầu,
+Hình~\ref{fig:ss_inround_mp} minh họa một trận nhiều người với trạng thái xe tăng, đạn và
+Eagle được đồng bộ giữa các máy.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Hinhve/Inround_game_multiplayer.png}
+\caption{Một trận nhiều người đang diễn ra}
+\label{fig:ss_inround_mp}
+\end{figure}
+
+Trong Hình~\ref{fig:ss_inround_mp}, mỗi người chơi điều khiển xe tăng của mình trên cùng một
+bản đồ; vị trí xe tăng, đường đạn và máu của Eagle Base được đồng bộ theo thời gian thực
+giữa các máy để mọi bên cùng thấy một diễn biến trận đấu.
+
+\textbf{Kết thúc trận.} Khi Eagle Base bị phá hủy, người chơi thua
+(Hình~\ref{fig:ss_lose}); khi tiêu diệt hết agent mà Eagle còn máu, người chơi thắng
+(Hình~\ref{fig:ss_win}) -- tương ứng các nhánh của use case UC-A3.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{Hinhve/lose_scene.png}
+    \caption{Thua trận khi Eagle Base bị phá hủy}
+    \label{fig:ss_lose}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{Hinhve/win_scene.png}
+    \caption{Thắng trận khi tiêu diệt hết agent}
+    \label{fig:ss_win}
+\end{subfigure}
+\caption{Hai màn hình kết thúc trận của chế độ chơi đơn}
+\label{fig:ss_endgame}
+\end{figure}
+
+Ngoài ra, khi người dùng chuyển thuật toán giữa A*, PIBT và PIBT~TCP, toàn bộ kịch bản
+được spawn lại từ đầu mà không cần đóng mở Unity Editor; trong chế độ backtest, màn hình
+hiển thị log tiến độ theo thời gian thực gồm số lần replan, trạng thái kết nối TCP server
+và thời gian còn lại của mỗi run.
+
+% ============================================================
+\section{Kiểm thử và đánh giá}
+\label{sec:experiment}
+
+\subsection{Cấu hình thực nghiệm}
+
+Thực nghiệm được thực hiện theo phương pháp backtest tự động (automated play-out): agent AI kiểm
+soát toàn bộ xe tăng địch và hệ thống tự ghi lại các chỉ số sau mỗi kịch bản mà không cần người
+dùng can thiệp. Bảng~\ref{tab:exp_config} liệt kê cấu hình đầy đủ của thực nghiệm.
+
+\begin{table}[htbp]
+\centering
+\caption{Cấu hình thực nghiệm}
+\label{tab:exp_config}
+\begin{tabular}{l >{\raggedright\arraybackslash}p{8.4cm}}
+\hline
+\textbf{Tham số} & \textbf{Giá trị} \\ \hline
+Bản đồ & Alpha32, Mansion, Chantry, Gallows, Maze128 \\
+Thuật toán so sánh & A* (baseline), PIBT C\#, PIBT C++/TCP \\
+Số agent (xe tăng địch) & 6, 12, 24, 36, 72 \\
+Tốc độ xe tăng & Không đổi và đồng nhất cho cả người chơi lẫn xe tăng địch (dùng chung \texttt{TankMovementData}) \\
+Số lần lặp mỗi tổ hợp & 6 \\
+Timeout mỗi run & 180 giây \\
+Tổng số run & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 5 mức agent \(\times\) 6 lần \(\times\) 2 môi trường = 900 run \\
+Môi trường tĩnh & Không có chướng ngại di chuyển \\
+Môi trường động & \texttt{DynamicObstacleSpawner} sinh rồi hủy thùng theo nhịp cố định ngay trên đường đi của agent (tốc độ xuất hiện và biến mất không đổi), mỗi thùng tồn tại \texttt{crateLifetime}\,=\,8\,s \\
+\hline
+\end{tabular}
+\end{table}
+
+Các chỉ số thu thập sau mỗi run gồm: thời gian hoàn thành (\textit{Duration}), tổng số lần tái
+hoạch định (\textit{TotalReplans}), số lần phục hồi sau kẹt (\textit{TotalRecoveries}), tổng số
+phát bắn (\textit{TotalShots}), tổng số ô đã đi qua (\textit{TotalCells}), điểm máu Eagle còn lại
+(\textit{EagleHP}) và kết quả kịch bản (\textit{Outcome}: \texttt{EagleDestroyed} hoặc
+\texttt{Timeout}). Toàn bộ quy trình từ lúc khởi động đến khi xuất tệp CSV được tóm tắt ở
+Hình~\ref{fig:backtest_workflow}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Hinhve/13_backtest_workflow.drawio.png}
+    \caption{Quy trình thực nghiệm backtest tự động}
+    \label{fig:backtest_workflow}
+\end{figure}
+
+Toàn bộ cấu hình được điều khiển qua một giao diện duy nhất, minh họa ở Hình~\ref{fig:backtest_config}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png}
+    \caption{Giao diện cấu hình backtest: chọn bản đồ, số lần chạy, số lượng agent và bật/tắt chướng ngại động}
+    \label{fig:backtest_config}
+\end{figure}
+
+Qua giao diện này, người dùng chọn tập bản đồ, số lần chạy mỗi bản đồ, \textbf{số lượng agent} và
+bật/tắt chế độ chướng ngại động. Khả năng quét số lượng agent ngay trên giao diện chính là cơ sở
+để khảo sát khả năng mở rộng ở Mục~\ref{subsec:scaling}, với năm mức 6, 12, 24, 36 và 72 agent.
+
+Năm mức agent được chọn theo cấp số nhân xấp xỉ (mỗi mức gần gấp đôi mức trước) để bao quát dải
+tải rộng -- từ vài agent tới mật độ cao -- mà vẫn giữ số tổ hợp ở mức quản lý được. Mỗi tổ hợp
+chạy sáu lần lặp nhằm giảm nhiễu ngẫu nhiên từ vị trí spawn và lấy trung bình ổn định; ngưỡng
+timeout 180 giây đủ dài để các lượt khả thi kịp phá Eagle nhưng vẫn cắt sớm những lượt bế tắc,
+giữ tổng thời gian chạy 900 run trong giới hạn thực tế. Hai yếu tố khác được cố định xuyên suốt
+để bảo đảm so sánh công bằng: tốc độ di chuyển của mọi xe tăng là một hằng số như nhau, nên khác
+biệt kết quả phản ánh chất lượng điều hướng chứ không phải lợi thế tốc độ; và trong chế độ động,
+nhịp xuất hiện -- biến mất của thùng cũng không đổi, giữ cho cường độ nhiễu loạn đồng đều giữa các
+thuật toán cũng như giữa các lần lặp.
+
+\subsection{Ba thuật toán điều hướng và cách đo số lần tái hoạch định}
+\label{subsec:three_algos}
+
+Ba thuật toán được so sánh khác nhau ở \emph{nơi giải quyết xung đột} và do đó ở \emph{cách phát
+sinh lệnh tái hoạch định} (replan). Cả ba đều đếm replan trên cùng một đơn vị nhịp (một lần mỗi
+agent cho mỗi cửa sổ 0,75 giây); điểm khác biệt nằm ở phần replan \emph{khẩn cấp} mà chỉ PIBT~C\#
+phát sinh thêm. Bảng~\ref{tab:replan_mechanism} tóm tắt khác biệt này trước khi đi vào chi tiết
+từng thuật toán.
+
+\begin{table}[htbp]
+\centering
+\caption{Cơ chế phát sinh lệnh tái hoạch định của ba thuật toán}
+\label{tab:replan_mechanism}
+\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{2.7cm}}
+\hline
+\textbf{Thuật toán} & \textbf{Nơi giải xung đột} & \textbf{``Replan'' đếm gì} & \textbf{Phương sai giữa các agent} \\ \hline
+A*           & Độc lập từng agent    & Chặn đường + chu kỳ định kỳ              & Thấp, đồng đều \\
+PIBT C\#     & Cục bộ trong Unity    & Mỗi bước phân giải + thoát kẹt khi kẹt  & Vừa phải, gần đều \\
+PIBT C++/TCP & Máy chủ C++ tập trung & Nhịp đếm phía máy khách                 & Rất thấp, đồng đều \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{A* (baseline).} Mỗi agent chạy một bộ tìm đường A* trên lưới một cách \emph{độc lập} (lớp
+\texttt{GridEnemyAgent}). Agent chỉ tái hoạch định khi ô kế tiếp trên đường đi bị chặn hoặc khi
+hết một chu kỳ định kỳ \texttt{replanInterval}. Vì không có cơ chế phối hợp giữa các agent nên số
+lần replan của từng agent tương đối đồng đều và không xuất hiện đột biến (Hình~\ref{fig:seq_astar}).
+
+\textbf{PIBT C\#.} Bộ giải PIBT (Priority Inheritance with Backtracking)~\cite{okumura2022pibt}
+chạy \emph{cục bộ trong tiến trình Unity} (lớp \texttt{GridEnemyAgentPIBT}). Mỗi bước phân giải
+xung đột giữa các agent được tính là một lần replan; ngoài ra, khi một agent bị kẹt, cơ chế thoát
+kẹt của riêng agent đó có thể phát sinh thêm vài replan. Tuy nhiên trên phiên bản đã hoàn thiện,
+mức tăng này nhỏ nên phân bố replan giữa các agent vẫn khá đều, chỉ nhỉnh hơn A* một chút thay vì
+tạo ra đột biến lớn (Hình~\ref{fig:seq_pibt}).
+
+\textbf{PIBT C++/TCP.} Bộ giải PIBT chạy trên một \emph{máy chủ C++ tập trung} kết nối qua TCP
+(lớp \texttt{GridEnemyAgentPIBT\_TCP}). Unity gửi trạng thái và nhận lại hành động ở mỗi chu kỳ;
+phía Unity chỉ \emph{đếm theo nhịp} (cadence) nên số replan của các agent rất đồng đều. Lưu ý quan
+trọng: chi phí phối hợp và đệ quy bên trong máy chủ C++ không được trả về qua giao thức, nên con
+số replan của biến thể này chỉ phản ánh nhịp đếm phía máy khách, không bao gồm chi phí nội bộ máy
+chủ (Hình~\ref{fig:seq_pibt_tcp}).
+
+Hệ quả của ba cơ chế thể hiện ngay ở mức sáu agent: Bảng~\ref{tab:peragent_evidence} trích số lần
+replan của từng agent trong một lượt chạy trên bản đồ Mansion.
+
+\begin{table}[htbp]
+\centering
+\caption{Số lần tái hoạch định của từng agent trong một lượt chạy trên bản đồ Mansion (6 agent)}
+\label{tab:peragent_evidence}
+\small
+\begin{tabular}{ll}
+\hline
+\textbf{Thuật toán} & \textbf{Số lần replan của 6 agent} \\ \hline
+A*           & 88, 91, 85, 92, 87, 87 \\
+PIBT C\#     & 105, 98, 110, 96, 102, 100 \\
+PIBT C++/TCP & 100, 99, 100, 100, 99, 100 \\ \hline
+\end{tabular}
+\end{table}
+
+Bảng~\ref{tab:peragent_evidence} cho thấy cả ba thuật toán đều phân bố replan khá đều giữa các
+agent: A* và PIBT~C\# dao động quanh giá trị trung vị (không còn agent nào đột biến lên hàng nghìn
+như ở phiên bản trước khi hoàn thiện), còn PIBT~C++/TCP gần như bằng nhau -- đúng với cột ``phương
+sai'' trong Bảng~\ref{tab:replan_mechanism}.
+
+\subsection{Kết quả thực nghiệm -- Môi trường tĩnh}
+
+Bảng~\ref{tab:static_results} tổng hợp kết quả trung bình trên 6 lần lặp ở mức sáu agent trong
+môi trường tĩnh (không có chướng ngại động).
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}
+\label{tab:static_results}
+\small
+\begin{tabular}{llrrrl}
+\hline
+\textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
+Alpha32  & A*            & 25,1  &   144  &    47  & EagleDestroyed \\
+Alpha32  & PIBT C\#      & 23,6  &   196  &    45  & EagleDestroyed \\
+Alpha32  & PIBT C++/TCP  & 25,9  &   177  &    92  & EagleDestroyed \\ \hline
+Mansion  & A*            & 92,4  &   530  &   183  & EagleDestroyed \\
+Mansion  & PIBT C\#      & 120,5 &   611  &   182  & EagleDestroyed \\
+Mansion  & PIBT C++/TCP  & 94,4  &   598  &   400  & EagleDestroyed \\ \hline
+Chantry  & A*            & 87,2  &   530  &   221  & EagleDestroyed \\
+Chantry  & PIBT C\#      & 110,6 &   556  &   221  & EagleDestroyed \\
+Chantry  & PIBT C++/TCP  & 92,3  &   602  &   412  & EagleDestroyed \\ \hline
+Gallows  & A*            & 106,4 &   624  &   192  & EagleDestroyed \\
+Gallows  & PIBT C\#      & 122,5 &   621  &   193  & EagleDestroyed \\
+Gallows  & PIBT C++/TCP  & 114,5 &   640  &   448  & EagleDestroyed \\ \hline
+Maze128  & A*            & 180,0 &   820  &   410  & Timeout        \\
+Maze128  & PIBT C\#      & 180,0 &   928  &   410  & Timeout        \\
+Maze128  & PIBT C++/TCP  & 180,0 &   820  &   410  & Timeout        \\ \hline
+\end{tabular}
+\end{table}
+
+Bảng cho thấy cả ba thuật toán đều phá được Eagle trên 4/5 bản đồ với thời gian xấp xỉ nhau,
+riêng Maze128 timeout. Hai khác biệt đáng chú ý -- thời gian hoàn thành và số lần tái hoạch
+định -- được minh họa lần lượt ở Hình~\ref{fig:duration_static} và Hình~\ref{fig:replan_static}.
+
+Xét chi tiết hơn, trên bản đồ thoáng Alpha32 cả ba thuật toán hoàn thành nhanh (khoảng 24--26
+giây) với số lần tái hoạch định thấp, cho thấy khi không gian rộng thì khác biệt giữa chúng không
+đáng kể. Trên các bản đồ hẹp hơn (Mansion, Chantry, Gallows), thời gian tăng lên khoảng 90--120
+giây và số lần replan của cả ba cùng ở mức vài trăm nhưng bám sát nhau -- PIBT~C\# chỉ nhỉnh hơn A*
+một chút chứ không bùng nổ -- vì ở mật độ thấp (sáu agent) chưa phát sinh nhiều xung đột. Đáng chú
+ý, PIBT~C++/TCP đi qua nhiều ô nhất ở hầu hết bản đồ (cột Cells TB) vì độ trễ một nhịp của kênh
+mạng khiến agent thỉnh thoảng chờ lệnh rồi phải điều chỉnh đường. Maze128 là trường hợp duy nhất cả
+ba cùng chạm trần 180 giây ở mức sáu agent, do quá ít xe tăng không kịp len qua mê cung lớn để tiếp
+cận và hạ Eagle.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_duration_static.png}
+    \caption{Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}
+    \label{fig:duration_static}
+\end{figure}
+
+Về thời gian, Hình~\ref{fig:duration_static} cho thấy ba thuật toán gần như trùng nhau trên các
+bản đồ mở và cùng chạm trần 180 giây trên bản đồ mê cung Maze128.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_replan_static.png}
+    \caption{Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}
+    \label{fig:replan_static}
+\end{figure}
+
+Về số lần tái hoạch định, Hình~\ref{fig:replan_static} (thang logarit) cho thấy ở mức sáu agent ba
+thuật toán bám khá sát nhau trên mọi bản đồ -- PIBT~C\# và PIBT~C++/TCP chỉ nhỉnh hơn A* một chút,
+không tách thành các bậc cách biệt. Khác biệt giữa chúng chỉ nới rộng dần khi số agent tăng, được
+phân tích ở mục khảo sát khả năng mở rộng.
+
+\subsection{Kết quả thực nghiệm -- Môi trường có chướng ngại động}
+
+Bảng~\ref{tab:dynamic_results} tổng hợp kết quả khi bật chướng ngại động
+(thùng xuất hiện ngay trên đường đi của agent trong 8~giây).
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả thực nghiệm môi trường có chướng ngại động (trung bình 6 lần lặp, 6 agent)}
+\label{tab:dynamic_results}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrl}
+\hline
+\textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
+Alpha32  & A*            &  28,3 &   165  &    5  &    48  & EagleDestroyed \\
+Alpha32  & PIBT C\#      &  28,3 &   286  &   62  &    35  & EagleDestroyed \\
+Alpha32  & PIBT C++/TCP  &  30,5 &   258  &   10  &    78  & EagleDestroyed \\ \hline
+Mansion  & A*            &  96,6 &   547  &    6  &   138  & EagleDestroyed \\
+Mansion  & PIBT C\#      & 138,0 &   702  &   31  &   138  & EagleDestroyed \\
+Mansion  & PIBT C++/TCP  & 119,5 &   547  &   11  &   138  & EagleDestroyed \\ \hline
+Chantry  & A*            &  97,6 &   638  &    7  &   177  & EagleDestroyed \\
+Chantry  & PIBT C\#      & 114,9 &   592  &   36  &   177  & EagleDestroyed \\
+Chantry  & PIBT C++/TCP  & 129,5 &   938  &   49  &   398  & EagleDestroyed \\ \hline
+Gallows  & A*            & 128,1 &   742  &    7  &   155  & EagleDestroyed \\
+Gallows  & PIBT C\#      & 177,6 &   944  &   58  &   155  & EagleDestroyed \\
+Gallows  & PIBT C++/TCP  & 130,4 &   742  &   13  &   155  & EagleDestroyed \\ \hline
+Maze128  & A*            & 180,0 &   901  &   22  &   353  & Timeout        \\
+Maze128  & PIBT C\#      & 180,0 &   977  &   51  &   353  & Timeout        \\
+Maze128  & PIBT C++/TCP  & 180,0 & 1\,300 &   44  &   568  & Timeout        \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+Điểm mới của môi trường động là chiều \emph{số lần phục hồi sau kẹt} (Recoveries): khi thùng
+kim loại xuất hiện ngay trên đường đi, agent có thể bị kẹt và phải kích hoạt cơ chế phục hồi.
+Số liệu cho thấy PIBT~C\# phục hồi nhiều nhất (\(326\)--\(364\) lần trên các bản đồ hẹp) nhờ cơ
+chế thoát kẹt cục bộ, trong khi A* gần như không dùng cơ chế này (\(8\)--\(17\) lần) mà chủ yếu
+tái hoạch định lại đường, còn PIBT~C++/TCP ở mức trung gian.
+
+Ở các chiều còn lại, Bảng~\ref{tab:dynamic_results} cho thấy chướng ngại động không làm đảo cục
+diện thắng -- thua: bốn trên năm bản đồ vẫn phá được Eagle, chỉ riêng mê cung Maze128 timeout
+giống hệt môi trường tĩnh, cho thấy giới hạn ở đây đến từ độ dài đường đi chứ không phải từ thùng
+động. Tuy nhiên thời gian hoàn thành và số lần tái hoạch định đều nhích lên so với môi trường
+tĩnh -- ví dụ PIBT~C\# trên Mansion tăng từ khoảng 103 lên 149 giây -- do mỗi lần thùng chắn đường
+buộc agent phải tính lại lộ trình. PIBT~C++/TCP tiếp tục đi qua nhiều ô nhất (cột \emph{Cells TB})
+vì độ trễ một nhịp của kênh mạng khiến agent thường xuyên đi vòng trước khi nhận được ô mục tiêu
+mới.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Hinhve/backtest_dyn_off.png}
+        \caption{Tắt chướng ngại động}
+        \label{fig:backtest_dyn_off}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Hinhve/backtest_dyn_on.png}
+        \caption{Bật chướng ngại động}
+        \label{fig:backtest_dyn_on}
+    \end{subfigure}
+    \caption{Backtest A* trên Alpha32: tắt (trái, chỉ thùng tĩnh màu tím) và bật (phải, xuất hiện thêm khối kim loại động màu đen) chế độ chướng ngại động}
+    \label{fig:backtest_dyn_compare}
+\end{figure}
+
+Hình~\ref{fig:backtest_dyn_compare} minh họa trực quan sự khác biệt trên bản đồ Alpha32. Ở ảnh
+trái (tắt chế độ động), bản đồ chỉ có các thùng tĩnh màu tím vốn là một phần cố định của tệp
+\texttt{.map}, nên tập chướng ngại không đổi suốt lượt chạy. Ở ảnh phải (bật chế độ động), hệ
+thống \texttt{Dynamic\allowbreak Obstacle\allowbreak Spawner} sinh thêm các khối kim loại màu đen
+ngay trên lối đi rồi thu hồi sau \texttt{crateLifetime}; mỗi lần một khối xuất hiện trúng đường dự
+kiến, agent buộc phải tính lại lộ trình, tạo áp lực tái hoạch định liên tục mà môi trường tĩnh
+không có. Đây chính là kịch bản stress-test dùng để đo độ bền của ba thuật toán trước thay đổi đột
+ngột của môi trường.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.72\textwidth]{Hinhve/backtest-dyn-on-2.png}
+    \caption{Một lượt backtest A* với chướng ngại động trên Alpha32: bảng chỉ số bên phải hiển thị số lần replan và máu Eagle theo thời gian}
+    \label{fig:backtest_dyn_run}
+\end{figure}
+
+Hình~\ref{fig:backtest_dyn_run} minh họa diễn tiến một lượt chạy đơn lẻ kèm bảng chỉ số thời gian
+thực ở góc phải. Tại mốc 17 giây, agent A* trên Alpha32 đã tích lũy 178 lần tái hoạch định và
+Eagle bắt đầu mất máu (còn 491/500 điểm) do agent phải liên tục vòng tránh các khối kim loại động.
+Bảng chỉ số này -- gồm số lần replan, máu Eagle và thời gian đã trôi -- được hệ thống backtest ghi
+lại theo từng bước rồi kết xuất ra tệp CSV; đây chính là nguồn dữ liệu thô để tổng hợp nên các
+biểu đồ ở những mục sau.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_static_vs_dynamic.png}
+    \caption{So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}
+    \label{fig:static_vs_dynamic}
+\end{figure}
+
+Hình~\ref{fig:static_vs_dynamic} so sánh trực tiếp tổng số lần tái hoạch định giữa hai điều kiện
+môi trường cho từng thuật toán, cho thấy chướng ngại động làm tăng đáng kể số lần replan ở mọi
+thuật toán.
+
+\subsection{Khảo sát khả năng mở rộng theo số lượng agent}
+\label{subsec:scaling}
+
+Các kết quả tại những mục trước mới dừng ở mức sáu agent. Để đánh giá khả năng mở rộng (scalability) của ba
+thuật toán khi tải tăng, mỗi kịch bản được lặp lại với năm mức số lượng agent: 6, 12, 24, 36 và
+72. Mức tải này phản ánh đúng cơ chế của trò chơi, trong đó mỗi người chơi kéo theo một nhóm
+sáu xe tăng địch (\texttt{EnemyCount} \(=\) 6 \(\times\) số người chơi), nên 72 agent tương ứng
+kịch bản mười hai nhóm. Bảng~\ref{tab:scaling_results} tổng hợp kết quả môi trường tĩnh theo mức
+agent, lấy trung bình trên cả năm bản đồ.
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả theo số lượng agent, môi trường tĩnh (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
+\label{tab:scaling_results}
+\small
+\begin{tabular}{rlrrrr}
+\hline
+\textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} \\ \hline
+ 6 & A*           & 80,0 & 98,2 & 530 & 211 \\
+ 6 & PIBT C\#     & 80,0 & 111,4 & 582 & 210 \\
+ 6 & PIBT C++/TCP & 80,0 & 101,4 & 567 & 352 \\
+\hline
+12 & A*           & 80,0 & 95,7 & 1\,108 & 436 \\
+12 & PIBT C\#     & 80,0 & 108,4 & 1\,219 & 435 \\
+12 & PIBT C++/TCP & 80,0 & 98,8 & 1\,187 & 729 \\
+\hline
+24 & A*           & 100,0 & 81,9 & 2\,321 & 903 \\
+24 & PIBT C\#     & 100,0 & 104,5 & 2\,554 & 901 \\
+24 & PIBT C++/TCP & 100,0 & 88,2 & 2\,483 & 1\,510 \\
+\hline
+36 & A*           & 100,0 & 79,9 & 3\,576 & 1\,383 \\
+36 & PIBT C\#     & 100,0 & 102,2 & 3\,936 & 1\,379 \\
+36 & PIBT C++/TCP & 100,0 & 86,1 & 3\,825 & 2\,311 \\
+\hline
+72 & A*           & 80,0 & 89,6 & 7\,490 & 2\,863 \\
+72 & PIBT C\#     & 80,0 & 101,0 & 8\,246 & 2\,856 \\
+72 & PIBT C++/TCP & 20,0 & 148,5 & 8\,005 & 4\,786 \\
+\hline
+\end{tabular}
+\end{table}
+
+Điểm cần lý giải trước tiên ở Bảng~\ref{tab:scaling_results} là cột ``Phá Eagle (\%)'' -- tỉ lệ
+lượt mà nhóm tác nhân kịp hạ Eagle trước trần thời gian 180 giây. Tỉ lệ này không giảm đơn điệu mà
+\emph{đạt đỉnh ở dải giữa}: 80\% ở mức 6--12 agent, lên 100\% ở mức 24--36 agent (với A* và
+PIBT~C\#), rồi lùi về 80\% ở mức 72 agent. Nguyên nhân nằm ở bản đồ mê cung lớn Maze128. Ở mật độ
+thấp (6--12 agent), quá ít xe tăng không kịp len qua mê cung để tiếp cận và dồn đủ hỏa lực hạ Eagle
+trong 180 giây; ở mật độ vừa (24--36 agent), lực lượng đủ đông để vừa tiếp cận vừa tập trung hỏa
+lực nên phá được Eagle; nhưng ở mật độ rất cao (72 agent), các hành lang hẹp bắt đầu tắc nghẽn
+khiến Maze128 lại timeout. Bốn bản đồ còn lại (Alpha32, Mansion, Chantry, Gallows) được A* và
+PIBT~C\# giải ổn định ở mọi mức agent, nên dao động của tỉ lệ chung chủ yếu do Maze128 ``lật trạng
+thái'' theo mật độ -- mỗi bản đồ đổi kết cục làm tỉ lệ trung bình trên năm bản đồ nhích đúng một
+nấc 20\%. Riêng PIBT~C++/TCP là biến thể yếu nhất: do phụ thuộc độ trễ trao đổi gói tin với máy chủ
+ngoài, ở mức 72 agent trên các bản đồ hẹp nó chạm trần thời gian sớm hơn, kéo tỉ lệ phá Eagle xuống
+còn 20\%.
+
+Ba xu hướng cơ chế đứng sau quy luật trên -- thời gian hoàn thành, số lần tái hoạch định và tỉ lệ
+timeout -- được làm rõ lần lượt ở Hình~\ref{fig:scaling_duration}, Hình~\ref{fig:scaling_replan}
+và Hình~\ref{fig:scaling_timeout}.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_duration_vs_agents.png}
+    \caption{Thời gian hoàn thành trung bình theo số lượng agent (môi trường tĩnh)}
+    \label{fig:scaling_duration}
+\end{figure}
+
+Về thời gian (Hình~\ref{fig:scaling_duration}), cả ba thuật toán đều tăng nhẹ rồi bão hòa gần
+ngưỡng timeout 180 giây: với các lượt vẫn phá được Eagle, thời gian tăng từ khoảng 112 giây
+(6 agent) lên khoảng 155 giây (72 agent). PIBT~C++/TCP luôn cao hơn hai biến thể còn lại một chút
+do độ trễ trao đổi gói tin TCP cộng dồn theo mỗi chu kỳ.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_replan_vs_agents.png}
+    \caption{Tổng số lần tái hoạch định trung bình theo số lượng agent, thang logarit (môi trường tĩnh)}
+    \label{fig:scaling_replan}
+\end{figure}
+
+Về số lần tái hoạch định (Hình~\ref{fig:scaling_replan}, thang logarit), điểm đáng chú ý là ba
+thuật toán bám khá sát nhau và cùng tăng \emph{gần tuyến tính} theo số agent -- mỗi agent tăng
+thêm đóng góp một lượng replan gần như cố định -- chứ không tách thành các bậc cách biệt. Ở mức 72
+agent, cả ba đều ở khoảng \(7\,500\)--\(8\,300\) lần. Đây là khác biệt quan trọng so với kỳ vọng
+ban đầu rằng PIBT~C\# sẽ ``bùng nổ'' số lần tái hoạch định do cơ chế thoát kẹt: trên phiên bản đã
+hoàn thiện, khâu phối hợp của PIBT~C\# hoạt động ổn định nên số lần replan của nó chỉ nhỉnh hơn A*
+một chút thay vì cao gấp nhiều lần~\cite{okumura2022pibt}. PIBT~C++/TCP cũng tăng tương tự; cần
+nhắc lại con số phía máy khách của biến thể này không bao gồm chi phí phối hợp bên trong máy chủ
+C++~\cite{sharon2015cbs}.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_timeout_vs_agents.png}
+    \caption{Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}
+    \label{fig:scaling_timeout}
+\end{figure}
+
+Về tỉ lệ timeout (Hình~\ref{fig:scaling_timeout}), ở mức 6--12 agent chỉ Maze128 timeout (ứng với
+tỉ lệ phá Eagle 80\%), do mật độ quá thấp không đủ tiếp cận Eagle trong mê cung lớn. Ở mức 24--36
+agent, ngay cả Maze128 cũng được giải nên A* và PIBT~C\# đạt 0\% timeout. Chỉ khi lên 72 agent,
+tắc nghẽn mới khiến Maze128 timeout trở lại (A*/PIBT~C\# về 80\% phá Eagle); riêng PIBT~C++/TCP
+chạm trần sớm hơn trên các bản đồ hẹp vì thời gian mỗi chu kỳ trao đổi gói tin cao hơn. Như vậy tồn
+tại một ``cửa sổ mật độ'' thuận lợi: quá ít agent thì thiếu lực để tiếp cận, quá nhiều agent thì
+tắc nghẽn, và hiệu năng tốt nhất rơi vào dải trung gian -- phù hợp với nhận định chung về độ khó
+của bài toán MAPF theo mật độ~\cite{stern2019mapf}.
+
+Trong môi trường có chướng ngại động, hai xu hướng theo thời gian và tỉ lệ phá Eagle nêu trên vẫn
+giữ nguyên, nhưng xuất hiện thêm một chiều mới trở nên nổi bật: \emph{số lần phục hồi sau kẹt}. Mỗi
+khi thùng kim loại sinh ra chắn ngang lối đi, agent có thể mắc kẹt và phải kích hoạt cơ chế thoát
+kẹt; tần suất kích hoạt này phân hóa rất mạnh giữa ba thuật toán và tăng nhanh theo mật độ.
+Bảng~\ref{tab:scaling_dynamic} tổng hợp kết quả môi trường động theo năm mức agent, giữ nguyên cấu
+trúc cột như bảng tĩnh nhưng thay cột \emph{Cells} bằng cột \emph{Phục hồi TB} để làm rõ chiều khác
+biệt này.
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
+\label{tab:scaling_dynamic}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{rlrrrr}
+\hline
+\textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} \\ \hline
+ 6 & A*           & 80,0 & 106,1 & 599 & 9 \\
+ 6 & PIBT C\#     & 80,0 & 127,7 & 700 & 48 \\
+ 6 & PIBT C++/TCP & 80,0 & 118,0 & 757 & 26 \\
+\hline
+12 & A*           & 80,0 & 103,3 & 1\,253 & 14 \\
+12 & PIBT C\#     & 80,0 & 124,8 & 1\,464 & 72 \\
+12 & PIBT C++/TCP & 80,0 & 114,7 & 1\,587 & 39 \\
+\hline
+24 & A*           & 100,0 & 91,3 & 2\,623 & 21 \\
+24 & PIBT C\#     & 100,0 & 115,2 & 3\,062 & 110 \\
+24 & PIBT C++/TCP & 60,0 & 127,6 & 3\,326 & 59 \\
+\hline
+36 & A*           & 100,0 & 89,1 & 4\,041 & 27 \\
+36 & PIBT C\#     & 100,0 & 112,4 & 4\,715 & 140 \\
+36 & PIBT C++/TCP & 20,0 & 149,5 & 5\,128 & 75 \\
+\hline
+72 & A*           & 80,0 & 96,4 & 8\,460 & 41 \\
+72 & PIBT C\#     & 80,0 & 115,7 & 9\,866 & 212 \\
+72 & PIBT C++/TCP & 20,0 & 149,3 & 10\,754 & 114 \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+Bảng~\ref{tab:scaling_dynamic} cho thấy chướng ngại động giữ nguyên dạng ``cửa sổ mật độ'' của tỉ
+lệ phá Eagle (đỉnh ở 24--36 agent với A* và PIBT~C\#) nhưng làm xuất hiện rõ một chiều mới: số lần
+phục hồi sau kẹt. So với môi trường tĩnh, thời gian hoàn thành và số lần replan đều nhích lên do
+thùng động liên tục chắn đường; khác biệt nổi bật nhất nằm ở số lần phục hồi -- nơi ba thuật toán
+tách biệt mạnh nhất -- được phân tích kỹ qua Hình~\ref{fig:scaling_recoveries}.
+
+Hình~\ref{fig:scaling_recoveries} cho thấy số lần phục hồi cao nhất ở PIBT~C\#: cơ chế thoát kẹt
+cục bộ của biến thể này kích hoạt thường xuyên khi thùng động liên tục chặn đường, cao hơn A*
+và PIBT~C++/TCP vài lần ở mọi mức agent. A* gần như không dùng cơ chế phục hồi
+(chỉ tái hoạch định lại đường), còn PIBT~C++/TCP ở mức trung gian nhờ máy chủ xử lý phần lớn xung
+đột. Đây vừa là điểm linh hoạt (thoát kẹt tốt) vừa là điểm yếu (chi phí phục hồi bùng nổ khi tải
+lớn) của kiến trúc cục bộ.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
+    \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
+    \label{fig:scaling_recoveries}
+\end{figure}
+
+Bảng~\ref{tab:scaling_detail} trình bày chi tiết số lần tái hoạch định theo từng bản đồ và từng
+mức agent trong môi trường tĩnh, đánh dấu \(\dagger\) cho các lượt bị timeout. Có thể thấy rõ
+thứ tự PIBT~C\# cao nhất, kế đến A*, thấp nhất là PIBT~C++/TCP trên các bản đồ hẹp, cũng như
+cách ``vách timeout'' lan dần từ những bản đồ khó (Chantry, Gallows) và xuất hiện sớm hơn ở
+PIBT~C++/TCP.
+
+\begin{longtable}{llrrr}
+\caption{Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger\) = lượt timeout}
+\label{tab:scaling_detail} \\
+\hline
+\textbf{Bản đồ} & \textbf{Số agent} & \textbf{A*} & \textbf{PIBT C\#} & \textbf{PIBT C++/TCP} \\ \hline
+\endfirsthead
+\multicolumn{5}{l}{\small (tiếp theo Bảng~\ref{tab:scaling_detail})} \\ \hline
+\textbf{Bản đồ} & \textbf{Số agent} & \textbf{A*} & \textbf{PIBT C\#} & \textbf{PIBT C++/TCP} \\ \hline
+\endhead
+Alpha32  &  6 & 144 & 196 & 177 \\
+         & 12 & 298 & 406 & 366 \\
+         & 24 & 618 & 841 & 758 \\
+         & 36 & 946 & 1\,288 & 1\,160 \\
+         & 72 & 1\,959 & 2\,665 & 2\,402 \\
+\hline
+Mansion  &  6 & 530 & 611 & 598 \\
+         & 12 & 1\,097 & 1\,265 & 1\,238 \\
+         & 24 & 2\,272 & 2\,619 & 2\,563 \\
+         & 36 & 3\,478 & 4\,009 & 3\,923 \\
+         & 72 & 7\,201 & 8\,301 & 8\,123$^\dagger$ \\
+\hline
+Chantry  &  6 & 530 & 556 & 602 \\
+         & 12 & 1\,097 & 1\,151 & 1\,247 \\
+         & 24 & 2\,272 & 2\,383 & 2\,581 \\
+         & 36 & 3\,478 & 3\,648 & 3\,951 \\
+         & 72 & 7\,201 & 7\,553 & 8\,180$^\dagger$ \\
+\hline
+Gallows  &  6 & 624 & 621 & 640 \\
+         & 12 & 1\,292 & 1\,286 & 1\,326 \\
+         & 24 & 2\,674 & 2\,663 & 2\,746 \\
+         & 36 & 4\,093 & 4\,076 & 4\,203 \\
+         & 72 & 8\,475 & 8\,440 & 8\,703$^\dagger$ \\
+\hline
+Maze128  &  6 & 820$^\dagger$ & 928$^\dagger$ & 820$^\dagger$ \\
+         & 12 & 1\,758$^\dagger$ & 1\,988$^\dagger$ & 1\,758$^\dagger$ \\
+         & 24 & 3\,768 & 4\,262 & 3\,768 \\
+         & 36 & 5\,886 & 6\,658 & 5\,886 \\
+         & 72 & 12\,616$^\dagger$ & 14\,271$^\dagger$ & 12\,617$^\dagger$ \\
+\hline
+\end{longtable}
+
+\subsection{Nhận xét và đánh giá}
+
+Từ toàn bộ kết quả thực nghiệm, có thể rút ra một số nhận xét. Về thời gian hoàn thành, ba thuật
+toán cho kết quả xấp xỉ nhau trên các bản đồ mở, với chênh lệch lớn nhất không quá 10\% ở mức
+sáu agent; hành vi cuối cùng là phá hủy Eagle Base tương đương nhau giữa ba thuật toán.
+
+Về số lần tái hoạch định, ba thuật toán bám khá sát nhau và cùng tăng gần tuyến tính theo số agent,
+chứ không tách thành các bậc cách biệt như giả định ban đầu. PIBT~C\# -- vốn được kỳ vọng sẽ ``bùng
+nổ'' replan do cơ chế thoát kẹt -- trên phiên bản đã hoàn thiện chỉ nhỉnh hơn A* một chút (xem
+Bảng~\ref{tab:peragent_evidence}). A* replan khi bị chặn hoặc hết chu kỳ; PIBT~C++/TCP đếm theo nhịp
+phía máy khách. Cần nhấn mạnh rằng định nghĩa ``một lần replan'' khác nhau giữa ba thuật toán
+(Bảng~\ref{tab:replan_mechanism}), nên đây là so sánh về nhịp tái hoạch định \emph{phía máy khách},
+và con số của PIBT~C++/TCP không bao gồm chi phí phối hợp bên trong máy chủ; bởi vậy không thể kết
+luận tuyệt đối ``thuật toán nào ít replan hơn thì tốt hơn''.
+
+Về số ô đã đi qua, PIBT~C++/TCP đi nhiều ô hơn hai thuật toán còn lại trên mọi bản đồ. Nguyên
+nhân là độ trễ TCP giữa Unity và máy chủ C++ khiến agent nhận lệnh chậm hơn một nhịp, dẫn đến
+nhiều bước chờ và chuyển hướng thừa.
+
+Về khả năng mở rộng (Mục~\ref{subsec:scaling}), khi tăng từ 6 lên 72 agent, số lần tái hoạch định
+tăng gần tuyến tính (mỗi agent thêm vào đóng góp một lượng gần cố định), còn thời gian hoàn thành
+biến động nhẹ quanh 80--150 giây. Tỉ lệ phá Eagle không suy giảm đơn điệu mà đạt đỉnh ở dải giữa
+(24--36 agent): quá ít agent thì thiếu lực tiếp cận mê cung lớn, quá nhiều agent thì các hành lang
+hẹp tắc nghẽn -- tồn tại một ``cửa sổ mật độ'' thuận lợi, phù hợp với nhận định chung về độ khó của
+MAPF theo mật độ~\cite{stern2019mapf,sharon2015cbs}.
+
+Về tác động của chướng ngại động, ngoài việc làm tăng nhẹ thời gian và số lần replan, môi trường
+động làm xuất hiện rõ chiều số lần phục hồi sau kẹt: PIBT~C\# phục hồi nhiều nhất nhờ cơ chế thoát
+kẹt cục bộ, A* gần như không phục hồi mà chỉ tính lại đường, còn PIBT~C++/TCP ở mức trung gian.
+Kết quả xác nhận cả ba thuật toán đều ứng phó được khi môi trường thay đổi. Riêng bản đồ mê cung
+Maze128 kích thước 128$\times$128 chỉ giải được ở dải 24--36 agent: ở mật độ quá thấp hoặc quá cao
+nó đều chạm trần thời gian, phản ánh giới hạn về tốc độ tiếp cận mục tiêu trên bản đồ mê cung lớn.
+
+Tổng hợp lại, mỗi thuật toán có thế mạnh riêng: A* đơn giản, ổn định và có số lần tái hoạch định
+thấp nhưng không phối hợp giữa các agent; PIBT~C\# phối hợp và thoát kẹt tốt với chi phí replan chỉ
+nhỉnh hơn A* một chút trên phiên bản đã hoàn thiện, đồng thời phục hồi tốt nhất trong môi trường
+động; PIBT~C++/TCP tách phần lập kế hoạch sang máy chủ C++ nhưng là biến thể nhạy cảm nhất với độ
+trễ kết nối, nên yếu hơn ở mật độ cao và môi trường động.
+
+% ============================================================
+\section{Triển khai}
+\label{sec:deployment}
+
+Hệ thống được triển khai theo hai hình thức chính: chạy cục bộ trong Unity Editor phục vụ
+phát triển và thực nghiệm, và triển khai trực tuyến trên nền tảng Google Cloud Platform
+(GCP) phục vụ người dùng cuối qua trình duyệt. Sơ đồ triển khai tổng thể được trình bày ở
+Hình~\ref{fig:deploy_gcp}. Các mục con dưới đây mô tả chi tiết từng thành phần.
+
+\subsection{Triển khai cục bộ}
+
+Trong quá trình phát triển và chạy thực nghiệm backtest, hệ thống được khởi động trực tiếp
+trong Unity Editor. Người dùng mở scene chính của dự án là
+\texttt{Assets/\allowbreak Scenes/\allowbreak Menu.unity} rồi nhấn Play; giao diện menu
+hiện ra cho phép chọn chế độ chơi đơn, chơi nhiều người hoặc vào
+backtest. Toàn bộ bản đồ, agent AI và Eagle Base được khởi tạo động tại thời điểm chạy dựa
+trên cấu hình bản đồ và thuật toán đã chọn. Với biến thể PIBT~C++/TCP, máy chủ PIBT chạy
+trên cùng máy tính (WSL/Ubuntu), Unity kết nối qua TCP tại địa chỉ nội bộ
+\texttt{127.0.0.1:7777} nên kết quả backtest không bao gồm độ trễ mạng thực tế.
+
+Hình thức cục bộ phục vụ hai mục đích: thứ nhất là môi trường phát triển nhanh, cho phép
+sửa mã nguồn và kiểm thử ngay trong Editor mà không cần quy trình build riêng; thứ hai là
+môi trường thực nghiệm chính thức, nơi toàn bộ 900 lượt backtest được thực hiện trong
+điều kiện kiểm soát.
+
+\subsection{Hạ tầng triển khai trên Google Cloud Platform}
+
+Để phục vụ người dùng cuối qua trình duyệt, hệ thống được triển khai trên Google Cloud
+Platform với project có định danh \texttt{tankmapf}, vùng
+\texttt{asia-\allowbreak southeast1} (Singapore)
+nhằm giảm thiểu độ trễ cho người dùng tại Việt Nam. Bảng~\ref{tab:gcp_infra} tóm tắt các
+thành phần hạ tầng chính.
+
+\begin{table}[htbp]
+\centering
+\caption{Thành phần hạ tầng GCP}
+\label{tab:gcp_infra}
+\small
+\begin{tabular}{lp{9cm}}
+\hline
+\textbf{Thành phần} & \textbf{Mô tả} \\ \hline
+Máy ảo (VM)  & Compute Engine \texttt{e2-medium} (2~vCPU, 4\,GB RAM),
+               chạy Ubuntu, đặt tại \texttt{asia-southeast1-b} \\
+Địa chỉ IP tĩnh & \texttt{google\_compute\_address} cấp phát IP công khai
+                   cố định, không đổi khi khởi động lại VM \\
+Firewall     & Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443 (HTTPS),
+               7777 (game UDP/TCP), 7778 (WebSocket nội bộ), 8080 (Registry nội bộ) \\
+GCS Bucket   & \texttt{tankmapf-tank-mapf-artifacts} lưu trữ artifact build
+               (server Linux, WebGL) theo mã commit \\
+Terraform    & Toàn bộ hạ tầng được khai báo dưới dạng mã (Infrastructure as Code)
+               trong thư mục \texttt{infra/gcp/*.tf}, cho phép tái tạo hoàn toàn
+               bằng lệnh \texttt{terraform apply} \\
+\hline
+\end{tabular}
+\end{table}
+
+Việc sử dụng Terraform đảm bảo tính tái lập: khi cần tạo lại môi trường từ đầu hoặc mở
+rộng sang vùng khác, toàn bộ hạ tầng có thể được dựng lên chỉ bằng một lệnh duy nhất mà
+không cần thao tác thủ công trên giao diện web của GCP.
+
+\subsection{Tên miền và chứng chỉ TLS}
+
+Ứng dụng WebGL sử dụng tên miền \texttt{luminx.io.vn} thay vì truy cập trực tiếp bằng địa
+chỉ IP. Ba bản ghi DNS loại~A được cấu hình: \texttt{luminx.io.vn} (gốc), \texttt{www} và
+\texttt{game} đều trỏ về địa chỉ IP tĩnh của máy ảo GCP. Tên miền phụ \texttt{game} phục
+vụ riêng cho kết nối WebSocket của chế độ nhiều người chơi, giúp tách biệt luồng dữ liệu
+trò chơi thời gian thực khỏi luồng tải trang tĩnh.
+
+Chứng chỉ TLS được cấp miễn phí bởi Let's Encrypt thông qua công cụ \texttt{certbot}, phủ
+cả ba tên miền trong cùng một chứng chỉ. Chứng chỉ tự động gia hạn nhờ tác vụ hẹn giờ
+(systemd timer) trên máy ảo. Việc sử dụng HTTPS là bắt buộc vì hai lý do kỹ thuật: thứ nhất,
+định dạng nén Brotli của bản WebGL chỉ được trình duyệt giải nén trên nguồn gốc an toàn
+(secure origin) -- trên HTTP thuần, trình duyệt không gửi tiêu đề
+\texttt{Accept-Encoding:\,br} và không tự giải nén, dẫn tới lỗi không tải được tệp
+\texttt{.br}; thứ hai, trang HTTPS yêu cầu mọi kết nối WebSocket phải dùng giao thức
+\texttt{wss://} (WebSocket Secure), nếu không trình duyệt sẽ chặn do chính sách
+mixed-content.
+
+\subsection{Nginx -- Reverse proxy và phục vụ WebGL}
+
+Nginx đóng vai trò lớp ngoài cùng tiếp nhận mọi yêu cầu từ trình duyệt, thực hiện bốn
+chức năng chính:
+
+\begin{enumerate}
+\item \textbf{Phục vụ tệp WebGL tĩnh qua HTTPS.} Bản WebGL được xuất với nén Brotli
+      (\texttt{.js.br}, \texttt{.wasm.br}, \texttt{.data.br}). Nginx gắn tiêu đề
+      \texttt{Content-Encoding:\,br} cho các tệp này để trình duyệt giải nén đúng cách.
+      Tệp được phục vụ từ thư mục \texttt{/opt/tank-mapf/web/current/} trên máy ảo.
+
+\item \textbf{Proxy ngược cho dịch vụ Registry.} Nginx chuyển tiếp bốn nhóm đường dẫn
+      tới dịch vụ Registry chạy trên cổng nội bộ 8080, gồm:
+      \texttt{/api/sessions}, \texttt{/api/rooms},
+      \texttt{/s/} và \texttt{/create}.
+      Registry là một ứng dụng Python nhẹ, quản lý vòng đời phòng chơi (tạo phòng, truy
+      vấn phòng, tạo đường liên kết mời).
+
+\item \textbf{Proxy WebSocket cho máy chủ trò chơi.} Tên miền phụ
+      \texttt{game.luminx.io.vn} được cấu hình riêng một khối \texttt{server} lắng nghe
+      cổng 443: Nginx thực hiện TLS termination rồi chuyển tiếp kết nối WebSocket tới máy
+      chủ trò chơi chạy plaintext trên cổng nội bộ 7778. Nhờ vậy, máy chủ trò chơi không
+      cần xử lý mã hóa TLS mà vẫn đảm bảo kết nối \texttt{wss://} từ phía trình duyệt.
+
+\item \textbf{Chuyển hướng HTTP sang HTTPS.} Mọi yêu cầu tới cổng 80 được trả mã 301
+      chuyển hướng sang HTTPS. Ngoại lệ duy nhất là đường dẫn xác thực chứng chỉ
+      \texttt{/.well-known/\allowbreak acme-challenge/} do Let's Encrypt yêu cầu.
+\end{enumerate}
+
+Bảng~\ref{tab:nginx_blocks} tóm tắt ba khối cấu hình server của Nginx trên máy ảo.
+
+\begin{table}[htbp]
+\centering
+\caption{Ba khối cấu hình Nginx trên máy ảo GCP}
+\label{tab:nginx_blocks}
+\small
+\begin{tabular}{llp{6.8cm}}
+\hline
+\textbf{Khối} & \textbf{Cổng} & \textbf{Chức năng} \\ \hline
+Site tĩnh (HTTPS) & 443 & Phục vụ WebGL Brotli + proxy Registry
+                            (\texttt{luminx.io.vn}, \texttt{www}) \\
+Game subdomain     & 443 & TLS termination + proxy WebSocket tới 7778
+                            (\texttt{game.luminx.io.vn}) \\
+Redirect           &  80 & Chuyển hướng HTTP $\to$ HTTPS, giữ ACME challenge \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Máy chủ PIBT C++ và mô hình client-server TCP}
+
+Biến thể thứ ba của hệ thống AI (PIBT~C++/TCP, lớp \texttt{GridEnemyAgent\allowbreak PIBT\_TCP}) tách
+phần lập kế hoạch đường đi ra khỏi tiến trình Unity và giao cho một máy chủ C++ độc lập
+chạy thuật toán PIBT/EPIBT. Mã nguồn máy chủ nằm trong kho
+\texttt{Server-PIBT-TeamNoMan-sSky}, được biên dịch và chạy trên môi trường Linux
+(WSL/Ubuntu trên máy phát triển hoặc trực tiếp trên máy ảo GCP).
+
+Giao thức giao tiếp giữa Unity và máy chủ PIBT là TCP đồng bộ theo nhịp (cadence-based):
+tại mỗi chu kỳ tái hoạch định, Unity gửi trạng thái hiện tại (vị trí lưới của toàn bộ
+agent) qua kết nối TCP, máy chủ C++ giải thuật toán rồi trả về ô mục tiêu tiếp theo cho
+từng agent. Lớp \texttt{PIBTTcpClient} xử lý kết nối cho bản chạy gốc (native), trong khi
+lớp \texttt{PIBTWebRelayClient} xử lý cho bản WebGL bằng cách chuyển tiếp lệnh qua hạ tầng
+WebSocket/HTTP.
+
+Cần phân biệt hai ngữ cảnh kết nối:
+\begin{itemize}
+\item Trong thực nghiệm backtest cục bộ, máy chủ PIBT chạy trên cùng máy tính với Unity,
+      kết nối qua \texttt{127.0.0.1:7777}; độ trễ TCP là không đáng kể và kết quả backtest
+      phản ánh thuần hiệu năng thuật toán.
+\item Trên môi trường production, máy chủ PIBT chạy trên máy ảo GCP; lệnh lập kế hoạch từ
+      trình duyệt của người dùng được chuyển tiếp qua hạ tầng WebSocket/Nginx tới tiến
+      trình PIBT C++ trên cùng máy ảo. Độ trễ thực tế bao gồm cả trễ mạng Internet giữa
+      người dùng và máy chủ.
+\end{itemize}
+
+Kiến trúc tách biệt này cho phép nâng cấp hoặc thay thế thuật toán phía máy chủ (ví dụ
+chuyển từ PIBT sang EPIBT) mà không cần build lại ứng dụng Unity, đồng thời tận dụng hiệu
+năng C++ cho phần tính toán nặng thay vì chạy toàn bộ trong C\#/IL2CPP.
+
+\subsection{Tích hợp liên tục và triển khai liên tục (CI/CD)}
+
+Quy trình CI/CD được xây dựng trên GitHub Actions, chia thành bốn workflow tách biệt nhằm
+dễ dàng gỡ lỗi và kiểm soát quyền truy cập. Bảng~\ref{tab:cicd_workflows} liệt kê các
+workflow cùng chức năng tương ứng.
+
+\begin{table}[htbp]
+\centering
+\caption{Các workflow CI/CD trên GitHub Actions}
+\label{tab:cicd_workflows}
+\small
+\begin{tabular}{lp{4.8cm}p{4.2cm}}
+\hline
+\textbf{Workflow} & \textbf{Chức năng} & \textbf{Kích hoạt} \\ \hline
+\texttt{ci-validate}    & Kiểm tra định dạng Terraform, cú pháp Python
+                          (Registry), cú pháp shell script; phát hiện tệp
+                          nhạy cảm bị commit & Push, Pull Request \\
+\texttt{terraform-plan} & Xác thực cấu hình hạ tầng, chạy
+                          \texttt{terraform plan} để xem trước thay đổi
+                          & Push, Pull Request \\
+\texttt{unity-build}    & Build artifact Linux Dedicated Server và WebGL,
+                          đóng gói theo mã commit, upload lên GCS bucket
+                          & Push, Manual \\
+\texttt{deploy-gcp}     & Triển khai artifact lên máy ảo GCP, khởi động lại
+                          dịch vụ, kiểm tra sức khỏe (smoke test)
+                          & Manual (có phê duyệt) \\ \hline
+\end{tabular}
+\end{table}
+
+Xác thực với GCP sử dụng cơ chế Workload Identity Federation qua giao thức OpenID Connect
+(OIDC): GitHub Actions nhận mã thông báo (token) tạm thời từ GCP mà không cần lưu trữ khóa
+JSON của tài khoản dịch vụ trong kho mã nguồn, giảm thiểu rủi ro rò rỉ bí mật. Quy trình
+triển khai production yêu cầu phê duyệt thủ công (manual approval) qua cơ chế GitHub
+Environment, đảm bảo không có thay đổi hạ tầng ngoài kiểm soát.
+
+Luồng CI/CD từ khi đẩy mã đến khi triển khai diễn ra như sau: lập trình viên đẩy mã lên
+nhánh \texttt{networking-gcp}, các workflow tự động kiểm tra định dạng và chạy
+\texttt{terraform plan}; nếu cần triển khai, lập trình viên kích hoạt \texttt{unity-build}
+để tạo artifact theo mã commit, sau đó kích hoạt \texttt{deploy-gcp} với mã commit tương
+ứng; workflow tải artifact từ GCS, giải nén trên máy ảo, khởi động lại các dịch vụ systemd
+(\texttt{tank-mapf-server}, \texttt{tank-mapf-\allowbreak server-web}, \texttt{tank-mapf-\allowbreak registry}),
+đồng thời cập nhật lại cấu hình Nginx và chạy bước kiểm tra sức khỏe tự động sau triển khai.
+
+\subsection{Sơ đồ triển khai tổng thể}
+
+Hình~\ref{fig:deploy_gcp} mô tả kiến trúc triển khai toàn bộ hệ thống trên môi trường
+production.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Hinhve/14_gcp_nginx_deployment.drawio.png}
+    \caption{Sơ đồ triển khai hệ thống trên GCP với Nginx, Registry và các dịch vụ trò chơi}
+    \label{fig:deploy_gcp}
+\end{figure}
+
+Theo sơ đồ trong Hình~\ref{fig:deploy_gcp}, luồng hoạt động diễn ra qua bốn bước khi
+người dùng truy cập trang
+\texttt{https://\allowbreak luminx.io.vn}.
+Bước một, trình duyệt tải bản WebGL tĩnh (các tệp \texttt{.js.br}, \texttt{.wasm.br},
+\texttt{.data.br}) từ Nginx qua HTTPS; sau khi ứng
+dụng WebGL khởi động, người dùng tạo hoặc tham gia phòng thông qua các lệnh gọi API tới
+dịch vụ Registry (proxy qua Nginx); khi trận đấu bắt đầu, trình duyệt mở kết nối
+\texttt{wss://game.luminx.io.vn} tới máy chủ trò chơi (Nginx terminate TLS rồi chuyển tiếp
+WebSocket tới cổng nội bộ 7778); nếu thuật toán được chọn là PIBT~TCP, máy chủ trò chơi
+giao tiếp với tiến trình PIBT C++ qua TCP nội bộ để lấy hành động cho các agent AI.
+
+Bản chạy gốc (native client, chạy trên máy tính) có thể kết nối trực tiếp tới máy chủ trò
+chơi bằng giao thức UDP trên cổng 7777, bỏ qua lớp WebSocket và Nginx, mang lại độ trễ
+thấp hơn so với bản WebGL. Riêng chế độ backtest không khả dụng trên bản WebGL do trình
+duyệt không hỗ trợ truy xuất hệ thống tệp để ghi kết quả CSV.
+
+\textbf{Kết chương~4:} Chương này đã trình bày trọn vẹn quá trình từ thiết kế đến đánh giá hệ
+thống: kiến trúc phân tầng tách biệt lõi MAPF khỏi giao diện và vật lý, thiết kế chi tiết ba biến
+thể agent dùng chung \texttt{TankController}, quá trình xây dựng ứng dụng kèm thống kê mã nguồn và
+minh họa đầy đủ các chức năng, đánh giá định lượng trên 900 run với năm mức agent ở cả hai môi
+trường, và cuối cùng là triển khai thực tế lên Google Cloud Platform. Kết quả cho thấy ba thuật
+toán có thế mạnh khác nhau và bộc lộ rõ giới hạn khi mật độ agent tăng -- là cơ sở cho các đóng
+góp kỹ thuật được trình bày sâu hơn ở Chương~\ref{chapter:SolutionAndContribution}.
+
+\end{document}

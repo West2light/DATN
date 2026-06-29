@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor Host as Host
+    actor Guest as Guest
+    participant Lobby as Lobby UI
+    participant Server as Game Server
+    participant Coord as Game Coordinator
+
+    Host->>Lobby: Open room
+    Guest->>Lobby: Join room
+    Lobby->>Server: Sync player list
+
+    loop Players choose tank and ready
+        Host->>Lobby: Ready
+        Guest->>Lobby: Ready
+        Lobby->>Server: Update ready state
+    end
+
+    alt All ready
+        Host->>Server: Start match
+        Server->>Coord: Load gameplay scene
+        Coord-->>Server: Spawn players and enemies
+        Server-->>Host: Replicate world state
+        Server-->>Guest: Replicate world state
+    else Not ready
+        Server-->>Lobby: Keep waiting
+    end

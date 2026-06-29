@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Agent as GridEnemyAgent
+    participant Loader as MapLoader
+    participant Planner as GridAStarPathfinder
+    participant Runtime as Enemy Runtime
+
+    loop Replan tick
+        Agent->>Loader: WorldToCell
+        Agent->>Planner: TryFindPath
+        Planner-->>Agent: Path
+        Agent->>Runtime: Follow waypoint
+        Agent->>Runtime: Move and rotate
+        opt Line of sight
+            Agent->>Runtime: Shoot
+        end
+        opt Stuck
+            Agent->>Runtime: Recover
+        end
+    end

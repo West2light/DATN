@@ -1,0 +1,656 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương~1 đã xác định bài toán MAPF và đề xuất định hướng giải pháp. Chương này phân
+tích chi tiết hiện trạng các giải pháp điều hướng đa agent trong game, từ đó xác định
+yêu cầu chức năng và phi chức năng của hệ thống cần xây dựng.
+
+% ============================================================
+\section{Khảo sát hiện trạng}
+\label{section:2.1}
+
+\subsection{Các giải pháp điều hướng trong game hiện tại}
+
+Các giải pháp điều hướng agent trong game thương mại và nghiên cứu học thuật có thể
+phân thành bốn nhóm chính:
+
+\textbf{(1) Unity NavMesh}: Unity Engine cung cấp hệ thống dẫn đường tự động dựa trên
+navigation mesh 3D. NavMesh tính toán đường đi cho từng agent độc lập và hỗ trợ tránh
+va chạm theo thời gian thực qua \textit{NavMeshAgent}. Ưu điểm: tích hợp sẵn, dễ sử
+dụng, hỗ trợ môi trường 3D phức tạp. Nhược điểm: không giải quyết bài toán MAPF (không
+đảm bảo tránh va chạm ở lớp lập kế hoạch cho môi trường lưới rời rạc), không tương
+thích với benchmark \texttt{.map} chuẩn MAPF.
+
+\textbf{(2) A* đơn agent}: Thuật toán A* \cite{hart1968astar} với heuristic Manhattan
+trên lưới ô vuông là giải pháp phổ biến nhất trong game 2D. Mỗi agent tìm đường độc
+lập mà không biết kế hoạch của agent khác. Ưu điểm: đơn giản, hiệu quả, dễ triển khai.
+Nhược điểm: va chạm giữa các agent phải xử lý ở lớp vật lý, không có phối hợp ở lớp
+lập kế hoạch, hiệu năng suy giảm khi số agent lớn do xử lý va chạm phản ứng.
+
+\textbf{(3) CBS và thuật toán MAPF tối ưu}: Conflict-Based Search \cite{sharon2015cbs}
+đảm bảo giải pháp tối ưu toàn cục (tổng số bước di chuyển nhỏ nhất). Ưu điểm: tối ưu,
+hoàn chỉnh. Nhược điểm: độ phức tạp tính toán tăng theo hàm mũ với số agent và mật độ
+va chạm, không thực tế cho game thời gian thực với nhiều agent.
+
+\textbf{(4) PIBT}: Priority Inheritance with Backtracking \cite{okumura2022pibt} là thuật
+toán MAPF chạy theo bước thời gian, hoàn chỉnh trên bản đồ có đường đi tồn tại, với
+độ phức tạp thực tế phù hợp cho môi trường thời gian thực. PIBT không đảm bảo tối ưu
+toàn cục nhưng thực hành cho kết quả tốt và đã được dùng trong các cuộc thi điều phối robot
+quốc tế \cite{lorr2024}.
+
+Bảng~\ref{tab:comparison} tổng hợp so sánh bốn giải pháp theo các tiêu chí phù hợp
+với yêu cầu của đồ án.
+
+\begin{center}
+\captionof{table}{So sánh các giải pháp điều hướng đa agent}
+\label{tab:comparison}
+\small
+\begin{tabular}{lcccc}
+\hline
+\textbf{Tiêu chí}           & \textbf{NavMesh} & \textbf{A* đơn} & \textbf{CBS} & \textbf{PIBT} \\ \hline
+Tránh va chạm đa agent     & Vật lý           & Vật lý          & Lập kế hoạch & Lập kế hoạch  \\
+Tính tối ưu                & Không            & Không           & Có           & Không         \\
+Thời gian thực             & Có               & Có              & Không        & Có            \\
+Tương thích bản đồ .map    & Không            & Có              & Có           & Có            \\
+Tích hợp Unity             & Có sẵn           & Tự triển khai   & Tự triển khai & Tự triển khai \\
+Hỗ trợ ràng buộc xoay      & Không            & Không           & Không        & Có (EPIBT)    \\
+Phù hợp đồ án              & Không            & Baseline        & Không        & Chính         \\ \hline
+\end{tabular}
+\end{center}
+
+Từ phân tích trên, đồ án lựa chọn A* làm baseline để có điểm so sánh quen thuộc,
+và PIBT làm thuật toán chính vì cân bằng tốt giữa hiệu quả và khả năng thực thi
+thời gian thực.
+
+Một khoảng trống đáng chú ý là phần lớn nghiên cứu MAPF học thuật (CBS, PIBT và các biến thể)
+được đánh giá trên benchmark thuần túy ở dạng lưới trừu tượng, nơi agent dịch chuyển tức thời
+giữa các ô và không chịu ràng buộc của một engine vật lý. Khi đưa vào game thực tế, agent là
+vật thể có quán tính, có hướng thân và va chạm vật lý, nên một lời giải hợp lệ trên lưới vẫn
+có thể không thực thi chính xác ở lớp vật lý (xoay giật, kẹt do quán tính). Đồ án lấp khoảng trống này bằng
+cách cho cả ba thuật toán chạy trên cùng một tầng điều khiển vật lý của Unity
+(\texttt{TankController}) và bổ sung mô hình hành động có xoay cho PIBT, nhờ đó kết quả so sánh
+phản ánh đúng hành vi trong môi trường game.
+
+\subsection{Khảo sát bản đồ benchmark MAPF}
+
+MovingAI MAPF benchmark \cite{sturtevant2012benchmarks} cung cấp hàng nghìn bản đồ
+với định dạng \texttt{.map} chuẩn, phân loại theo môi trường (mê cung, trong nhà, game).
+Đồ án sử dụng 5 bản đồ đại diện cho 5 kịch bản điển hình (Bảng~\ref{tab:maps}).
+
+\begin{center}
+\captionof{table}{Năm bản đồ benchmark sử dụng trong đồ án}
+\label{tab:maps}
+\small
+\begin{tabular}{llrrl}
+\hline
+\textbf{Nhãn} & \textbf{Tệp bản đồ}            & \textbf{Kích thước} & \textbf{Ô đi được} & \textbf{Đặc điểm} \\ \hline
+Alpha32   & random-32-32-10.map       & 32×32     & 922  (90\%)  & Thoáng, ít tường  \\
+Mansion   & ht\_mansion\_n.map        & 133×270   & 8959 (25\%)  & Hành lang hẹp     \\
+Chantry   & ht\_chantry.map           & 162×141   & 7461 (33\%)  & Phòng kín         \\
+Gallows   & lt\_gallowstemplar\_n.map & 251×180   & 10021 (22\%) & Vùng hẹp nhiều     \\
+Maze128   & maze-128-128-10.map       & 128×128   & 14818 (90\%) & Mê cung lớn       \\ \hline
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Tổng quan chức năng}
+\label{section:2.2}
+
+\subsection{Tác nhân hệ thống}
+\label{subsection:2.2.1}
+
+Hệ thống tương tác với năm tác nhân. \textbf{Người chơi} (Player) trực tiếp điều khiển
+xe tăng, chọn chế độ chơi và cấu hình trước trận; trong chế độ nhiều người, người chơi
+đảm nhận một trong hai vai \textbf{Chủ phòng} (Host) hoặc \textbf{Người tham gia} (Client).
+\textbf{Nghiên cứu viên} (Researcher) cấu hình, chạy và xem kết quả backtest -- chức năng
+\emph{chỉ tồn tại trong bản chạy local/Editor và bị ẩn ở bản production}. \textbf{Quản trị
+hệ thống} (DevOps) triển khai và vận hành máy chủ relay/PIBT trên hạ tầng đám mây. Hai
+tác nhân hệ thống là \textbf{Agent AI} (Enemy) -- do thuật toán MAPF điều khiển để tấn
+công Eagle Base, và \textbf{Máy chủ PIBT} (C++ qua TCP hoặc Relay đám mây) -- thực thi
+thuật toán PIBT bên ngoài Unity.
+
+\subsection{Biểu đồ use case tổng quan}
+\label{subsection:2.2.2}
+
+Hình~\ref{fig:uc_overview} trình bày biểu đồ use case tổng quan với năm nhóm chức năng
+mức cao. Các nhóm này được bóc tách thành use case chi tiết ở Mục~\ref{section:2.3}
+(nhóm A, B, C, D); nhóm E (triển khai \& vận hành) đặt ở Phụ lục~\ref{chapter:appendixB}.
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{Hinhve/uc_overview.png}
+\captionof{figure}{Biểu đồ use case tổng quan của hệ thống}
+\label{fig:uc_overview}
+\end{center}
+
+% ============================================================
+\section{Đặc tả use case chi tiết}
+\label{section:2.3}
+
+Use case được đánh số theo nhóm: A (chơi đơn), B (chơi nhiều người), C (tạm dừng và điều
+hướng phiên chơi), D (backtest). Nhóm E (triển khai \& vận hành) đặt ở
+Phụ lục~\ref{chapter:appendixB}. Mỗi use case kèm một biểu đồ thu gọn và một bảng đặc tả
+theo mẫu chuẩn gồm: mã, tên, tác nhân, mô tả, tiền điều kiện, luồng sự kiện chính, luồng
+thay thế/ngoại lệ và hậu điều kiện.
+
+\subsection{Nhóm A -- Chơi đơn}
+\label{subsection:2.3.1}
+
+Người chơi vào chế độ chơi đơn bằng nút \textbf{SINGLE PLAY} ở menu chính. Chế độ này được thiết kế nhằm cung cấp trải nghiệm độc lập, cho phép người chơi tham gia trò chơi mà không cần kết nối mạng hay tương tác với người chơi khác. Hình~\ref{fig:uc_groupA} minh họa biểu đồ use case tổng quan cho nhóm chức năng này, bao gồm ba use case chính nối tiếp nhau thành một luồng hoàn chỉnh. Cụ thể, quy trình bắt đầu bằng việc người chơi thiết lập các thông số cấu hình bản đồ, độ khó, thuật toán AI và khởi tạo ván đấu mới (A1). Trong quá trình chơi, người chơi sẽ thao tác trực tiếp để điều khiển xe tăng di chuyển, né tránh và bắn đạn tiêu diệt các xe tăng địch do hệ thống điều khiển (A2). Cuối cùng, khi thỏa mãn điều kiện kết thúc (người chơi bị tiêu diệt, cờ đại bàng bị phá hủy hoặc tiêu diệt hết địch), hệ thống sẽ tính toán kết quả và khép lại ván đấu (A3).
+
+\begin{center}
+\includegraphics[width=0.8\textwidth]{Hinhve/uc_groupA_single.png}
+\captionof{figure}{Biểu đồ use case nhóm A -- Chơi đơn}
+\label{fig:uc_groupA}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.68\textwidth]{Hinhve/uc_A1.png}
+\captionof{figure}{Use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}
+\label{fig:ucA1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}\label{tab:ucA1}\\
+\hline
+Mã use case    & UC-A1 \\
+Tên use case   & Cấu hình và bắt đầu ván chơi đơn \\
+Tác nhân chính & Người chơi \\
+Mô tả          & Người chơi chọn mẫu xe tăng, bản đồ và thuật toán AI rồi khởi động một ván chơi đơn chống các agent AI. \\
+Tiền điều kiện & Ứng dụng đang ở menu chính. \\
+Luồng sự kiện chính &
+1. Từ menu chính chọn SINGLE PLAY. \newline
+2. Chọn mẫu xe tăng. \newline
+3. Chọn bản đồ \texttt{.map}. \newline
+4. Chọn thuật toán AI (A*, PIBT hoặc PIBT\_TCP). \newline
+5. Bấm bắt đầu. \newline
+6. Hệ thống đọc tệp \texttt{.map}, dựng lưới ô và spawn xe tăng người chơi cùng Eagle Base. \newline
+7. \texttt{MapScenarioBootstrap} spawn các agent AI theo thuật toán đã chọn. \\
+Luồng thay thế / ngoại lệ &
+2a. Không chọn thủ công $\rightarrow$ dùng lựa chọn đã lưu (PlayerPrefs) hoặc mặc định Alpha32/A*. \newline
+4a. Chọn PIBT\_TCP nhưng máy chủ C++ chưa chạy $\rightarrow$ báo lỗi kết nối. \newline
+6a. Tệp \texttt{.map} không tìm thấy $\rightarrow$ dùng Alpha32. \\
+Hậu điều kiện  & Ván chơi đơn bắt đầu; agent AI dùng đúng thuật toán đã chọn. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_A2.png}
+\captionof{figure}{Use case UC-A2 -- Điều khiển xe tăng}
+\label{fig:ucA2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-A2 -- Điều khiển xe tăng}\label{tab:ucA2}\\
+\hline
+Mã use case    & UC-A2 \\
+Tên use case   & Điều khiển xe tăng \\
+Tác nhân chính & Người chơi \\
+Mô tả          & Trong trận, người chơi điều khiển thân xe, xoay tháp pháo và bắn đạn để phòng thủ Eagle Base. \\
+Tiền điều kiện & Đang trong một ván chơi. \\
+Luồng sự kiện chính &
+1. Người chơi nhập lệnh di chuyển (bàn phím), xoay tháp (chuột) và bắn (chuột trái). \newline
+2. \texttt{PlayerInput} chuyển lệnh tới \texttt{TankController}. \newline
+3. \texttt{TankMover} áp dụng vật lý Rigidbody2D; \texttt{Turret} bắn đạn lấy từ object pool. \newline
+4. Đạn va chạm mục tiêu và gây sát thương qua \texttt{Damagable}. \\
+Luồng thay thế / ngoại lệ &
+3a. Va chạm tường (lớp \texttt{ObstaclesMovement}) $\rightarrow$ xe tăng không đi xuyên. \\
+Hậu điều kiện  & Trạng thái vị trí xe tăng và đạn được cập nhật. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.55\textwidth]{Hinhve/uc_A3.png}
+\captionof{figure}{Use case UC-A3 -- Kết thúc ván chơi}
+\label{fig:ucA3}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-A3 -- Kết thúc ván chơi}\label{tab:ucA3}\\
+\hline
+Mã use case    & UC-A3 \\
+Tên use case   & Kết thúc ván chơi (thắng/thua) \\
+Tác nhân chính & Người chơi, Agent AI \\
+Mô tả          & Ván kết thúc khi Eagle Base bị phá hủy (agent thắng) hoặc người chơi tiêu diệt hết agent (người chơi thắng). \\
+Tiền điều kiện & Đang trong một ván chơi. \\
+Luồng sự kiện chính &
+1. Khi Eagle Base hết máu $\rightarrow$ \texttt{MapGameOverController} hiển thị màn hình thua. \newline
+2. Khi không còn agent sống và Eagle còn máu $\rightarrow$ \texttt{MapWinController} hiển thị màn hình thắng. \\
+Luồng thay thế / ngoại lệ &
+1a. Trong backtest, run chạm ngưỡng thời gian (timeout) $\rightarrow$ ghi kết quả \texttt{Timeout}. \\
+Hậu điều kiện  & Màn hình kết quả hiển thị; người chơi có thể chơi lại hoặc về menu. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\subsection{Nhóm B -- Chơi nhiều người}
+\label{subsection:2.3.2}
+
+Cả chế độ LAN và Internet đều được truy cập qua nút \textbf{MULTIPLAYER INTERNET} ở menu
+chính, dẫn tới màn chọn \emph{Host} hoặc \emph{Join}.
+Hệ thống hỗ trợ chơi nhiều người trên cả mạng LAN và Internet. Trên LAN
+(Hình~\ref{fig:uc_groupB_lan}), người chơi tạo phòng (B1) hoặc dò tìm và tham gia phòng
+(B2). Trên Internet (Hình~\ref{fig:uc_groupB_internet}), hệ thống dùng Unity Relay: chủ
+phòng tạo phòng và nhận mã phòng (B3), người tham gia vào bằng mã hoặc URL (B4). Cả hai
+môi trường dùng chung phòng chờ (B5), vòng chơi đồng bộ (B6) và xử lý rời phòng (B7).
+
+\begin{center}
+\includegraphics[width=0.85\textwidth]{Hinhve/uc_groupB_lan.png}
+\captionof{figure}{Biểu đồ use case nhóm B -- Chơi nhiều người (LAN)}
+\label{fig:uc_groupB_lan}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.92\textwidth]{Hinhve/uc_groupB_internet.png}
+\captionof{figure}{Biểu đồ use case nhóm B -- Chơi nhiều người (Internet)}
+\label{fig:uc_groupB_internet}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.42\textwidth]{Hinhve/uc_B1.png}
+\captionof{figure}{Use case UC-B1 -- Tạo phòng LAN}
+\label{fig:ucB1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B1 -- Tạo phòng LAN}\label{tab:ucB1}\\
+\hline
+Mã use case    & UC-B1 \\
+Tên use case   & Tạo phòng LAN \\
+Tác nhân chính & Chủ phòng (Host) \\
+Mô tả          & Người chơi tạo một phòng trên mạng LAN, khởi tạo máy chủ Fish-Net và công bố phòng để các máy khác dò tìm. \\
+Tiền điều kiện & Các máy ở cùng mạng LAN. \\
+Luồng sự kiện chính &
+1. Chủ phòng chọn bản đồ/chế độ và màu xe tăng, rồi chọn "Host". \newline
+2. \texttt{LanSessionManager} khởi tạo \texttt{NetworkManager} (Fish-Net); \texttt{LanDiscovery} phát quảng bá phòng. \newline
+3. Giao diện chuyển sang màn Hosting, hiển thị thông tin phòng và nút START. \\
+Luồng thay thế / ngoại lệ &
+2a. Cổng mạng bị chiếm $\rightarrow$ báo lỗi và quay lại màn chọn chế độ. \\
+Hậu điều kiện  & Phòng LAN đang chạy và chờ người tham gia. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.48\textwidth]{Hinhve/uc_B2.png}
+\captionof{figure}{Use case UC-B2 -- Tham gia phòng LAN}
+\label{fig:ucB2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B2 -- Tham gia phòng LAN}\label{tab:ucB2}\\
+\hline
+Mã use case    & UC-B2 \\
+Tên use case   & Tham gia phòng LAN \\
+Tác nhân chính & Người tham gia (Client) \\
+Mô tả          & Người chơi dò tìm trong mạng LAN hoặc nhập địa chỉ để tham gia một phòng có sẵn. \\
+Tiền điều kiện & Có một phòng LAN đang chạy trong cùng mạng. \\
+Luồng sự kiện chính &
+1. Người chơi chọn "Join". \newline
+2. \texttt{LanDiscovery} liệt kê các phòng tìm thấy, hoặc người chơi nhập địa chỉ thủ công. \newline
+3. Kết nối qua \texttt{LanNetworkBridge}; \texttt{JoinApprovalPayload} xác thực yêu cầu vào phòng. \newline
+4. Người chơi vào phòng chờ. \\
+Luồng thay thế / ngoại lệ &
+2a. Địa chỉ sai $\rightarrow$ báo lỗi kết nối, quay lại màn nhập địa chỉ. \\
+Hậu điều kiện  & Người tham gia đang ở trong phòng chờ. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.55\textwidth]{Hinhve/uc_B3.png}
+\captionof{figure}{Use case UC-B3 -- Tạo phòng Internet}
+\label{fig:ucB3}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B3 -- Tạo phòng Internet}\label{tab:ucB3}\\
+\hline
+Mã use case    & UC-B3 \\
+Tên use case   & Tạo phòng Internet \\
+Tác nhân chính & Chủ phòng (Host) \\
+Tác nhân phụ   & Máy chủ Relay/Registry \\
+Mô tả          & Tạo phòng chơi qua Internet bằng Unity Relay; hệ thống đăng ký vào registry và sinh mã phòng kèm đường dẫn tham gia. \\
+Tiền điều kiện & Có kết nối Internet; dịch vụ Relay và registry khả dụng. \\
+Luồng sự kiện chính &
+1. Chủ phòng chọn bản đồ/chế độ và màu xe tăng, rồi chọn tạo phòng Internet. \newline
+2. \texttt{RelayManager.CreateRoomAsync} cấp allocation và \texttt{joinCode}. \newline
+3. \texttt{InternetSessionClient} đăng ký registry, nhận về mã phòng, \texttt{joinUrl}, \texttt{webUrl}. \newline
+4. Hiển thị mã phòng; có thể sao chép qua \texttt{WebClipboard} (bản WebGL). \\
+Luồng thay thế / ngoại lệ &
+2a. Relay hoặc registry lỗi $\rightarrow$ báo lỗi và hủy thao tác. \\
+Hậu điều kiện  & Phòng Internet sẵn sàng; mã phòng được công bố cho người tham gia. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.55\textwidth]{Hinhve/uc_B4.png}
+\captionof{figure}{Use case UC-B4 -- Tham gia phòng Internet}
+\label{fig:ucB4}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B4 -- Tham gia phòng Internet}\label{tab:ucB4}\\
+\hline
+Mã use case    & UC-B4 \\
+Tên use case   & Tham gia phòng Internet \\
+Tác nhân chính & Người tham gia (Client) \\
+Tác nhân phụ   & Máy chủ Relay/Registry \\
+Mô tả          & Người chơi tham gia phòng Internet bằng mã phòng hoặc URL chia sẻ. \\
+Tiền điều kiện & Có mã phòng/URL hợp lệ; có kết nối Internet. \\
+Luồng sự kiện chính &
+1. Người chơi nhập mã phòng hoặc URL (\texttt{InternetJoinParser} tách mã). \newline
+2. \texttt{InternetSessionClient} tra cứu registry, lấy địa chỉ host và loại transport (ưu tiên \texttt{webHost} cho bản WebGL). \newline
+3. \texttt{RelayManager.JoinRoomAsync} kết nối bằng \texttt{joinCode}. \newline
+4. Người chơi vào phòng chờ. \\
+Luồng thay thế / ngoại lệ &
+1a. Mã sai hoặc registry không tìm thấy phòng $\rightarrow$ báo lỗi. \newline
+2a. Bản WebGL dùng endpoint web qua \texttt{PIBTWebRelayClient}. \\
+Hậu điều kiện  & Người tham gia đang ở trong phòng chờ Internet. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_B5.png}
+\captionof{figure}{Use case UC-B5 -- Phòng chờ \& bắt đầu trận}
+\label{fig:ucB5}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B5 -- Phòng chờ \& bắt đầu trận}\label{tab:ucB5}\\
+\hline
+Mã use case    & UC-B5 \\
+Tên use case   & Phòng chờ và bắt đầu trận \\
+Tác nhân chính & Chủ phòng, Người tham gia \\
+Mô tả          & Trong phòng chờ, mỗi người chơi bật trạng thái sẵn sàng; chủ phòng bắt đầu trận khi tất cả đã sẵn sàng. \\
+Tiền điều kiện & Người chơi đã ở trong phòng (LAN hoặc Internet). \\
+Luồng sự kiện chính &
+1. Mỗi người chơi bấm READY (đảo trạng thái \texttt{\_localReady}). \newline
+2. Trạng thái sẵn sàng được đồng bộ tới mọi máy. \newline
+3. Chủ phòng bấm START (\texttt{RequestStartServerRpc}). \newline
+4. Hệ thống đồng bộ bản đồ, spawn xe tăng cho mọi người chơi và Eagle Base chung. \\
+Luồng thay thế / ngoại lệ &
+3a. Còn người chưa sẵn sàng $\rightarrow$ nút START bị vô hiệu hóa. \\
+Hậu điều kiện  & Trận nhiều người bắt đầu đồng bộ trên mọi máy. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.6\textwidth]{Hinhve/uc_B6.png}
+\captionof{figure}{Use case UC-B6 -- Chơi mạng nhiều người}
+\label{fig:ucB6}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B6 -- Chơi mạng nhiều người}\label{tab:ucB6}\\
+\hline
+Mã use case    & UC-B6 \\
+Tên use case   & Chơi mạng nhiều người \\
+Tác nhân chính & Chủ phòng, Người tham gia \\
+Tác nhân phụ   & Máy chủ Relay/PIBT \\
+Mô tả          & Nhiều người chơi cùng phòng thủ Eagle Base; trạng thái xe tăng, đạn và Eagle được đồng bộ thời gian thực; số agent AI tỉ lệ theo số người chơi. \\
+Tiền điều kiện & Trận đã được bắt đầu (UC-B5). \\
+Luồng sự kiện chính &
+1. Mỗi người chơi điều khiển xe tăng của mình (UC-A2). \newline
+2. \texttt{LanGameCoordinator}/\texttt{NetworkManager} đồng bộ trạng thái qua Relay hoặc LAN. \newline
+3. Số agent bằng số người chơi nhân với hệ số; các agent tấn công Eagle Base chung. \newline
+4. Trận kết thúc đồng bộ trên mọi máy (UC-A3). \\
+Luồng thay thế / ngoại lệ &
+2a. Một người tham gia mất kết nối $\rightarrow$ chủ phòng nhận thông báo và tiếp tục với số người còn lại. \\
+Hậu điều kiện  & Kết quả chung được hiển thị đồng bộ trên mọi máy. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_B7.png}
+\captionof{figure}{Use case UC-B7 -- Rời phòng / Huỷ kết nối}
+\label{fig:ucB7}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-B7 -- Rời phòng / Huỷ kết nối}\label{tab:ucB7}\\
+\hline
+Mã use case    & UC-B7 \\
+Tên use case   & Rời phòng hoặc huỷ kết nối \\
+Tác nhân chính & Chủ phòng, Người tham gia \\
+Mô tả          & Người chơi huỷ thao tác kết nối hoặc rời phòng; hệ thống xử lý ngắt kết nối sạch và giải phóng tài nguyên. \\
+Tiền điều kiện & Đang ở màn kết nối hoặc đang trong phòng. \\
+Luồng sự kiện chính &
+1. Người chơi bấm Cancel hoặc Rời phòng. \newline
+2. Hệ thống đóng kết nối, giải phóng allocation Relay (nếu có) và quay lại menu. \\
+Luồng thay thế / ngoại lệ &
+1a. Chủ phòng rời $\rightarrow$ phòng đóng, các người tham gia nhận thông báo và trở về menu. \\
+Hậu điều kiện  & Người chơi trở về menu; tài nguyên mạng được giải phóng. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\subsection{Nhóm C -- Tạm dừng và điều hướng phiên chơi}
+\label{subsection:2.3.3}
+
+Trong khi chơi (đơn hoặc nhiều người), người chơi có thể tạm dừng và tiếp tục ván (C1)
+hoặc quay lại menu chính (C2) thông qua lớp phủ tạm dừng. Hình~\ref{fig:uc_groupC} là
+biểu đồ use case nhóm này.
+
+\begin{center}
+\includegraphics[width=0.55\textwidth]{Hinhve/uc_groupC.png}
+\captionof{figure}{Biểu đồ use case nhóm C -- Tạm dừng và điều hướng}
+\label{fig:uc_groupC}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.42\textwidth]{Hinhve/uc_C1.png}
+\captionof{figure}{Use case UC-C1 -- Tạm dừng / Tiếp tục ván}
+\label{fig:ucC1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-C1 -- Tạm dừng / Tiếp tục ván}\label{tab:ucC1}\\
+\hline
+Mã use case    & UC-C1 \\
+Tên use case   & Tạm dừng và tiếp tục ván \\
+Tác nhân chính & Người chơi \\
+Mô tả          & Người chơi tạm dừng ván đang chơi và tiếp tục lại khi muốn. \\
+Tiền điều kiện & Đang trong một ván chơi. \\
+Luồng sự kiện chính &
+1. Người chơi bấm nút tạm dừng. \newline
+2. Hệ thống hiển thị lớp phủ PAUSED với hai nút RESUME và MENU. \newline
+3. Bấm RESUME $\rightarrow$ ván chơi tiếp tục từ trạng thái trước đó. \\
+Luồng thay thế / ngoại lệ &
+2a. Trong chế độ nhiều người, \texttt{ApplyNetworkPause} đồng bộ trạng thái tạm dừng phù hợp giữa các máy. \\
+Hậu điều kiện  & Ván chơi tiếp tục bình thường. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.42\textwidth]{Hinhve/uc_C2.png}
+\captionof{figure}{Use case UC-C2 -- Quay lại menu chính}
+\label{fig:ucC2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-C2 -- Quay lại menu chính}\label{tab:ucC2}\\
+\hline
+Mã use case    & UC-C2 \\
+Tên use case   & Quay lại menu chính \\
+Tác nhân chính & Người chơi \\
+Mô tả          & Từ lớp phủ tạm dừng, người chơi thoát ván hiện tại và trở về menu chính. \\
+Tiền điều kiện & Đang ở lớp phủ tạm dừng (đã tạm dừng ván). \\
+Luồng sự kiện chính &
+1. Người chơi bấm MENU trong lớp phủ tạm dừng. \newline
+2. Hệ thống kết thúc ván hiện tại và tải lại scene Menu. \\
+Luồng thay thế / ngoại lệ &
+1a. Trong chế độ nhiều người, rời ván đồng nghĩa rời phòng (xem UC-B7). \\
+Hậu điều kiện  & Người chơi trở về menu chính. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\subsection{Nhóm D -- Backtest (chỉ bản local/Editor)}
+\label{subsection:2.3.4}
+
+Backtest là quy trình nghiệp vụ quan trọng nhất từ góc độ nghiên cứu, dùng để so sánh
+định lượng ba thuật toán. Ở bản production, chức năng backtest bị ẩn -- người dùng chỉ
+thấy các chế độ chơi; muốn chạy backtest phải dùng bản local (Editor).
+Hình~\ref{fig:uc_groupD} là biểu đồ use case nhóm backtest.
+
+\begin{center}
+\includegraphics[width=0.7\textwidth]{Hinhve/uc_groupD_backtest.png}
+\captionof{figure}{Biểu đồ use case nhóm D -- Backtest (local/Editor)}
+\label{fig:uc_groupD}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.42\textwidth]{Hinhve/uc_D1.png}
+\captionof{figure}{Use case UC-D1 -- Cấu hình backtest}
+\label{fig:ucD1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-D1 -- Cấu hình backtest}\label{tab:ucD1}\\
+\hline
+Mã use case    & UC-D1 \\
+Tên use case   & Cấu hình backtest \\
+Tác nhân chính & Nghiên cứu viên \\
+Mô tả          & Cấu hình ma trận thực nghiệm: chọn bản đồ, thuật toán, số lần lặp, bật/tắt chướng ngại động và số agent. \\
+Tiền điều kiện & Chạy bản local/Editor; nếu chọn PIBT\_TCP thì máy chủ C++ đang chạy. \\
+Luồng sự kiện chính &
+1. Mở \texttt{BacktestConfigUI} (nút BACKTEST chỉ hiện trong Editor). \newline
+2. Chọn tổ hợp bản đồ × thuật toán × số lần lặp, bật/tắt chướng ngại động, đặt số agent. \newline
+3. Lưu cấu hình vào \texttt{BacktestMode}. \\
+Luồng thay thế / ngoại lệ &
+1a. Bản production không hiển thị nút BACKTEST $\rightarrow$ use case không khả dụng. \\
+Hậu điều kiện  & Cấu hình thực nghiệm sẵn sàng để chạy. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.55\textwidth]{Hinhve/uc_D2.png}
+\captionof{figure}{Use case UC-D2 -- Chạy backtest tự động}
+\label{fig:ucD2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-D2 -- Chạy backtest tự động}\label{tab:ucD2}\\
+\hline
+Mã use case    & UC-D2 \\
+Tên use case   & Chạy backtest tự động \\
+Tác nhân chính & Nghiên cứu viên \\
+Tác nhân phụ   & Máy chủ PIBT (C++) \\
+Mô tả          & Hệ thống lặp qua mọi tổ hợp cấu hình, mỗi run chạy kịch bản đến khi Eagle bị phá hoặc hết thời gian, thu thập chỉ số định lượng. \\
+Tiền điều kiện & Đã cấu hình backtest (UC-D1). \\
+Luồng sự kiện chính &
+1. Người dùng bấm Start. \newline
+2. \texttt{BacktestRunner} lặp qua từng tổ hợp (map × algorithm × rep). \newline
+3. Mỗi run spawn agent, chạy kịch bản, ghi chỉ số (replan, số ô đi, thời gian, kết quả). \newline
+4. Sau khi hết các run, xuất \texttt{backtest\_summary\_*.csv}, \texttt{backtest\_agents\_*.csv} và \texttt{backtest\_chart\_*.html}. \\
+Luồng thay thế / ngoại lệ &
+3a. PIBT\_TCP mất kết nối $\rightarrow$ ghi \texttt{Outcome=ConnectionError} và tiếp tục. \newline
+3b. Run chạm timeout $\rightarrow$ ghi \texttt{Outcome=Timeout}. \\
+Hậu điều kiện  & Tệp CSV và HTML chart xuất hiện trong thư mục \texttt{BacktestResults/}. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+\begin{center}
+\includegraphics[width=0.42\textwidth]{Hinhve/uc_D3.png}
+\captionof{figure}{Use case UC-D3 -- Xem kết quả backtest}
+\label{fig:ucD3}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{>{\bfseries}l >{\raggedright\arraybackslash}p{9.5cm}}
+\caption{Đặc tả use case UC-D3 -- Xem kết quả backtest}\label{tab:ucD3}\\
+\hline
+Mã use case    & UC-D3 \\
+Tên use case   & Xem kết quả backtest \\
+Tác nhân chính & Nghiên cứu viên \\
+Mô tả          & Nghiên cứu viên xem kết quả định lượng qua tệp CSV và biểu đồ HTML. \\
+Tiền điều kiện & Đã chạy ít nhất một đợt backtest và sinh tệp kết quả. \\
+Luồng sự kiện chính &
+1. Mở thư mục \texttt{BacktestResults/}. \newline
+2. Xem \texttt{backtest\_summary\_*.csv} để nắm kết quả tổng hợp. \newline
+3. Mở \texttt{backtest\_chart\_*.html} để xem biểu đồ trực quan. \newline
+4. Mở \texttt{backtest\_agents\_*.csv} để xem chi tiết chỉ số từng agent. \\
+Luồng thay thế / ngoại lệ &
+3a. Thiếu Python/matplotlib $\rightarrow$ không sinh được PNG nhưng HTML vẫn hiển thị bảng số liệu. \\
+Hậu điều kiện  & Người dùng nắm được kết quả định lượng của đợt thực nghiệm. \\
+\hline
+\end{longtable}
+}
+\vspace{16pt}
+
+% ============================================================
+\section{Yêu cầu phi chức năng}
+\label{section:2.4}
+
+\textbf{Hiệu năng}: Thuật toán A* phải hoàn thành tìm đường cho mỗi agent trong dưới
+5\,ms trên bản đồ nhỏ (Alpha32), để tổng thời gian tính toán mỗi khung hình không vượt
+quá 16\,ms (60\,FPS). Bộ giải PIBT -- cả bản C\# chạy trong tiến trình lẫn bản C++ giao
+tiếp qua TCP -- phải trả về kết quả lập kế hoạch cho mỗi bước phối hợp trong dưới 1 giây
+(không quá 1 giây), đủ nhanh để người chơi không cảm nhận được độ trễ và bảo đảm trải
+nghiệm chơi mượt mà.
+
+\textbf{Tính ổn định}: Mỗi run backtest phải tái lập được với cùng seed; hệ thống không
+được crash trong suốt 900 run liên tiếp.
+
+\textbf{Tính tương thích}: Ứng dụng chạy trên Windows 10/11 với Unity 6000.3.x; chế
+độ WebGL tương thích Chrome và Firefox. Tệp \texttt{.map} phải đọc được theo chuẩn
+MovingAI không cần chỉnh sửa.
+
+\textbf{Khả năng mở rộng}: Thêm thuật toán mới chỉ cần tạo lớp agent mới kế thừa
+interface chung, không cần thay đổi \texttt{BacktestRunner} hay \texttt{TankController}.
+
+\textbf{Tính quan sát được}: Hệ thống phải trực quan hóa hành vi thuật toán ngay trong game --
+vẽ đường đi dự kiến của agent và hiển thị chỉ số thời gian thực (số lần tái hoạch định, trạng
+thái kết nối server, thời gian còn lại của run) -- để người dùng quan sát trực tiếp khác biệt
+giữa ba thuật toán mà không cần đọc log thô.
+
+\textbf{Tính triển khai được}: Hệ thống phải đóng gói và triển khai được lên hạ tầng đám mây để
+phục vụ demo trực tuyến -- bản WebGL chạy trên trình duyệt không cần cài đặt, máy chủ PIBT đặt
+sau reverse proxy có HTTPS, và quy trình triển khai được tự động hóa để tái lập môi trường nhất
+quán (chi tiết phần triển khai ở Chương~\ref{chapter:Experiment}).
+
+\textbf{Kết chương~2:} Chương này đã phân tích bốn nhóm giải pháp điều hướng đa agent
+và xác nhận A* (baseline) cùng PIBT (thuật toán chính) là lựa chọn phù hợp nhất với yêu
+cầu đồ án. Năm bản đồ benchmark chuẩn đã được chọn để đảm bảo tính so sánh được với
+nghiên cứu cộng đồng. Hệ thống tác nhân và các use case theo nhóm A, B, C, D (cùng nhóm
+E ở phụ lục) đã được đặc tả chi tiết theo mẫu chuẩn kèm biểu đồ, làm cơ sở cho thiết kế
+hệ thống trong Chương~3 và Chương~4.
+
+\end{document}

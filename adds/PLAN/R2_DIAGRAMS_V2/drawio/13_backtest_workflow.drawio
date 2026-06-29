@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net" modified="2026-06-21T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="backtest_13" name="13_backtest_workflow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="bt_title" value="Backtest workflow" style="text;html=1;strokeColor=none;fillColor=none;fontSize=22;fontStyle=1;fontColor=#1f2937;align=center;" vertex="1" parent="1">
+          <mxGeometry x="520" y="30" width="360" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_cfg" value="config" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f8fb;strokeColor=#718096;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="230" width="180" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_ui" value="Backtest UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#718096;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="315" width="120" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_jobs" value="job matrix" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eaf8ef;strokeColor=#19a85b;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="230" width="210" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_matrix" value="maps x algos x reps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#19a85b;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="365" y="315" width="140" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_runnerp" value="runner" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eaf2ff;strokeColor=#3b74ff;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="230" width="220" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_runner" value="BacktestRunner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3b74ff;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="665" y="315" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_scene" value="scene run" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff3e8;strokeColor=#ff7a1a;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="920" y="230" width="220" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_run" value="Play until end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff7a1a;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="965" y="315" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_evi" value="evidence" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="560" width="520" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_metrics" value="Metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="660" y="625" width="120" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_csv" value="CSV" style="shape=document;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="820" y="620" width="100" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_chart" value="HTML / PNG" style="shape=document;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="960" y="620" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_report" value="Chapter 5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6a500;strokeWidth=2;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="865" y="705" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#718096;strokeWidth=2;" edge="1" parent="1" source="bt_ui" target="bt_matrix">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#19a85b;strokeWidth=2;" edge="1" parent="1" source="bt_matrix" target="bt_runner">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#3b74ff;strokeWidth=2;" edge="1" parent="1" source="bt_runner" target="bt_run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#d6a500;strokeWidth=2;" edge="1" parent="1" source="bt_run" target="bt_metrics">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#d6a500;strokeWidth=2;" edge="1" parent="1" source="bt_metrics" target="bt_csv">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#d6a500;strokeWidth=2;" edge="1" parent="1" source="bt_csv" target="bt_chart">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="bt_e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#d6a500;strokeWidth=2;" edge="1" parent="1" source="bt_chart" target="bt_report">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

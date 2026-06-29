@@ -1,0 +1,13 @@
+@startuml uc_D1
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Nghiên cứu viên" as R
+usecase "D1. Cấu hình backtest" as UC
+R --> UC
+@enduml
