@@ -15,6 +15,7 @@ public class MapLoader : MonoBehaviour
     public string mapFileName = "random-32-32-10.map";
     public float tileSize = 1f;
     public bool buildOnStart = false;
+    public bool fitCameraOnLoad = true;
     public Transform tilesParent;
 
     [Header("Build Window")]
@@ -454,6 +455,7 @@ public class MapLoader : MonoBehaviour
 
     private void FitCamera()
     {
+        if (!fitCameraOnLoad) return;
         Camera cam = Camera.main;
         if (cam == null) return;
 
