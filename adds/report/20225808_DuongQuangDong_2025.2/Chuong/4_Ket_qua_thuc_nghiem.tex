@@ -641,7 +641,7 @@ cận và hạ Eagle.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_duration_static.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_duration_static.png}
     \caption{Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}
     \label{fig:duration_static}
 \end{figure}
@@ -651,7 +651,7 @@ bản đồ mở và cùng chạm trần 180 giây trên bản đồ mê cung Ma
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_replan_static.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_replan_static.png}
     \caption{Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}
     \label{fig:replan_static}
 \end{figure}
@@ -740,7 +740,7 @@ ngột của môi trường.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest-dyn-on-2.png}
+    \includegraphics[width=0.72\textwidth]{Hinhve/backtest-dyn-on-2.png}
     \caption{Một lượt backtest A* với chướng ngại động trên Alpha32: bảng chỉ số bên phải hiển thị số lần replan và máu Eagle theo thời gian}
     \label{fig:backtest_dyn_run}
 \end{figure}
@@ -754,7 +754,7 @@ biểu đồ ở những mục sau.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_static_vs_dynamic.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_static_vs_dynamic.png}
     \caption{So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}
     \label{fig:static_vs_dynamic}
 \end{figure}
@@ -822,9 +822,9 @@ Ba xu hướng cơ chế đứng sau quy luật trên -- thời gian hoàn thàn
 timeout -- được làm rõ lần lượt ở Hình~\ref{fig:scaling_duration}, Hình~\ref{fig:scaling_replan}
 và Hình~\ref{fig:scaling_timeout}.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_duration_vs_agents.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_duration_vs_agents.png}
     \caption{Thời gian hoàn thành trung bình theo số lượng agent (môi trường tĩnh)}
     \label{fig:scaling_duration}
 \end{figure}
@@ -834,9 +834,9 @@ ngưỡng timeout 180 giây: với các lượt vẫn phá được Eagle, thờ
 (6 agent) lên khoảng 155 giây (72 agent). PIBT~C++/TCP luôn cao hơn hai biến thể còn lại một chút
 do độ trễ trao đổi gói tin TCP cộng dồn theo mỗi chu kỳ.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_replan_vs_agents.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_replan_vs_agents.png}
     \caption{Tổng số lần tái hoạch định trung bình theo số lượng agent, thang logarit (môi trường tĩnh)}
     \label{fig:scaling_replan}
 \end{figure}
@@ -851,9 +851,9 @@ một chút thay vì cao gấp nhiều lần~\cite{okumura2022pibt}. PIBT~C++/TC
 nhắc lại con số phía máy khách của biến thể này không bao gồm chi phí phối hợp bên trong máy chủ
 C++~\cite{sharon2015cbs}.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_timeout_vs_agents.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_timeout_vs_agents.png}
     \caption{Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}
     \label{fig:scaling_timeout}
 \end{figure}
@@ -921,9 +921,9 @@ và PIBT~C++/TCP vài lần ở mọi mức agent. A* gần như không dùng c�
 đột. Đây vừa là điểm linh hoạt (thoát kẹt tốt) vừa là điểm yếu (chi phí phục hồi bùng nổ khi tải
 lớn) của kiến trúc cục bộ.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=0.82\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
     \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
     \label{fig:scaling_recoveries}
 \end{figure}
