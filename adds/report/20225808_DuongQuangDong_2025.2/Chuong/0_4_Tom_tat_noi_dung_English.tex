@@ -9,7 +9,7 @@
 Multi-Agent Pathfinding (MAPF) requires simultaneous path planning for multiple agents
 navigating from their start positions to designated goals without collisions. In real-time
 strategy games, this problem becomes particularly challenging due to continuously changing
-environments, demanding agents to replan within milliseconds each frame. Traditional
+environments, demanding fast, real-time replanning as the environment changes. Traditional
 single-agent solutions such as A* do not inherently prevent inter-agent collisions, while
 globally optimal approaches like CBS impose computational costs too high for real-time
 environments.
@@ -26,12 +26,15 @@ Key contributions include: (i) a runtime map loading system that constructs grid
 physics colliders from the \texttt{.map} format without baking into the Unity scene;
 (ii) A* and PIBT implementations in C\# fully integrated with Unity physics and the
 shared tank control pipeline; (iii) a TCP protocol bridging Unity and an external
-PIBT C++ server; and (iv) an automated backtest system supporting static and
-dynamic-obstacle environments, exporting per-run CSV metrics. Experiments across
-5 maps, 3 algorithms, and 6 repetitions per combination (90 runs per condition)
+PIBT C++ server; (iv) an EPIBT-based rotation-handling improvement that removes the
+90-degree in-place snapping of agents; and (v) an automated backtest system supporting
+static and dynamic-obstacle environments, exporting per-run CSV metrics. Experiments across
+5 maps, 3 algorithms, and 5 agent-count levels (6, 12, 24, 36, 72) with 6 repetitions per
+combination over both static and dynamic environments (900 runs in total)
 show all three algorithms successfully destroy the Eagle target on 4 of 5 maps;
 PIBT exhibits higher replanning counts than A* due to its cooperative coordination
-mechanism; and enabling dynamic obstacles increases replanning by 30--50\% on
-average while the overall mission success rate remains stable.
+mechanism; completion time and timeout rate grow with the number of agents; and enabling
+dynamic obstacles increases replanning by 30--50\% on average while the overall mission
+success rate remains stable.
 
 \end{document}

@@ -4,63 +4,63 @@
 \contentsline {figure}{\numberline {2.2}{\ignorespaces Biểu đồ use case nhóm A -- Chơi đơn}}{8}{figure.2.2}%
 \contentsline {figure}{\numberline {2.3}{\ignorespaces Use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}}{8}{figure.2.3}%
 \contentsline {figure}{\numberline {2.4}{\ignorespaces Use case UC-A2 -- Điều khiển xe tăng}}{9}{figure.2.4}%
-\contentsline {figure}{\numberline {2.5}{\ignorespaces Use case UC-A3 -- Kết thúc ván chơi}}{9}{figure.2.5}%
-\contentsline {figure}{\numberline {2.6}{\ignorespaces Biểu đồ use case nhóm B -- Chơi nhiều người (LAN)}}{10}{figure.2.6}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Use case UC-A3 -- Kết thúc ván chơi}}{10}{figure.2.5}%
+\contentsline {figure}{\numberline {2.6}{\ignorespaces Biểu đồ use case nhóm B -- Chơi nhiều người (LAN)}}{11}{figure.2.6}%
 \contentsline {figure}{\numberline {2.7}{\ignorespaces Biểu đồ use case nhóm B -- Chơi nhiều người (Internet)}}{11}{figure.2.7}%
 \contentsline {figure}{\numberline {2.8}{\ignorespaces Use case UC-B1 -- Tạo phòng LAN}}{11}{figure.2.8}%
-\contentsline {figure}{\numberline {2.9}{\ignorespaces Use case UC-B2 -- Tham gia phòng LAN}}{11}{figure.2.9}%
+\contentsline {figure}{\numberline {2.9}{\ignorespaces Use case UC-B2 -- Tham gia phòng LAN}}{12}{figure.2.9}%
 \contentsline {figure}{\numberline {2.10}{\ignorespaces Use case UC-B3 -- Tạo phòng Internet}}{12}{figure.2.10}%
 \contentsline {figure}{\numberline {2.11}{\ignorespaces Use case UC-B4 -- Tham gia phòng Internet}}{13}{figure.2.11}%
 \contentsline {figure}{\numberline {2.12}{\ignorespaces Use case UC-B5 -- Phòng chờ \& bắt đầu trận}}{14}{figure.2.12}%
-\contentsline {figure}{\numberline {2.13}{\ignorespaces Use case UC-B6 -- Chơi mạng nhiều người}}{14}{figure.2.13}%
+\contentsline {figure}{\numberline {2.13}{\ignorespaces Use case UC-B6 -- Chơi mạng nhiều người}}{15}{figure.2.13}%
 \contentsline {figure}{\numberline {2.14}{\ignorespaces Use case UC-B7 -- Rời phòng / Huỷ kết nối}}{15}{figure.2.14}%
 \contentsline {figure}{\numberline {2.15}{\ignorespaces Biểu đồ use case nhóm C -- Tạm dừng và điều hướng}}{16}{figure.2.15}%
 \contentsline {figure}{\numberline {2.16}{\ignorespaces Use case UC-C1 -- Tạm dừng / Tiếp tục ván}}{16}{figure.2.16}%
 \contentsline {figure}{\numberline {2.17}{\ignorespaces Use case UC-C2 -- Quay lại menu chính}}{17}{figure.2.17}%
-\contentsline {figure}{\numberline {2.18}{\ignorespaces Biểu đồ use case nhóm D -- Backtest (local/Editor)}}{17}{figure.2.18}%
-\contentsline {figure}{\numberline {2.19}{\ignorespaces Use case UC-D1 -- Cấu hình backtest}}{17}{figure.2.19}%
+\contentsline {figure}{\numberline {2.18}{\ignorespaces Biểu đồ use case nhóm D -- Backtest (local/Editor)}}{18}{figure.2.18}%
+\contentsline {figure}{\numberline {2.19}{\ignorespaces Use case UC-D1 -- Cấu hình backtest}}{18}{figure.2.19}%
 \contentsline {figure}{\numberline {2.20}{\ignorespaces Use case UC-D2 -- Chạy backtest tự động}}{18}{figure.2.20}%
 \contentsline {figure}{\numberline {2.21}{\ignorespaces Use case UC-D3 -- Xem kết quả backtest}}{19}{figure.2.21}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {4.1}{\ignorespaces Biểu đồ gói UML của hệ thống Unity MAPF}}{25}{figure.caption.8}%
-\contentsline {figure}{\numberline {4.2}{\ignorespaces Sơ đồ hoạt động luồng giao diện chế độ chơi đơn đã triển khai}}{26}{figure.caption.9}%
-\contentsline {figure}{\numberline {4.3}{\ignorespaces Biểu đồ lớp các thành phần tìm đường và điều phối agent}}{27}{figure.caption.10}%
-\contentsline {figure}{\numberline {4.4}{\ignorespaces Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}}{28}{figure.caption.11}%
-\contentsline {figure}{\numberline {4.5}{\ignorespaces Sơ đồ hoạt động luồng Host/Join nhiều người chơi qua Internet}}{29}{figure.caption.13}%
-\contentsline {figure}{\numberline {4.6}{\ignorespaces Biểu đồ trình tự tạo phòng chơi nhiều người qua Internet}}{30}{figure.caption.14}%
-\contentsline {figure}{\numberline {4.7}{\ignorespaces Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi nhiều người qua Internet}}{31}{figure.caption.15}%
-\contentsline {figure}{\numberline {4.8}{\ignorespaces Màn hình menu chính với hai chế độ SINGLE PLAY và MULTIPLAYER INTERNET}}{32}{figure.caption.18}%
-\contentsline {figure}{\numberline {4.9}{\ignorespaces Chế độ chơi đơn -- màn chọn mẫu/màu xe tăng}}{33}{figure.caption.19}%
-\contentsline {figure}{\numberline {4.10}{\ignorespaces Chế độ chơi đơn -- màn chọn bản đồ và thuật toán AI}}{33}{figure.caption.20}%
-\contentsline {figure}{\numberline {4.11}{\ignorespaces Một trận chơi đơn đang diễn ra}}{34}{figure.caption.21}%
-\contentsline {figure}{\numberline {4.12}{\ignorespaces Chế độ nhiều người -- chọn vai trò Host/Join}}{34}{figure.caption.22}%
-\contentsline {figure}{\numberline {4.13}{\ignorespaces Chế độ nhiều người -- chọn bản đồ và số agent đối thủ}}{35}{figure.caption.23}%
-\contentsline {figure}{\numberline {4.14}{\ignorespaces Phòng chờ nhiều người phía chủ phòng (Host)}}{35}{figure.caption.24}%
-\contentsline {figure}{\numberline {4.15}{\ignorespaces Một trận nhiều người đang diễn ra}}{36}{figure.caption.25}%
-\contentsline {figure}{\numberline {4.16}{\ignorespaces Hai màn hình kết thúc trận của chế độ chơi đơn}}{36}{figure.caption.26}%
-\contentsline {figure}{\numberline {4.17}{\ignorespaces Quy trình thực nghiệm backtest tự động}}{37}{figure.caption.28}%
-\contentsline {figure}{\numberline {4.18}{\ignorespaces Giao diện cấu hình backtest: chọn bản đồ, số lần chạy, số lượng agent và bật/tắt chướng ngại động}}{38}{figure.caption.29}%
-\contentsline {figure}{\numberline {4.19}{\ignorespaces Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}}{40}{figure.caption.33}%
-\contentsline {figure}{\numberline {4.20}{\ignorespaces Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}}{40}{figure.caption.34}%
-\contentsline {figure}{\numberline {4.21}{\ignorespaces Backtest A* trên Alpha32: tắt (trái, chỉ thùng tĩnh màu tím) và bật (phải, xuất hiện thêm khối kim loại động màu đen) chế độ chướng ngại động}}{41}{figure.caption.36}%
-\contentsline {figure}{\numberline {4.22}{\ignorespaces Một lượt backtest A* với chướng ngại động trên Alpha32: bảng chỉ số bên phải hiển thị số lần replan và máu Eagle theo thời gian}}{42}{figure.caption.37}%
-\contentsline {figure}{\numberline {4.23}{\ignorespaces So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}}{42}{figure.caption.38}%
-\contentsline {figure}{\numberline {4.24}{\ignorespaces Thời gian hoàn thành trung bình theo số lượng agent (môi trường tĩnh)}}{43}{figure.caption.40}%
-\contentsline {figure}{\numberline {4.25}{\ignorespaces Tổng số lần tái hoạch định trung bình theo số lượng agent, thang logarit (môi trường tĩnh)}}{44}{figure.caption.41}%
-\contentsline {figure}{\numberline {4.26}{\ignorespaces Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}}{44}{figure.caption.42}%
-\contentsline {figure}{\numberline {4.27}{\ignorespaces Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}}{45}{figure.caption.44}%
-\contentsline {figure}{\numberline {4.28}{\ignorespaces Sơ đồ triển khai hệ thống trên GCP với Nginx, Registry và các dịch vụ trò chơi}}{52}{figure.caption.48}%
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Biểu đồ gói UML của hệ thống Unity MAPF}}{28}{figure.caption.8}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Sơ đồ hoạt động luồng giao diện chế độ chơi đơn đã triển khai}}{29}{figure.caption.9}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Biểu đồ lớp các thành phần tìm đường và điều phối agent}}{30}{figure.caption.10}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Luồng dữ liệu MAPF: từ tệp bản đồ đến chuyển động agent}}{31}{figure.caption.11}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Sơ đồ hoạt động luồng Host/Join nhiều người chơi qua Internet}}{32}{figure.caption.13}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces Biểu đồ trình tự tạo phòng chơi nhiều người qua Internet}}{33}{figure.caption.14}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces Biểu đồ trình tự sẵn sàng và bắt đầu ván chơi nhiều người qua Internet}}{34}{figure.caption.15}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces Màn hình menu chính với hai chế độ SINGLE PLAY và MULTIPLAYER INTERNET}}{36}{figure.caption.18}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces Chế độ chơi đơn -- màn chọn mẫu/màu xe tăng}}{36}{figure.caption.19}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces Chế độ chơi đơn -- màn chọn bản đồ và thuật toán AI}}{37}{figure.caption.20}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces Một trận chơi đơn đang diễn ra}}{37}{figure.caption.21}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces Chế độ nhiều người -- chọn vai trò Host/Join}}{38}{figure.caption.22}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces Chế độ nhiều người -- chọn bản đồ và số agent đối thủ}}{39}{figure.caption.23}%
+\contentsline {figure}{\numberline {4.14}{\ignorespaces Phòng chờ nhiều người phía chủ phòng (Host)}}{39}{figure.caption.24}%
+\contentsline {figure}{\numberline {4.15}{\ignorespaces Một trận nhiều người đang diễn ra}}{40}{figure.caption.25}%
+\contentsline {figure}{\numberline {4.16}{\ignorespaces Hai màn hình kết thúc trận của chế độ chơi đơn}}{40}{figure.caption.26}%
+\contentsline {figure}{\numberline {4.17}{\ignorespaces Quy trình thực nghiệm backtest tự động}}{41}{figure.caption.28}%
+\contentsline {figure}{\numberline {4.18}{\ignorespaces Giao diện cấu hình backtest: chọn bản đồ, số lần chạy, số lượng agent và bật/tắt chướng ngại động}}{42}{figure.caption.29}%
+\contentsline {figure}{\numberline {4.19}{\ignorespaces Thời gian hoàn thành trung bình theo bản đồ (môi trường tĩnh)}}{44}{figure.caption.33}%
+\contentsline {figure}{\numberline {4.20}{\ignorespaces Tổng số lần tái hoạch định trung bình theo bản đồ, thang logarit (môi trường tĩnh)}}{45}{figure.caption.34}%
+\contentsline {figure}{\numberline {4.21}{\ignorespaces Backtest A* trên Alpha32: tắt (trái, chỉ thùng tĩnh màu tím) và bật (phải, xuất hiện thêm khối kim loại động màu đen) chế độ chướng ngại động}}{46}{figure.caption.36}%
+\contentsline {figure}{\numberline {4.22}{\ignorespaces Một lượt backtest A* với chướng ngại động trên Alpha32: bảng chỉ số bên phải hiển thị số lần replan và máu Eagle theo thời gian}}{47}{figure.caption.37}%
+\contentsline {figure}{\numberline {4.23}{\ignorespaces So sánh số lần tái hoạch định giữa môi trường tĩnh và có chướng ngại động}}{47}{figure.caption.38}%
+\contentsline {figure}{\numberline {4.24}{\ignorespaces Thời gian hoàn thành trung bình theo số lượng agent (môi trường tĩnh)}}{49}{figure.caption.40}%
+\contentsline {figure}{\numberline {4.25}{\ignorespaces Tổng số lần tái hoạch định trung bình theo số lượng agent, thang logarit (môi trường tĩnh)}}{49}{figure.caption.41}%
+\contentsline {figure}{\numberline {4.26}{\ignorespaces Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}}{50}{figure.caption.42}%
+\contentsline {figure}{\numberline {4.27}{\ignorespaces Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}}{51}{figure.caption.44}%
+\contentsline {figure}{\numberline {4.28}{\ignorespaces Sơ đồ triển khai hệ thống trên GCP với Nginx, Registry và các dịch vụ trò chơi}}{58}{figure.caption.48}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{54}{figure.caption.49}%
-\contentsline {figure}{\numberline {5.2}{\ignorespaces Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}}{55}{figure.caption.50}%
-\contentsline {figure}{\numberline {5.3}{\ignorespaces Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}}{56}{figure.caption.51}%
-\contentsline {figure}{\numberline {5.4}{\ignorespaces Lộ trình chuyển từ PIBT sang EPIBT cho Enemy Agent: khái niệm trong bài báo (vấn đề xoay hướng), phần thích ứng cho game (multi-action operation, kế thừa operation) và phần tích hợp máy chủ (phiên lập kế hoạch, trả về hành động đầu tiên)}}{57}{figure.caption.52}%
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{60}{figure.caption.49}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}}{61}{figure.caption.50}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}}{62}{figure.caption.51}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Lộ trình chuyển từ PIBT sang EPIBT cho Enemy Agent: khái niệm trong bài báo (vấn đề xoay hướng), phần thích ứng cho game (multi-action operation, kế thừa operation) và phần tích hợp máy chủ (phiên lập kế hoạch, trả về hành động đầu tiên)}}{63}{figure.caption.52}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {B.1}{\ignorespaces Biểu đồ use case nhóm E -- Triển khai \& vận hành}}{67}{figure.1.B.1}%
-\contentsline {figure}{\numberline {B.2}{\ignorespaces Use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{67}{figure.1.B.2}%
-\contentsline {figure}{\numberline {B.3}{\ignorespaces Use case UC-E2 -- Chạy dedicated server}}{68}{figure.1.B.3}%
+\contentsline {figure}{\numberline {B.1}{\ignorespaces Biểu đồ use case nhóm E -- Triển khai \& vận hành}}{73}{figure.1.B.1}%
+\contentsline {figure}{\numberline {B.2}{\ignorespaces Use case UC-E1 -- Triển khai PIBT/Relay lên GCP}}{73}{figure.1.B.2}%
+\contentsline {figure}{\numberline {B.3}{\ignorespaces Use case UC-E2 -- Chạy dedicated server}}{74}{figure.1.B.3}%
 \contentsfinish 
 \contentsfinish 

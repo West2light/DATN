@@ -9,8 +9,8 @@
 Bài toán tìm đường đa tác nhân (Multi-Agent Pathfinding -- MAPF) yêu cầu lập kế hoạch
 đồng thời cho nhiều agent di chuyển từ vị trí xuất phát đến đích mà không va chạm nhau.
 Trong bối cảnh game chiến thuật thời gian thực, bài toán này càng trở nên khó khăn hơn
-khi môi trường thay đổi liên tục, đòi hỏi các agent phải tái lập kế hoạch nhanh trong
-vài mili-giây mỗi khung hình. Các giải pháp tìm đường truyền thống cho agent đơn lẻ
+khi môi trường thay đổi liên tục, đòi hỏi các agent phải tái lập kế hoạch nhanh theo
+thời gian thực. Các giải pháp tìm đường truyền thống cho agent đơn lẻ
 như A* không đảm bảo tránh va chạm giữa nhiều agent, trong khi các phương pháp tối ưu
 toàn cục như CBS đòi hỏi chi phí tính toán quá lớn cho môi trường thời gian thực.
 
@@ -24,12 +24,14 @@ thực nghiệm có thể so sánh với nghiên cứu cộng đồng.
 
 Đồ án đóng góp: (i) hệ thống đọc và dựng bản đồ động từ định dạng \texttt{.map} tại
 thời điểm chạy; (ii) triển khai A* và PIBT trong C\# tích hợp hoàn toàn với vật lý
-Unity; (iii) giao thức TCP kết nối Unity và máy chủ PIBT C++; (iv) hệ thống backtest
-tự động với môi trường tĩnh và chướng ngại động, xuất kết quả CSV để phân tích định
-lượng. Thực nghiệm trên 5 bản đồ với 3 thuật toán, 6 lần lặp mỗi tổ hợp (90 run mỗi
-bộ) cho thấy cả ba thuật toán đều hoàn thành nhiệm vụ trên 4/5 bản đồ; PIBT có số lần
-tái hoạch định cao hơn A* do cơ chế phối hợp đa agent; khi bật chướng ngại động, số
-lần replan tăng trung bình 30--50\% nhưng hệ thống vẫn duy trì được mục tiêu.
+Unity; (iii) giao thức TCP kết nối Unity và máy chủ PIBT C++; (iv) cải tiến mô hình xoay
+của agent dựa trên EPIBT để loại bỏ hiện tượng xoay giật; và (v) hệ thống backtest tự động
+với môi trường tĩnh và chướng ngại động, xuất kết quả CSV để phân tích định lượng. Thực
+nghiệm trên 5 bản đồ, 3 thuật toán và 5 mức số lượng agent (6, 12, 24, 36, 72), 6 lần lặp
+mỗi tổ hợp trên cả môi trường tĩnh và động (tổng 900 run) cho thấy cả ba thuật toán đều hoàn
+thành nhiệm vụ trên 4/5 bản đồ; PIBT có số lần tái hoạch định cao hơn A* do cơ chế phối hợp
+đa agent; thời gian hoàn thành và tỉ lệ timeout tăng dần theo số agent; và khi bật chướng ngại
+động, số lần replan tăng trung bình 30--50\% nhưng hệ thống vẫn duy trì được mục tiêu.
 
 \begin{flushright}
 Sinh viên thực hiện\\

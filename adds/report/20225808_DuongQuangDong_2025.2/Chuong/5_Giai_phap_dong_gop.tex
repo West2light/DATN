@@ -132,7 +132,7 @@ PIBT C++/TCP hoàn thành nhiệm vụ trên cùng 4/5 bản đồ với thời 
 (chênh lệch < 5\% so với PIBT C\#). Agent TCP di qua nhiều ô hơn 20--70\% do độ
 trễ TCP (một tick) khiến agent đôi khi chờ lệnh; đây là chi phí của kiến trúc
 client--server mà có thể giảm bằng cách tăng tần suất tick. Kết nối TCP ổn định
-trong suốt 90 run thực nghiệm mà không gặp lỗi mất kết nối.
+trong suốt quá trình thực nghiệm mà không gặp lỗi mất kết nối.
 
 % ============================================================
 \section{Cải tiến mô hình xoay của Enemy Agent dựa trên EPIBT}
@@ -263,6 +263,12 @@ rộng của chúng khi tải tăng dần (chi tiết ở Chương~4). Khi bật
 thuật toán đều phản ứng được với thay đổi môi trường thời gian thực; số lần replan và số
 lần phục hồi sau kẹt đều tăng, trong đó PIBT~C\# phục hồi nhiều nhất nhờ cơ chế thoát kẹt
 cục bộ.
+
+Điểm mới của đồ án không nằm ở việc phát minh thuật toán mới, mà ở việc hợp nhất ba cấp độ
+MAPF -- từ baseline A* tới PIBT phối hợp và PIBT/EPIBT hiệu năng cao -- vào cùng một game có vật
+lý thực tế, dưới chung một tầng điều khiển và một hệ thống đo lường. Cách tiếp cận này đưa các
+thuật toán vốn chỉ được đánh giá trên benchmark trừu tượng vào một môi trường game có thể chơi,
+quan sát và so sánh định lượng trực tiếp -- điều hiếm thấy trong các nghiên cứu đã khảo sát.
 
 \textbf{Kết chương~5:} Sáu đóng góp kỹ thuật của đồ án -- từ hạ tầng bản đồ động, ba
 cấp độ thuật toán MAPF và cải tiến mô hình xoay hướng bằng EPIBT, đến hệ thống backtest

@@ -19,8 +19,9 @@ Pathfinding -- được nghiên cứu rộng rãi trong lĩnh vực trí tuệ n
 MAPF yêu cầu lập kế hoạch đồng thời cho $k$ agent trên đồ thị lưới để đảm bảo mỗi
 agent đến đích trong thời gian tối thiểu mà không va chạm nhau tại bất kỳ bước thời
 gian nào. Trong môi trường game thời gian thực, bài toán này đặt ra thêm ràng buộc
-về thời gian tính toán: thuật toán phải phản hồi trong vài mili-giây và phải tái lập
-kế hoạch liên tục khi môi trường thay đổi.
+về thời gian tính toán: thuật toán phải phản hồi gần như tức thời -- A* cỡ mili-giây mỗi
+khung hình, còn bộ lập kế hoạch phối hợp đa agent trong dưới một giây mỗi bước -- và phải
+tái lập kế hoạch liên tục khi môi trường thay đổi.
 
 Các thuật toán tìm đường agent đơn như A* \cite{hart1968astar} được sử dụng phổ biến
 trong game nhờ độ đơn giản và hiệu quả, nhưng khi áp dụng độc lập cho nhiều agent,
@@ -40,6 +41,15 @@ nhiều nhất) trong Main Round 2024. Tuy nhiên, các cài đặt đoạt gi�
 C++ chạy benchmark, không thể chơi hay tương tác trực tiếp. Đồ án kế thừa ý tưởng và
 thuật toán của Team No Man's Sky rồi đưa vào Unity, để người chơi có thể trực tiếp trải
 nghiệm và quan sát hành vi phối hợp đa agent một cách trực quan ngay trong game.
+
+Độ khó của bài toán đến từ hai phía. Về quy mô, các lời giải dẫn đầu ở LoRR phải điều phối tới
+hàng nghìn, thậm chí hơn mười nghìn agent và trả lời trong ngân sách thời gian chặt chẽ mỗi
+bước; tuy game của đồ án chạy ở quy mô nhỏ hơn nhiều, việc khảo sát từ 6 đến 72 agent đã đủ để
+bộc lộ xu hướng suy giảm hiệu năng theo mật độ. Về tích hợp, đưa một bộ lập kế hoạch MAPF vào
+engine vật lý thời gian thực đặt ra ràng buộc mà benchmark thuần túy không có: agent là xe tăng
+có hướng thân, phải xoay trước khi tiến, nên lời giải trên lưới phải được chuyển thành chuyển
+động vật lý mượt mà -- ràng buộc xoay này về sau được xử lý bằng cải tiến EPIBT ở
+Mục~\ref{section:5.5}.
 
 Thực tế trong ngành game, phần lớn các tựa game RTS và tower-defense hiện tại sử dụng
 thuật toán tìm đường đơn giản hoặc Unity NavMesh mà không giải quyết bài toán va chạm
@@ -70,16 +80,17 @@ Từ ba nhóm trên, có thể thấy khoảng trống hiện tại là thiếu 
 đủ giữa các cấp độ MAPF trong môi trường game có vật lý thực tế (Unity physics) trên tập
 bản đồ benchmark chuẩn. Đây chính là khoảng trống mà đồ án hướng tới lấp đầy.
 
-Trên cơ sở đó, đồ án đặt ra mục tiêu xây dựng một game bắn xe tăng 2D nhiều người chơi
-trên Unity sử dụng bản đồ chuẩn MovingAI MAPF benchmark, đồng thời triển khai và tích hợp
-ba cấp độ thuật toán MAPF gồm A* làm baseline, PIBT~C\# và PIBT~C++/TCP. Để so sánh ba
-thuật toán một cách khách quan, đồ án xây dựng thêm một hệ thống backtest tự động đo lường
-định lượng trên năm bản đồ, từ đó phân tích kết quả và rút ra nhận xét về khả năng ứng
-dụng của từng thuật toán trong game thời gian thực.
+Trên cơ sở đó, đồ án đặt ra bốn mục tiêu cụ thể. Thứ nhất, xây dựng một game bắn xe tăng 2D
+nhiều người chơi trên Unity, sử dụng bản đồ chuẩn MovingAI MAPF benchmark. Thứ hai, triển khai
+và tích hợp ba cấp độ thuật toán MAPF -- A* làm baseline, PIBT~C\# và PIBT~C++/TCP -- chia sẻ
+cùng tầng điều khiển vật lý để có thể so sánh khách quan. Thứ ba, xây dựng hệ thống backtest
+tự động đo lường định lượng trên năm bản đồ, kèm chế độ chướng ngại động để kiểm tra khả năng
+tái hoạch định. Thứ tư, phân tích, so sánh kết quả và rút ra nhận xét về khả năng ứng dụng của
+từng thuật toán trong game thời gian thực.
 
 Về phạm vi, đồ án giới hạn ở game 2D góc nhìn từ trên xuống, môi trường lưới rời rạc
-(discrete grid), tối đa sáu agent AI trong kịch bản thực nghiệm, và không xét tối ưu hóa
-đa mục tiêu phức tạp.
+(discrete grid), khảo sát từ 6 đến 72 agent AI (năm mức: 6, 12, 24, 36, 72) trong kịch bản
+thực nghiệm, và không xét tối ưu hóa đa mục tiêu phức tạp.
 
 % ============================================================
 \section{Định hướng giải pháp}
@@ -101,13 +112,19 @@ cho phép so sánh định lượng trên tập bản đồ lớn mà không c�
 vào đó, module chướng ngại động (spawn/despawn thùng cản đường trực tiếp trên path
 của agent) dùng để stress-test khả năng tái hoạch định của từng thuật toán.
 
+Một nguyên tắc xuyên suốt ba bước trên là bảo đảm tính công bằng khi so sánh: cả ba thuật toán
+dùng chung một bộ nạp bản đồ, chung tầng điều khiển vật lý \texttt{TankController} và chung bộ
+chỉ số đo lường, nên khác biệt quan sát được phản ánh đúng bản chất thuật toán chứ không phải do
+chênh lệch hạ tầng. Nhờ vậy, kết luận rút ra từ thực nghiệm có độ tin cậy cao và có thể tái lập.
+
 Ngoài ba bước trên, thiết kế hệ thống còn hướng tới khả năng mở rộng quy mô về sau trên
 ba trục: tăng số lượng agent AI, tăng số người chơi đồng thời, và mở rộng hạ tầng máy
 chủ (đưa PIBT server lên cloud, cân bằng tải). Các hướng mở rộng này được trình bày chi
 tiết ở Chương~\ref{chapter:conclusion}.
 
-Đóng góp chính: hệ thống tích hợp MAPF đầy đủ trong Unity với ba cấp độ thuật toán,
-cơ sở hạ tầng backtest định lượng, và bộ kết quả thực nghiệm trên benchmark chuẩn.
+Đóng góp chính: hệ thống tích hợp MAPF đầy đủ trong Unity với ba cấp độ thuật toán, cải tiến
+mô hình xoay của Enemy Agent dựa trên EPIBT, cơ sở hạ tầng backtest định lượng, và bộ kết quả
+thực nghiệm trên benchmark chuẩn.
 
 % ============================================================
 \section{Bố cục đồ án}
@@ -126,12 +143,12 @@ tích hợp máy chủ ngoài.
 
 Chương~4 trình bày phân tích thiết kế kiến trúc hệ thống theo mô hình phân tầng,
 thiết kế chi tiết các lớp MAPF AI, quá trình xây dựng ứng dụng với thống kê mã nguồn,
-và đánh giá thực nghiệm với số liệu backtest trên 90 kịch bản tĩnh và 90 kịch bản
-có chướng ngại động.
+và đánh giá thực nghiệm với số liệu backtest trên 900 run gồm môi trường tĩnh và môi
+trường có chướng ngại động (năm mức agent từ 6 đến 72).
 
-Chương~5 trình bày năm đóng góp kỹ thuật nổi bật: hệ thống đọc bản đồ động, triển khai
-A* thời gian thực, tích hợp PIBT phối hợp đa agent, cầu nối TCP đến máy chủ C++, và
-hệ thống backtest tự động với chướng ngại động.
+Chương~5 trình bày sáu đóng góp kỹ thuật nổi bật: hệ thống đọc bản đồ động, triển khai
+A* thời gian thực, tích hợp PIBT phối hợp đa agent, cầu nối TCP đến máy chủ C++, cải tiến
+mô hình xoay của Enemy Agent dựa trên EPIBT, và hệ thống backtest tự động với chướng ngại động.
 
 Chương~6 tổng kết kết quả đã đạt được, so sánh với mục tiêu đề ra, và định hướng
 phát triển trong tương lai.

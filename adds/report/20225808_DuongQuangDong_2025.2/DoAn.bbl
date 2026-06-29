@@ -271,29 +271,6 @@
     \field{year}{2013}
   \endentry
 
-  \entry{movingai2019benchmark}{misc}{}{}
-    \name{author}{1}{}{%
-      {{hash=SN}{%
-         family={Sturtevant},
-         familyi={S\bibinitperiod},
-         given={Nathan},
-         giveni={N\bibinitperiod},
-      }}%
-    }
-    \strng{namehash}{SN1}
-    \strng{fullhash}{SN1}
-    \field{labelnamesource}{author}
-    \field{labeltitlesource}{title}
-    \field{title}{{MovingAI} {MAPF} Benchmark}
-    \verb{url}
-    \verb https://movingai.com/benchmarks/mapf.html
-    \endverb
-    \field{year}{2019}
-    \field{urlday}{24}
-    \field{urlmonth}{06}
-    \field{urlyear}{2026}
-  \endentry
-
   \entry{sturtevant2012benchmarks}{inproceedings}{}{}
     \name{author}{1}{}{%
       {{hash=SNR}{%

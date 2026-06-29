@@ -35,8 +35,8 @@ va chạm, không thực tế cho game thời gian thực với nhiều agent.
 \textbf{(4) PIBT}: Priority Inheritance with Backtracking \cite{okumura2022pibt} là thuật
 toán MAPF chạy theo bước thời gian, hoàn chỉnh trên bản đồ có đường đi tồn tại, với
 độ phức tạp thực tế phù hợp cho môi trường thời gian thực. PIBT không đảm bảo tối ưu
-toàn cục nhưng thực hành cho kết quả tốt và đã được dùng trong các cuộc thi MAPF quốc
-tế \cite{movingai2019benchmark}.
+toàn cục nhưng thực hành cho kết quả tốt và đã được dùng trong các cuộc thi điều phối robot
+quốc tế \cite{lorr2024}.
 
 Bảng~\ref{tab:comparison} tổng hợp so sánh bốn giải pháp theo các tiêu chí phù hợp
 với yêu cầu của đồ án.
@@ -53,6 +53,7 @@ Tính tối ưu                & Không            & Không           & Có     
 Thời gian thực             & Có               & Có              & Không        & Có            \\
 Tương thích bản đồ .map    & Không            & Có              & Có           & Có            \\
 Tích hợp Unity             & Có sẵn           & Tự triển khai   & Tự triển khai & Tự triển khai \\
+Hỗ trợ ràng buộc xoay      & Không            & Không           & Không        & Có (EPIBT)    \\
 Phù hợp đồ án              & Không            & Baseline        & Không        & Chính         \\ \hline
 \end{tabular}
 \end{center}
@@ -60,6 +61,15 @@ Phù hợp đồ án              & Không            & Baseline        & Không
 Từ phân tích trên, đồ án lựa chọn A* làm baseline để có điểm so sánh quen thuộc,
 và PIBT làm thuật toán chính vì cân bằng tốt giữa hiệu quả và khả năng thực thi
 thời gian thực.
+
+Một khoảng trống đáng chú ý là phần lớn nghiên cứu MAPF học thuật (CBS, PIBT và các biến thể)
+được đánh giá trên benchmark thuần túy ở dạng lưới trừu tượng, nơi agent dịch chuyển tức thời
+giữa các ô và không chịu ràng buộc của một engine vật lý. Khi đưa vào game thực tế, agent là
+vật thể có quán tính, có hướng thân và va chạm vật lý, nên một lời giải hợp lệ trên lưới vẫn
+có thể không thực thi chính xác ở lớp vật lý (xoay giật, kẹt do quán tính). Đồ án lấp khoảng trống này bằng
+cách cho cả ba thuật toán chạy trên cùng một tầng điều khiển vật lý của Unity
+(\texttt{TankController}) và bổ sung mô hình hành động có xoay cho PIBT, nhờ đó kết quả so sánh
+phản ánh đúng hành vi trong môi trường game.
 
 \subsection{Khảo sát bản đồ benchmark MAPF}
 
@@ -617,7 +627,7 @@ tiếp qua TCP -- phải trả về kết quả lập kế hoạch cho mỗi bư
 nghiệm chơi mượt mà.
 
 \textbf{Tính ổn định}: Mỗi run backtest phải tái lập được với cùng seed; hệ thống không
-được crash trong suốt 90 run liên tiếp.
+được crash trong suốt 900 run liên tiếp.
 
 \textbf{Tính tương thích}: Ứng dụng chạy trên Windows 10/11 với Unity 6000.3.x; chế
 độ WebGL tương thích Chrome và Firefox. Tệp \texttt{.map} phải đọc được theo chuẩn
@@ -625,6 +635,16 @@ MovingAI không cần chỉnh sửa.
 
 \textbf{Khả năng mở rộng}: Thêm thuật toán mới chỉ cần tạo lớp agent mới kế thừa
 interface chung, không cần thay đổi \texttt{BacktestRunner} hay \texttt{TankController}.
+
+\textbf{Tính quan sát được}: Hệ thống phải trực quan hóa hành vi thuật toán ngay trong game --
+vẽ đường đi dự kiến của agent và hiển thị chỉ số thời gian thực (số lần tái hoạch định, trạng
+thái kết nối server, thời gian còn lại của run) -- để người dùng quan sát trực tiếp khác biệt
+giữa ba thuật toán mà không cần đọc log thô.
+
+\textbf{Tính triển khai được}: Hệ thống phải đóng gói và triển khai được lên hạ tầng đám mây để
+phục vụ demo trực tuyến -- bản WebGL chạy trên trình duyệt không cần cài đặt, máy chủ PIBT đặt
+sau reverse proxy có HTTPS, và quy trình triển khai được tự động hóa để tái lập môi trường nhất
+quán (chi tiết phần triển khai ở Chương~\ref{chapter:Experiment}).
 
 \textbf{Kết chương~2:} Chương này đã phân tích bốn nhóm giải pháp điều hướng đa agent
 và xác nhận A* (baseline) cùng PIBT (thuật toán chính) là lựa chọn phù hợp nhất với yêu
