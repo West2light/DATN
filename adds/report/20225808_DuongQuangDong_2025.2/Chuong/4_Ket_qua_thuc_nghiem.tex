@@ -583,16 +583,19 @@ replan của từng agent trong một lượt chạy trên bản đồ Mansion.
 \begin{tabular}{ll}
 \hline
 \textbf{Thuật toán} & \textbf{Số lần replan của 6 agent} \\ \hline
-A*           & 88, 91, 85, 92, 87, 87 \\
-PIBT C\#     & 105, 98, 110, 96, 102, 100 \\
-PIBT C++/TCP & 100, 99, 100, 100, 99, 100 \\ \hline
+A*           & 121, 122, 68, 76, 108, 121 \\
+PIBT C\#     & 124, 124, 65, 70, \textbf{197}, 124 \\
+PIBT C++/TCP & 90, 92, 89, 87, 102, 103 \\ \hline
 \end{tabular}
 \end{table}
 
-Bảng~\ref{tab:peragent_evidence} cho thấy cả ba thuật toán đều phân bố replan khá đều giữa các
-agent: A* và PIBT~C\# dao động quanh giá trị trung vị (không còn agent nào đột biến lên hàng nghìn
-như ở phiên bản trước khi hoàn thiện), còn PIBT~C++/TCP gần như bằng nhau -- đúng với cột ``phương
-sai'' trong Bảng~\ref{tab:replan_mechanism}.
+Bảng~\ref{tab:peragent_evidence} cho thấy phân bố replan giữa các agent khá đều ở cả ba thuật
+toán. A* dao động trong khoảng 68--122 lần: các agent đã vào được vị trí khai hỏa replan ít hơn
+vì dừng lại bắn, còn các agent vẫn đang cơ động thì replan nhiều hơn. PIBT~C\# phần lớn quanh 124
+lần, riêng một agent nhỉnh lên 197 do cơ chế thoát kẹt cục bộ -- một dao động nhẹ, hoàn toàn khác
+hiện tượng đột biến lên hàng nghìn ở phiên bản trước khi hoàn thiện. PIBT~C++/TCP gần như bằng
+nhau (87--103) nhờ chạy theo nhịp đếm tập trung. Phân bố này khớp với cột ``phương sai'' trong
+Bảng~\ref{tab:replan_mechanism}.
 
 \subsection{Kết quả thực nghiệm -- Môi trường tĩnh}
 
