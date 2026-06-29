@@ -133,8 +133,9 @@ def central(mp, algo, n, env):
     p_rep = 1.10 if reg == "maze" else 1.05
     replan = rep24 * (r ** p_rep)
 
-    # Recoveries
-    recov = 0.0 if env == "static" else rec24 * (r ** 1.5)
+    # Recoveries — đo thật cho thấy gần đi ngang 24->36 (110->114), nên dùng số mũ nhỏ (~0.6)
+    # thay vì 1.5; tránh vọt quá ở mức 36/72.
+    recov = 0.0 if env == "static" else rec24 * (r ** 0.6)
 
     # Cells, Shots
     cells = ce24 * (r ** 1.05)
