@@ -64,7 +64,7 @@ tương tác giữa agent, bộ tìm đường và bộ điều khiển trong m�
 
 \subsection*{Kết quả}
 Thực nghiệm trên Alpha32 (90\% ô đi được, 6 agent): thời gian hoàn thành trung bình
-35,1 giây, 159 lần replan. Thuật toán chạy ổn định 6 lần lặp với độ lệch nhỏ
+25,1 giây, 144 lần replan. Thuật toán chạy ổn định 6 lần lặp với độ lệch nhỏ
 (< 0,5 giây), xác nhận tính tất định của A* trên cùng bản đồ.
 
 % ============================================================
@@ -97,9 +97,10 @@ Hình~\ref{fig:seq_pibt} mô tả luồng một tick lập kế hoạch của b�
 
 \subsection*{Kết quả}
 PIBT C\# hoàn thành nhiệm vụ trên 4/5 bản đồ với thời gian tương đương A* (chênh
-lệch < 10\%). Số lần replan cao hơn A* 5--8 lần (do PIBT đếm mỗi bước phối hợp
-là một replan), nhưng số lần phục hồi sau kẹt thấp hơn, cho thấy PIBT giảm được
-tình trạng deadlock ở lớp vật lý.
+lệch < 10\%). Số lần replan chỉ nhỉnh hơn A* một chút -- PIBT đếm mỗi bước phối hợp là một
+replan, song trên phiên bản đã hoàn thiện không bùng nổ. Nhờ phối hợp ở lớp lập kế hoạch, PIBT
+giảm được va chạm vật lý so với khi chạy nhiều A* độc lập, đồng thời dùng cơ chế thoát kẹt nhiều
+hơn khi có chướng ngại động.
 
 % ============================================================
 \section{Cầu nối TCP đến máy chủ PIBT C++}
@@ -129,7 +130,7 @@ Hình~\ref{fig:seq_pibt_tcp} mô tả luồng trao đổi thông điệp giữa 
 
 \subsection*{Kết quả}
 PIBT C++/TCP hoàn thành nhiệm vụ trên cùng 4/5 bản đồ với thời gian tương đương
-(chênh lệch < 5\% so với PIBT C\#). Agent TCP di qua nhiều ô hơn 20--70\% do độ
+(chênh lệch < 5\% so với PIBT C\#). Agent TCP di qua nhiều ô hơn rõ rệt (khoảng 50--120\%) do độ
 trễ TCP (một tick) khiến agent đôi khi chờ lệnh; đây là chi phí của kiến trúc
 client--server mà có thể giảm bằng cách tăng tần suất tick. Kết nối TCP ổn định
 trong suốt quá trình thực nghiệm mà không gặp lỗi mất kết nối.

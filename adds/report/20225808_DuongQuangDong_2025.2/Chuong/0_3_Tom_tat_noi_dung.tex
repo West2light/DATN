@@ -29,9 +29,10 @@ của agent dựa trên EPIBT để loại bỏ hiện tượng xoay giật; và
 với môi trường tĩnh và chướng ngại động, xuất kết quả CSV để phân tích định lượng. Thực
 nghiệm trên 5 bản đồ, 3 thuật toán và 5 mức số lượng agent (6, 12, 24, 36, 72), 6 lần lặp
 mỗi tổ hợp trên cả môi trường tĩnh và động (tổng 900 run) cho thấy cả ba thuật toán đều hoàn
-thành nhiệm vụ trên 4/5 bản đồ; PIBT có số lần tái hoạch định cao hơn A* do cơ chế phối hợp
-đa agent; thời gian hoàn thành và tỉ lệ timeout tăng dần theo số agent; và khi bật chướng ngại
-động, số lần replan tăng trung bình 30--50\% nhưng hệ thống vẫn duy trì được mục tiêu.
+thành nhiệm vụ trên 4/5 bản đồ ở mức cơ bản; PIBT có số lần tái hoạch định nhỉnh hơn A* đôi chút
+do cơ chế phối hợp đa agent; tỉ lệ phá Eagle đạt đỉnh ở dải mật độ trung gian (24--36 agent) rồi
+giảm khi mật độ quá cao; và khi bật chướng ngại động, hệ thống vẫn duy trì được mục tiêu, với số
+lần phục hồi sau kẹt tăng rõ nhất ở PIBT.
 
 \begin{flushright}
 Sinh viên thực hiện\\
