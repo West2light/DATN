@@ -438,7 +438,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
                 Vector2Int cell = new Vector2Int(
                     mapLoader.BuildStartX + c,
                     mapLoader.BuildStartY + r);
-                sb.Append(mapLoader.IsWalkable(cell) ? '.' : '@');
+                sb.Append((mapLoader.IsWalkable(cell) || mapLoader.IsDestructibleBlocked(cell)) ? '.' : '@');
             }
         }
         return sb.ToString();

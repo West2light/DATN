@@ -110,6 +110,18 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
         Vector2 dir         = targetWorld - tankController.tankMover.transform.position;
         float   dist        = dir.magnitude;
 
+        if (mapLoader.IsDestructibleBlocked(_currentTarget))
+        {
+            _partialDriveAcc = 0f;
+            tankController.HandleMoveBody(Vector2.zero);
+            tankController.HandleTurretMovement(targetWorld);
+            if (tankController.aimTurret != null && tankController.aimTurret.IsAlignedTo(targetWorld))
+            {
+                tankController.HandleShoot();
+            }
+            return;
+        }
+
         // Already at target — wait for coordinator to set a new one
         if (dist <= waypointReachDistanceStraight)
         {
