@@ -712,6 +712,9 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         agent.playerShootingRange   = enemyPlayerShootingRange;
         agent.lineOfSightMask       = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable",
                                           WallLayerName, LegacyMovementObstacleLayerName);
+        agent.obstacleContactMask   = obstacleContactMask.value != 0 
+                                        ? obstacleContactMask 
+                                        : LayerMask.GetMask("Hittable", "LegacyMovementObstacle");
         agent.btSpawnTime           = Time.time;
         _agents.Add(agent);
     }
