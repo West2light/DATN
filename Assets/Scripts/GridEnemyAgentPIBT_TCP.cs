@@ -26,6 +26,7 @@ public class GridEnemyAgentPIBT_TCP : MonoBehaviour
     public float waypointReachDistanceTurning  = 0.12f;
     [Min(0.01f)] public float partialDrivePeriod    = 0.1f;
     [Range(0f, 1f)] public float partialDriveDutyCycle = 0.65f;
+    public LayerMask obstacleContactMask;
 
     [Header("Shooting")]
     public float eagleShootingRange  = 5f;
