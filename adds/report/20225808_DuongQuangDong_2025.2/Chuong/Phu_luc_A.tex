@@ -19,39 +19,35 @@ Bảng~\ref{tab:appendix_static} liệt kê kết quả chi tiết trong môi tr
 \begin{tabular}{llrrr}
 \hline
 \textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan} & \textbf{Shot TB} \\ \hline
-Alpha32 & A* & 35,1$\pm$0,0 & 159$\pm$0 & 59182 \\
-Alpha32 & PIBT C\# & 32,3$\pm$0,4 & 137$\pm$1 & 60254 \\
-Alpha32 & PIBT C++/TCP & 35,5$\pm$0,5 & 137$\pm$1 & 60672 \\ \hline
-Mansion & A* & 98,2$\pm$0,6 & 672$\pm$4 & 47810 \\
-Mansion & PIBT C\# & 103,3$\pm$5,6 & 3408$\pm$1013 & 36968 \\
-Mansion & PIBT C++/TCP & 102,7$\pm$3,0 & 3408$\pm$1013 & 62612 \\ \hline
-Chantry & A* & 130,8$\pm$0,7 & 936$\pm$3 & 53402 \\
-Chantry & PIBT C\# & 127,5$\pm$0,6 & 3514$\pm$261 & 36023 \\
-Chantry & PIBT C++/TCP & 134,4$\pm$1,2 & 3514$\pm$261 & 47211 \\ \hline
-Gallows & A* & 112,4$\pm$0,4 & 788$\pm$3 & 48593 \\
-Gallows & PIBT C\# & 121,9$\pm$0,5 & 4769$\pm$234 & 25329 \\
-Gallows & PIBT C++/TCP & 115,8$\pm$2,8 & 4769$\pm$234 & 57208 \\ \hline
-Maze128 & A* & 180,0$\pm$0,0 & 1439$\pm$1 & 302 \\
-Maze128 & PIBT C\# & 180,0$\pm$0,0 & 1440$\pm$59 & 11261 \\
-Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 1440$\pm$59 & 0 \\ \hline
+Alpha32 & A* & 25,1$\pm$0,3 & 144$\pm$5 & 3\,479 \\
+Alpha32 & PIBT C\# & 23,6$\pm$0,5 & 196$\pm$11 & 2\,327 \\
+Alpha32 & PIBT C++/TCP & 25,9$\pm$0,5 & 177$\pm$17 & 13\,734 \\ \hline
+Mansion & A* & 92,4$\pm$1,1 & 530$\pm$26 & 416 \\
+Mansion & PIBT C\# & 120,5$\pm$1,1 & 611$\pm$52 & 83 \\
+Mansion & PIBT C++/TCP & 94,4$\pm$2,1 & 598$\pm$30 & 1\,520 \\ \hline
+Chantry & A* & 87,2$\pm$1,1 & 530$\pm$23 & 646 \\
+Chantry & PIBT C\# & 110,6$\pm$0,8 & 556$\pm$41 & 85 \\
+Chantry & PIBT C++/TCP & 92,3$\pm$2,3 & 602$\pm$61 & 2\,254 \\ \hline
+Gallows & A* & 106,4$\pm$0,8 & 624$\pm$19 & 313 \\
+Gallows & PIBT C\# & 122,5$\pm$2,0 & 621$\pm$86 & 82 \\
+Gallows & PIBT C++/TCP & 114,5$\pm$3,2 & 640$\pm$23 & 1\,288 \\ \hline
+Maze128 & A* & 180,0$\pm$0,0 & 820$\pm$28 & 2\,076 \\
+Maze128 & PIBT C\# & 180,0$\pm$0,0 & 928$\pm$39 & 81 \\
+Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 820$\pm$8 & 3\,732 \\ \hline
 \end{tabular}
 \end{table}
 
-Độ lệch chuẩn nhỏ trên hầu hết tổ hợp cho thấy kết quả ổn định qua các lần lặp. Riêng
-bản đồ Mansion với PIBT có độ lệch chuẩn replan lớn (khoảng 1013), phản ánh tính ngẫu
-nhiên cao của quá trình phân giải xung đột trong hành lang hẹp.
-
-Một quan sát đáng chú ý là hai biến thể PIBT (C\# và C++/TCP) có cùng số lần tái hoạch
-định trên mọi bản đồ -- chẳng hạn 137 lần trên Alpha32, 3\,408 lần trên Mansion hay
-4\,769 lần trên Gallows -- bởi cả hai cùng được điều khiển bởi một nhịp lập kế hoạch PIBT
-như nhau; khác biệt giữa chúng chủ yếu nằm ở thời gian hoàn thành và số phát bắn, phản
-ánh độ trễ một nhịp của kênh TCP ở biến thể C++/TCP. Ngược lại, A* gần như tất định với
-độ lệch chuẩn thời gian bằng 0 trên Alpha32 và Maze128. Trên bản đồ mê cung Maze128, cả
-ba thuật toán đều chạm trần thời gian 180~giây: không gian quá hẹp khiến agent hiếm khi
-tiếp cận được Eagle, thể hiện qua số phát bắn rất thấp (302 với A*) hoặc bằng 0 (PIBT
-C++/TCP). Đây cũng là lý do số liệu chi tiết được tách riêng ở phụ lục thay vì đưa hết
-vào Chương~\ref{chapter:Experiment}: chúng phục vụ kiểm chứng độ ổn định hơn là so sánh
-tổng quan.
+Độ lệch chuẩn nhỏ trên hầu hết tổ hợp cho thấy kết quả ổn định qua các lần lặp. Khác với
+kỳ vọng ban đầu, ba thuật toán có số lần tái hoạch định bám khá sát nhau ở mức sáu agent:
+hai biến thể PIBT (C\# và C++/TCP) chỉ chênh nhau ít và đều nhỉnh hơn A* một chút trên các
+bản đồ hẹp, \emph{không} còn hiện tượng PIBT~C\# đột biến lên hàng nghìn như ở phiên bản
+trước khi hoàn thiện. Khác biệt giữa hai biến thể PIBT chủ yếu nằm ở số phát bắn và số ô
+đã đi -- phản ánh độ trễ một nhịp của kênh TCP ở biến thể C++/TCP, khiến nó di chuyển và
+khai hỏa nhiều hơn. Trên bản đồ mê cung Maze128, cả ba thuật toán đều chạm trần thời gian
+180~giây ở mức sáu agent: quá ít xe tăng không kịp len qua mê cung lớn để tiếp cận và hạ
+Eagle. Số liệu chi tiết được tách riêng ở phụ lục thay vì đưa hết vào
+Chương~\ref{chapter:Experiment} vì chúng phục vụ kiểm chứng độ ổn định hơn là so sánh tổng
+quan.
 
 \section{Kết quả môi trường có chướng ngại động}
 
@@ -65,37 +61,36 @@ Bảng~\ref{tab:appendix_dynamic} liệt kê kết quả chi tiết khi bật ch
 \begin{tabular}{llrrr}
 \hline
 \textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan} & \textbf{Shot TB} \\ \hline
-Alpha32 & A* & 40,4$\pm$0,1 & 238$\pm$0 & 65101 \\
-Alpha32 & PIBT C\# & 37,2$\pm$0,5 & 178$\pm$1 & 66280 \\
-Alpha32 & PIBT C++/TCP & 40,8$\pm$0,6 & 178$\pm$1 & 66740 \\ \hline
-Mansion & A* & 112,9$\pm$0,7 & 1007$\pm$6 & 52592 \\
-Mansion & PIBT C\# & 118,8$\pm$6,4 & 4430$\pm$1316 & 40664 \\
-Mansion & PIBT C++/TCP & 118,2$\pm$3,4 & 4430$\pm$1316 & 68873 \\ \hline
-Chantry & A* & 150,4$\pm$0,8 & 1403$\pm$5 & 58743 \\
-Chantry & PIBT C\# & 146,6$\pm$0,6 & 4569$\pm$340 & 39625 \\
-Chantry & PIBT C++/TCP & 154,6$\pm$1,4 & 4569$\pm$340 & 51932 \\ \hline
-Gallows & A* & 129,3$\pm$0,5 & 1182$\pm$5 & 53452 \\
-Gallows & PIBT C\# & 140,2$\pm$0,5 & 6201$\pm$304 & 27862 \\
-Gallows & PIBT C++/TCP & 133,2$\pm$3,2 & 6201$\pm$304 & 62929 \\ \hline
-Maze128 & A* & 180,0$\pm$0,0 & 2158$\pm$2 & 332 \\
-Maze128 & PIBT C\# & 180,0$\pm$0,0 & 1871$\pm$76 & 12387 \\
-Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 1871$\pm$76 & 0 \\ \hline
+Alpha32 & A* & 28,3$\pm$0,5 & 165$\pm$7 & 4\,090 \\
+Alpha32 & PIBT C\# & 28,3$\pm$0,8 & 286$\pm$57 & 2\,012 \\
+Alpha32 & PIBT C++/TCP & 30,5$\pm$1,1 & 258$\pm$30 & 14\,202 \\ \hline
+Mansion & A* & 96,6$\pm$0,7 & 547$\pm$13 & 400 \\
+Mansion & PIBT C\# & 138,0$\pm$3,8 & 702$\pm$88 & 112 \\
+Mansion & PIBT C++/TCP & 119,5$\pm$4,2 & 547$\pm$34 & 1\,400 \\ \hline
+Chantry & A* & 97,6$\pm$0,9 & 638$\pm$44 & 575 \\
+Chantry & PIBT C\# & 114,9$\pm$1,6 & 592$\pm$55 & 84 \\
+Chantry & PIBT C++/TCP & 129,5$\pm$4,0 & 938$\pm$25 & 1\,940 \\ \hline
+Gallows & A* & 128,1$\pm$1,3 & 742$\pm$74 & 315 \\
+Gallows & PIBT C\# & 177,6$\pm$1,5 & 944$\pm$141 & 80 \\
+Gallows & PIBT C++/TCP & 130,4$\pm$6,8 & 742$\pm$43 & 1\,306 \\ \hline
+Maze128 & A* & 180,0$\pm$0,0 & 901$\pm$44 & 1\,650 \\
+Maze128 & PIBT C\# & 180,0$\pm$0,0 & 977$\pm$36 & 933 \\
+Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 1\,300$\pm$88 & 7\,502 \\ \hline
 \end{tabular}
 \end{table}
 
 So với môi trường tĩnh, số lần replan tăng trên mọi tổ hợp, xác nhận cả ba thuật toán
 đều phản ứng với thay đổi môi trường bằng cách tái hoạch định nhiều hơn.
 
-Mức tăng này thể hiện rõ nhất trên các bản đồ thoáng: với A* trên Alpha32, số lần tái
-hoạch định tăng từ 159 lên 238 (khoảng 50\%) khi bật chướng ngại động; với PIBT trên
-Gallows, con số này tăng từ 4\,769 lên 6\,201. Dù vậy, độ lệch chuẩn của A* vẫn xấp xỉ
-0, cho thấy thuật toán giữ được tính tất định ngay cả khi môi trường thay đổi -- phần
-biến thiên còn lại đến từ thời điểm và vị trí spawn của chướng ngại chứ không phải từ
-bản thân thuật toán. Bản đồ Maze128 tiếp tục chạm trần 180~giây ở cả ba thuật toán, xác
-nhận rằng giới hạn tại đây là độ khó tô-pô của bản đồ chứ không phải tải tính toán. Nhìn
-chung, dữ liệu chi tiết trong hai bảng củng cố nhận định ở Chương~\ref{chapter:Experiment}:
-A* ổn định và rẻ trên bản đồ thoáng, trong khi PIBT phối hợp tốt hơn ở khu vực đông đúc
-nhưng đánh đổi bằng số lần tái hoạch định cao hơn nhiều, và chênh lệch đó càng nới rộng
-khi môi trường trở nên động.
+Mức tăng thể hiện trên cả bản đồ thoáng lẫn hẹp: với A* trên Alpha32, số lần tái hoạch
+định tăng từ 144 lên 165 khi bật chướng ngại động; với PIBT~C\# trên Gallows, con số này
+tăng từ 621 lên 944. Độ lệch chuẩn của A* vẫn nhỏ, cho thấy thuật toán giữ được tính ổn
+định ngay cả khi môi trường thay đổi -- phần biến thiên chủ yếu đến từ thời điểm và vị trí
+spawn của chướng ngại chứ không phải từ bản thân thuật toán. Bản đồ Maze128 tiếp tục chạm
+trần 180~giây ở cả ba thuật toán tại mức sáu agent, xác nhận giới hạn tại đây là độ khó
+tô-pô của bản đồ. Nhìn chung, dữ liệu chi tiết trong hai bảng củng cố nhận định ở
+Chương~\ref{chapter:Experiment}: số lần tái hoạch định của ba thuật toán bám sát nhau --
+PIBT chỉ nhỉnh hơn A* một chút chứ không cao gấp nhiều lần -- và khác biệt giữa chúng nới
+rộng dần khi môi trường trở nên động.
 
 \end{document}
