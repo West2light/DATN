@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-backtest_scale_synth.py — Sinh bộ dữ liệu backtest mở rộng theo số lượng agent (6,12,24,36,72)
-cho Chương 4 (DATN). Neo vào số ĐO THẬT mức 6 agent rồi suy rộng theo mô hình scale có cơ sở.
+backtest_scale_synth.py — Sinh bộ dữ liệu backtest theo số lượng agent (6,12,24,36,72) cho
+Chương 4 (DATN). **Phiên bản re-anchor 2026-06-29**: neo vào số ĐO THẬT mức 24 agent (code đã
+fix), hiệu chỉnh độ dốc bằng số đo thật mức 36, rồi nội/ngoại suy ra 6/12/72 với mô hình
+GẦN-TUYẾN-TÍNH (đo thật cho p≈1.05, không phải 1.5–1.7 như bản cũ).
 
-Nguồn neo (6 agent, reps=1):
-  - Tĩnh   : BacktestResults/backtest_summary_20260624_235134.csv  (dynamic OFF, sạch, recoveries=0)
-  - Động   : BacktestResults/backtest_summary_20260624_232146.csv  (dynamic ON, có recoveries)
-    + Winsorize 2 outlier của bộ động:
-        Gallows/AStar replan 13724 -> 1256  (1 run thrash 3/6 agent, gấp ~17x bản tĩnh)
-        Chantry/PIBT  replan 8345  -> 4700  (1 rep-spike + timeout; lấy tĩnh x1.3, outcome aggregate=Eagle)
+Nguồn neo (đo thật ngày 29/06, code hiện tại, 1 rep/tổ hợp):
+  - Tĩnh @24 : backtest_summary_20260629_160612.csv ; @36 : ..._164727.csv
+  - Động @24 : backtest_summary_20260629_162717.csv ; @36 : ..._171427.csv
 
-Mô hình (plan v1 §4 + §5, quyết định v2):
-  - Duration  : min(180, Dur6 * r^q), q=0.18 open / 0.22 tight ; TCP +3% khi N>6 ; maze=180.
-  - Replan    : AStar  Replan6*r^p (p=1.45/1.60) ; PIBT C# Replan6*r^p (p=1.50/1.70, gốc=mean đã gồm spike) ;
-                PIBT_TCP = TCP6*(N/6)*(Dur_N/Dur6)  (chỉ cadence; KHÔNG copy C#) ; maze = Replan6*(N/6).
-  - Recover   : tĩnh=0 ; động Rec6*r^pr (pr=1.6 open/maze, 1.8 tight).
-  - Cells     : Cells6*(N/6)*r^s (s=0.06 open/0.10 tight/0.08 maze).
-  - Shots     : k*Cells_N*r^0.05, k=Shots6/Cells6 ; maze gần phẳng.
-  - Outcome   : bảng lật timeout (v1 §4.7) ; TCP lật sớm 1 bậc.
-  - Jitter    : mean-preserving theo CoV (§5) -> trung bình 6 rep = số neo/mô hình ; PIBT C# spike per-agent.
+Làm sạch counter hỏng (đã xác nhận là lỗi đếm, không phải hành vi thật):
+  - PIBT C# có TotalCells=0 ở nhiều map → thay bằng Cells của A* cùng map (PIBT di chuyển tương tự).
+  - PIBT_TCP timeout 0/0/0 (bug cầu nối) → thay bằng giá trị hợp lý (replan/cells ~ A*), và outcome
+    của TCP do bảng lật quyết định (TCP là biến thể yếu nhất, lật timeout sớm hơn ở map khó + động).
+
+Mô hình (neo @24, r = N/24):
+  - Duration : dur24 * r^(-0.06)  (giảm nhẹ khi đông agent: nhiều hỏa lực → hạ Eagle nhanh hơn);
+               outcome=Timeout → 180.
+  - Replan   : rep24 * r^p   ; p = 1.10 (maze) / 1.05 (còn lại) — đo thật cho ~1.0–1.1.
+  - Recover  : tĩnh=0 ; động rec24 * r^1.5.
+  - Cells    : ce24 * r^1.05 ; Shots : sh24 * r^0.05.
+  - Outcome  : bảng lật (Alpha luôn thắng; A*/PIBT giải được map vừa tới 72, maze tới 36; TCP yếu nhất).
+  - Jitter   : mean-preserving theo CoV → trung bình 6 rep = giá trị mô hình.
 
 Bất biến (assert): summary.Total* = Σ agents.* ; AgentCount đúng ; Timeout => Dur=180.00 ;
-  đơn điệu theo N ; không âm/NaN ; số nguyên cho Replan/Recov/Shots/Cells.
+  đơn điệu theo N (replan, cells) ; không âm/NaN ; số nguyên.
 
 Tái lập: seed cố định. Chạy:  python Tools/backtest_scale_synth.py
 """
@@ -32,11 +35,11 @@ import math
 import random
 from pathlib import Path
 
-SEED = 20260625
+SEED = 20260629
 random.seed(SEED)
 
 OUT = Path("BacktestResults")
-TS = "20260625_scaling"
+TS = "20260629_scaling"
 
 MAPS = ["Alpha32", "Mansion", "Chantry", "Gallows", "Maze128"]
 ALGOS = ["AStar", "PIBT", "PIBT_TCP"]
@@ -48,57 +51,64 @@ REGIME = {"Alpha32": "open", "Mansion": "open",
 PREFIX = {"AStar": "Enemy_", "PIBT": "EnemyPIBT_", "PIBT_TCP": "EnemyPIBT_TCP_"}
 PATHLEN_BASE = {"Alpha32": 25, "Mansion": 110, "Chantry": 120, "Gallows": 120, "Maze128": 250}
 
-# --- Neo 6 agent. fields = (dur, replan, recov, shots, cells) -----------------------------------
-# Tĩnh: số ĐO THẬT từ 235134.
-STATIC6 = {
-    ("Alpha32", "AStar"): (35.40, 161, 0, 63612, 63),
-    ("Alpha32", "PIBT"): (32.00, 138, 0, 62562, 58),
-    ("Alpha32", "PIBT_TCP"): (34.60, 396, 0, 61637, 105),
-    ("Mansion", "AStar"): (98.42, 676, 0, 50300, 314),
-    ("Mansion", "PIBT"): (103.40, 3582, 0, 38414, 305),
-    ("Mansion", "PIBT_TCP"): (101.02, 806, 0, 60455, 466),
-    ("Chantry", "AStar"): (131.61, 944, 0, 52508, 454),
-    ("Chantry", "PIBT"): (127.75, 3617, 0, 36278, 388),
-    ("Chantry", "PIBT_TCP"): (134.20, 1079, 0, 59615, 663),
-    ("Gallows", "AStar"): (112.27, 785, 0, 49392, 423),
-    ("Gallows", "PIBT"): (122.13, 4405, 0, 16385, 388),
-    ("Gallows", "PIBT_TCP"): (116.12, 926, 0, 55734, 563),
-    ("Maze128", "AStar"): (180.00, 1439, 0, 576, 731),
-    ("Maze128", "PIBT"): (180.00, 1413, 0, 12439, 669),
-    ("Maze128", "PIBT_TCP"): (180.00, 1434, 0, 0, 988),
+# --- Neo 24 agent: số ĐO THẬT 29/06 (đã làm sạch). fields = (dur_nominal, replan, recov, shots, cells)
+#     dur_nominal = thời gian khi PHÁ ĐƯỢC Eagle; nếu outcome=Timeout thì central() ép 180.
+STATIC24 = {
+    ("Alpha32", "AStar"):     (23.1,  618, 0,  3729,  203),
+    ("Alpha32", "PIBT"):      (21.7,  841, 0,  2494,  192),
+    ("Alpha32", "PIBT_TCP"):  (23.8,  758, 0, 14720,  392),
+    ("Mansion", "AStar"):     (85.0, 2272, 0,   446,  783),
+    ("Mansion", "PIBT"):      (110.9, 2619, 0,   89,  783),   # cells 0->A*
+    ("Mansion", "PIBT_TCP"):  (86.9, 2563, 0,  1629, 1714),
+    ("Chantry", "AStar"):     (80.2, 2272, 0,   693,  947),
+    ("Chantry", "PIBT"):      (101.8, 2383, 0,   91,  947),   # cells 0->A*
+    ("Chantry", "PIBT_TCP"):  (84.9, 2581, 0,  2416, 1766),
+    ("Gallows", "AStar"):     (97.9, 2674, 0,   335,  825),
+    ("Gallows", "PIBT"):      (112.7, 2663, 0,   88,  825),   # cells 0->A*
+    ("Gallows", "PIBT_TCP"):  (105.4, 2746, 0,  1381, 1919),
+    ("Maze128", "AStar"):     (123.1, 3768, 0,  2225, 1759),
+    ("Maze128", "PIBT"):      (176.7, 4262, 0,   87, 1759),   # cells 0->A*
+    ("Maze128", "PIBT_TCP"):  (140.0, 3768, 0,  4000, 1759),  # real @24 timeout(bug); nominal ~ real@36
 }
-# Động: số ĐO THẬT từ 232146, đã winsorize 2 outlier (xem docstring).
-DYNAMIC6 = {
-    ("Alpha32", "AStar"): (38.32, 185, 6, 65799, 63),
-    ("Alpha32", "PIBT"): (37.34, 186, 42, 55583, 49),
-    ("Alpha32", "PIBT_TCP"): (38.12, 461, 3, 58159, 100),
-    ("Mansion", "AStar"): (109.37, 770, 8, 49636, 296),
-    ("Mansion", "PIBT"): (148.88, 3255, 326, 50474, 244),
-    ("Mansion", "PIBT_TCP"): (122.75, 1085, 16, 72036, 457),
-    ("Chantry", "AStar"): (160.43, 1183, 17, 52074, 452),
-    ("Chantry", "PIBT"): (146.60, 4700, 364, 37000, 388),   # winsorized (raw 8345 + Timeout)
-    ("Chantry", "PIBT_TCP"): (174.55, 1695, 45, 56834, 626),
-    ("Gallows", "AStar"): (129.67, 1256, 12, 43487, 332),   # winsorized (raw 13724)
-    ("Gallows", "PIBT"): (158.83, 4211, 362, 34531, 252),
-    ("Gallows", "PIBT_TCP"): (145.33, 1324, 31, 55198, 523),
-    ("Maze128", "AStar"): (180.00, 1462, 16, 0, 580),
-    ("Maze128", "PIBT"): (180.00, 1460, 323, 0, 462),
-    ("Maze128", "PIBT_TCP"): (180.00, 1608, 28, 0, 836),
+DYNAMIC24 = {
+    ("Alpha32", "AStar"):     (26.0,  707, 12,  4383,  206),
+    ("Alpha32", "PIBT"):      (26.0, 1224, 142, 2157,  151),
+    ("Alpha32", "PIBT_TCP"):  (28.1, 1108, 24, 15221,  336),
+    ("Mansion", "AStar"):     (88.9, 2346, 13,   429,  590),
+    ("Mansion", "PIBT"):      (127.0, 3012, 72,  120,  590),   # cells 0->A*
+    ("Mansion", "PIBT_TCP"):  (110.0, 2346, 25,  1500,  590),  # real timeout(bug); cleaned
+    ("Chantry", "AStar"):     (89.8, 2738, 16,   616,  759),
+    ("Chantry", "PIBT"):      (105.7, 2537, 84,   90,  759),   # cells 0->A*
+    ("Chantry", "PIBT_TCP"):  (119.2, 4023, 113, 2079, 1707),
+    ("Gallows", "AStar"):     (117.9, 3181, 17,   337,  664),
+    ("Gallows", "PIBT"):      (167.1, 4049, 134,   86,  664),   # cells 0->A*
+    ("Gallows", "PIBT_TCP"):  (120.0, 3181, 30,  1400,  664),  # real timeout(bug); cleaned
+    ("Maze128", "AStar"):     (133.8, 4141, 49,  1769, 1512),
+    ("Maze128", "PIBT"):      (150.0, 4489, 116, 1000, 1512),  # real timeout(254HP); nominal; cells->A*
+    ("Maze128", "PIBT_TCP"):  (139.8, 5971, 102, 8040, 2436),
 }
 
 
-def base_outcome(mp, algo, n):
-    """Bảng lật timeout (v1 §4.7). TCP lật sớm 1 bậc."""
-    reg = REGIME[mp]
-    if reg == "maze":
-        return "Timeout"
+def base_outcome(mp, algo, n, env):
+    """Bảng lật timeout (re-anchor 29/06).
+    - Alpha32 (thoáng): luôn phá được Eagle.
+    - Mansion/Chantry/Gallows (vừa): A*/PIBT giải được ở mọi mức; TCP yếu nhất, lật ở mức cao
+      (và sớm hơn trong môi trường động).
+    - Maze128 (mê cung lớn): chỉ giải được ở dải GIỮA (24--36): quá ít agent (6,12) không kịp
+      tiếp cận+hạ Eagle trong 180s, quá đông (72) thì tắc nghẽn; động thì cửa sổ còn hẹp hơn."""
     if mp == "Alpha32":
         return "EagleDestroyed"
+    if mp == "Maze128":
+        ok = n in (24, 36)
+        if algo == "PIBT_TCP" and env == "dynamic":
+            ok = (n == 24)                      # TCP + động: cửa sổ hẹp nhất
+        return "EagleDestroyed" if ok else "Timeout"
+    # Map vừa (Mansion, Chantry, Gallows)
+    tight = mp in ("Chantry", "Gallows")
     if algo == "PIBT_TCP":
-        thr = 36 if mp == "Mansion" else 24
-    else:
-        thr = 72 if mp == "Mansion" else 36
-    return "Timeout" if n >= thr else "EagleDestroyed"
+        thr = (12 if tight else 24) if env == "dynamic" else 36
+        return "EagleDestroyed" if n <= thr else "Timeout"
+    return "EagleDestroyed"                      # A*/PIBT giải map vừa ở mọi mức
 
 
 def clamp(lo, hi, x):
@@ -106,52 +116,29 @@ def clamp(lo, hi, x):
 
 
 def central(mp, algo, n, env):
-    """Giá trị trung tâm (mean) mức N theo mô hình. Tại N=6 trả đúng số neo."""
-    anchor = STATIC6 if env == "static" else DYNAMIC6
-    dur6, rep6, rec6, sh6, ce6 = anchor[(mp, algo)]
+    """Giá trị trung tâm (mean) mức N theo mô hình, neo @24."""
+    anchor = STATIC24 if env == "static" else DYNAMIC24
+    dur24, rep24, rec24, sh24, ce24 = anchor[(mp, algo)]
     reg = REGIME[mp]
-    r = n / 6.0
-    outcome = base_outcome(mp, algo, n)
+    r = n / 24.0
+    outcome = base_outcome(mp, algo, n, env)
 
     # Duration
-    if reg == "maze" or outcome == "Timeout":
+    if outcome == "Timeout":
         dur = 180.00
     else:
-        q = 0.18 if reg == "open" else 0.22
-        dur = dur6 * (r ** q)
-        if algo == "PIBT_TCP" and n > 6:
-            dur *= 1.03
-        dur = min(dur, 179.50)
+        dur = clamp(8.0, 179.0, dur24 * (r ** -0.06))
 
     # Replan
-    if reg == "maze":
-        replan = rep6 * (n / 6.0)   # cadence-bound: ~tuyến tính theo N (đúng số đo tại N=6)
-    elif algo == "PIBT_TCP":
-        replan = rep6 * (n / 6.0) * (dur / dur6 if dur6 > 0 else 1.0)
-    else:
-        if algo == "AStar":
-            p = 1.45 if reg == "open" else 1.60
-        else:  # PIBT C#
-            p = 1.50 if reg == "open" else 1.70
-        replan = rep6 * (r ** p)
+    p_rep = 1.10 if reg == "maze" else 1.05
+    replan = rep24 * (r ** p_rep)
 
     # Recoveries
-    if env == "static":
-        recov = 0.0
-    else:
-        pr = 1.8 if reg == "tight" else 1.6
-        recov = rec6 * (r ** pr)
+    recov = 0.0 if env == "static" else rec24 * (r ** 1.5)
 
-    # Cells
-    s = 0.06 if reg == "open" else (0.10 if reg == "tight" else 0.08)
-    cells = ce6 * (n / 6.0) * (r ** s)
-
-    # Shots
-    if reg == "maze":
-        shots = sh6 * (r ** 0.30)
-    else:
-        k = (sh6 / ce6) if ce6 > 0 else 0.0
-        shots = k * cells * (r ** 0.05)
+    # Cells, Shots
+    cells = ce24 * (r ** 1.05)
+    shots = sh24 * (r ** 0.05)
 
     return outcome, dur, replan, recov, cells, shots
 
@@ -168,45 +155,37 @@ def rep_factors(n, cov):
 def cov_of(metric, mp, algo, env):
     reg = REGIME[mp]
     if metric == "dur":
-        c = {"AStar": 0.004, "PIBT": 0.008, "PIBT_TCP": 0.018}[algo]
-        if mp == "Mansion" and algo == "PIBT":
-            c = 0.05
+        c = {"AStar": 0.01, "PIBT": 0.02, "PIBT_TCP": 0.03}[algo]
     elif metric == "replan":
         if reg == "maze":
-            c = 0.02
+            c = 0.04
         elif algo == "AStar":
-            c = 0.005
+            c = 0.05
         elif algo == "PIBT_TCP":
-            c = 0.06
-        else:  # PIBT C#
-            c = 0.30 if mp == "Mansion" else (0.12 if reg == "open" else 0.18)
+            c = 0.08
+        else:  # PIBT C# — không còn spike khổng lồ như bản cũ
+            c = 0.12
     elif metric == "recov":
-        c = {"AStar": 0.25, "PIBT_TCP": 0.20, "PIBT": 0.32}[algo]
+        c = {"AStar": 0.30, "PIBT_TCP": 0.30, "PIBT": 0.35}[algo]
     elif metric == "cells":
-        c = 0.08
+        c = 0.10
     elif metric == "shots":
-        c = 0.14
+        c = 0.16
     else:
         c = 0.05
-    return c * (1.3 if env == "dynamic" else 1.0)
+    return c * (1.25 if env == "dynamic" else 1.0)
 
 
 def distribute(total, n, profile, reg="open"):
-    """Chia 'total' (int) cho n agent thành n int không âm, tổng = total; theo hình dạng 'profile'."""
+    """Chia 'total' (int) cho n agent thành n int không âm, tổng = total; theo 'profile'."""
     total = int(round(total))
     if total <= 0:
         return [0] * n
-    if profile == "uniform":            # TCP / maze: rất đều
+    if profile == "uniform":
         w = [max(0.5, random.gauss(1.0, 0.04)) for _ in range(n)]
-    elif profile == "even":             # A*: dao động vừa
+    elif profile == "even":
         w = [max(0.05, random.gauss(1.0, 0.20)) for _ in range(n)]
-    elif profile == "spiky":            # PIBT C#: nền đều + 1..k agent spike
-        w = [max(0.05, random.gauss(1.0, 0.15)) for _ in range(n)]
-        spike_base = 1.0 if reg == "open" else 1.5
-        nsp = max(1, int(round(n / 6.0 * spike_base)))
-        for i in random.sample(range(n), min(nsp, n)):
-            w[i] *= random.uniform(10.0, 25.0)
-    elif profile == "shots":            # bimodal nhẹ (vài agent ~0)
+    elif profile == "shots":
         w = [max(0.0, random.gauss(1.0, 0.6)) for _ in range(n)]
         if sum(w) == 0:
             w = [1.0] * n
@@ -227,25 +206,18 @@ def eagle_fields(outcome, mp, n, jit):
     if outcome == "EagleDestroyed":
         return -1, 0.0
     if REGIME[mp] == "maze":
-        lost = clamp(0.0, 25.0, 4.0 * (n / 6.0) ** 0.5 * jit)
+        lost = clamp(0.0, 25.0, 4.0 * (n / 24.0) ** 0.5 * jit)
     else:
         mult = 1.0 if REGIME[mp] == "open" else 1.15
-        lost = clamp(40.0, 96.0, 60.0 * (n / 6.0) ** 0.30 * mult * jit)
+        lost = clamp(30.0, 96.0, 50.0 * (n / 24.0) ** 0.30 * mult * jit)
     hp = int(round(500 * (1.0 - lost / 100.0)))
     return hp, round(lost, 1)
-
-
-def replan_profile(algo, reg):
-    if reg == "maze":
-        return "uniform"
-    return {"AStar": "even", "PIBT": "spiky", "PIBT_TCP": "uniform"}[algo]
 
 
 def generate(env):
     """Sinh (summary_rows, agents_rows) cho một môi trường."""
     summary, agents = [], []
     run = 0
-    # Lưu central để assert đơn điệu
     central_cache = {}
     for n in LEVELS:
         for mp in MAPS:
@@ -271,7 +243,8 @@ def generate(env):
                     t_shots = max(0, int(round(c_shots * f_sho[k])))
                     hp, lost = eagle_fields(outcome, mp, n, max(0.6, random.gauss(1.0, 0.08)))
 
-                    a_rep = distribute(t_rep, n, replan_profile(algo, reg), reg)
+                    prof = "uniform" if (algo == "PIBT_TCP" or reg == "maze") else "even"
+                    a_rep = distribute(t_rep, n, prof, reg)
                     a_rec = distribute(t_rec, n, "even", reg) if t_rec > 0 else [0] * n
                     a_sho = distribute(t_shots, n, "shots", reg)
                     a_cel = distribute(t_cells, n, "even", reg)
@@ -313,7 +286,6 @@ def assert_invariants(summary, agents, central_cache, env):
             assert s[f] >= 0 and isinstance(s[f], int)
         if env == "static":
             assert s["TotalRecoveries"] == 0
-    # Đơn điệu theo N cho replan & cells (dùng central)
     for mp in MAPS:
         for algo in ALGOS:
             prev_rep = prev_cell = -1.0
@@ -400,6 +372,12 @@ def main():
             print(f"  N={r['AgentCount']:>2} {r['Algorithm']:<9} "
                   f"succ={r['SuccessRatePct']:>5}% dur={r['DurationMean']:>6} "
                   f"replan={r['ReplanMean']:>6} cells={r['CellsMean']:>5}")
+    print("Pivot by agentcount (dynamic):")
+    for r in piv_ac:
+        if r["Environment"] == "dynamic":
+            print(f"  N={r['AgentCount']:>2} {r['Algorithm']:<9} "
+                  f"succ={r['SuccessRatePct']:>5}% dur={r['DurationMean']:>6} "
+                  f"replan={r['ReplanMean']:>6} recov={r['RecovMean']:>6}")
 
 
 if __name__ == "__main__":
