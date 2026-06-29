@@ -121,6 +121,10 @@ public class LanClientView : MonoBehaviour
 
     private void Start()
     {
+        // Disable MapLoader auto-fit on the client so the camera can zoom in on the player.
+        var ml = FindObjectOfType<MapLoader>();
+        if (ml != null) ml.fitCameraOnLoad = false;
+
         // Fallback: if NetworkManager wasn't ready in Awake, register now.
         var mgr = NetworkManager.Singleton?.CustomMessagingManager;
         if (mgr == null) return;
@@ -141,6 +145,21 @@ public class LanClientView : MonoBehaviour
     {
         reader.ReadValueSafe(out int playerCount);
         reader.ReadValueSafe(out int enemyCount);
+        reader.ReadValueSafe(out string serverMapFile);
+
+        if (serverMapFile != LanSessionManager.MapFile)
+        {
+            Debug.Log($"[LanClientView] Client map mismatch. Changing {LanSessionManager.MapFile} to {serverMapFile}");
+            LanSessionManager.MapFile = serverMapFile;
+            UnityEngine.PlayerPrefs.SetString("SelectedMapFile", serverMapFile);
+            
+            var ml = FindObjectOfType<MapLoader>();
+            if (ml != null)
+            {
+                ml.fitCameraOnLoad = false;
+                ml.LoadAndBuild();
+            }
+        }
 
         // Determine own slot and collect variant indices from the ownership map.
         ulong myClientId = NetworkManager.Singleton != null
