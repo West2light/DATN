@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 12:11
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 13:20
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1460,6 +1460,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 File: Hinhve/uc_A2.png Graphic file (type bmp)
 <Hinhve/uc_A2.png>
 
+ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
 (fancyhdr)                Make it at least 15.59995pt, for example:
@@ -1522,8 +1523,6 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 [13]
 File: Hinhve/uc_B5.png Graphic file (type bmp)
 <Hinhve/uc_B5.png>
-File: Hinhve/uc_B6.png Graphic file (type bmp)
-<Hinhve/uc_B6.png>
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1533,6 +1532,8 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [14]
+File: Hinhve/uc_B6.png Graphic file (type bmp)
+<Hinhve/uc_B6.png>
 File: Hinhve/uc_B7.png Graphic file (type bmp)
 <Hinhve/uc_B7.png>
 
@@ -1846,40 +1847,40 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [44]
-LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 70
-6.
+LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 71
+4.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <7.58339> not available
-(Font)              size <8> substituted on input line 706.
+(Font)              size <8> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <5.41673> not available
-(Font)              size <5> substituted on input line 706.
+(Font)              size <5> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 706.
+(Font)              size <8> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 706.
+(Font)              size <5> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 706.
+(Font)              size <8> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 706.
+(Font)              size <5> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 706.
+(Font)              size <8> substituted on input line 714.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 706.
+(Font)              size <5> substituted on input line 714.
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
@@ -1975,19 +1976,19 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [53]
-Underfull \hbox (badness 1067) in paragraph at lines 1056--1061
+Underfull \hbox (badness 1067) in paragraph at lines 1064--1069
 []\TU/TimesNewRoman(0)/m/n/13 Để phục vụ người dùng cuối qua trình duyệt, hệ th
 ống được triển khai
  []
 
 
-Underfull \hbox (badness 1616) in paragraph at lines 1074--1076
+Underfull \hbox (badness 1616) in paragraph at lines 1084--1086
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443
 
  []
 
 
-Underfull \hbox (badness 2608) in paragraph at lines 1076--1078
+Underfull \hbox (badness 2608) in paragraph at lines 1087--1089
 []|\TU/lmtt/m/n/11.86258 tankmapf-tank-mapf-artifacts \TU/TimesNewRoman(0)/m/n/
 11.86258 lưu trữ artifact
  []
@@ -2000,7 +2001,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [54]
-Overfull \hbox (3.50667pt too wide) in paragraph at lines 1125--1130
+Overfull \hbox (3.50667pt too wide) in paragraph at lines 1137--1142
 []\TU/TimesNewRoman(0)/b/n/13 Proxy WebSocket cho máy chủ trò chơi. \TU/TimesNe
 wRoman(0)/m/n/13 Tên miền phụ \TU/lmtt/m/n/13 game.luminx.io.vn
  []
@@ -2013,38 +2014,38 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [55]
-Underfull \hbox (badness 5345) in paragraph at lines 1198--1200
+Underfull \hbox (badness 5345) in paragraph at lines 1210--1212
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Kiểm tra định dạng Ter-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1198--1200
+Underfull \hbox (badness 10000) in paragraph at lines 1210--1212
 \TU/TimesNewRoman(0)/m/n/11.86258 raform, cú pháp Python
  []
 
 
-Underfull \hbox (badness 7081) in paragraph at lines 1198--1200
+Underfull \hbox (badness 7081) in paragraph at lines 1210--1212
 \TU/TimesNewRoman(0)/m/n/11.86258 (Registry), cú pháp shell
  []
 
 
-Underfull \hbox (badness 1552) in paragraph at lines 1198--1200
+Underfull \hbox (badness 1552) in paragraph at lines 1210--1212
 \TU/TimesNewRoman(0)/m/n/11.86258 script; phát hiện tệp nhạy
  []
 
 
-Underfull \hbox (badness 5862) in paragraph at lines 1201--1203
+Underfull \hbox (badness 5862) in paragraph at lines 1214--1216
 \TU/TimesNewRoman(0)/m/n/11.86258 chạy \TU/lmtt/m/n/11.86258 terraform plan \TU
 /TimesNewRoman(0)/m/n/11.86258 để
  []
 
 
-Underfull \hbox (badness 4366) in paragraph at lines 1204--1206
+Underfull \hbox (badness 4366) in paragraph at lines 1218--1220
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Build artifact Linux Ded-
  []
 
 
-Underfull \hbox (badness 5548) in paragraph at lines 1204--1206
+Underfull \hbox (badness 5548) in paragraph at lines 1218--1220
 \TU/TimesNewRoman(0)/m/n/11.86258 icated Server và WebGL,
  []
 

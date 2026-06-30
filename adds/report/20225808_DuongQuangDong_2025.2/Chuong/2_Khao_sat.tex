@@ -154,10 +154,15 @@ Người chơi vào chế độ chơi đơn bằng nút \textbf{SINGLE PLAY} ở
 \caption{Đặc tả use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}\label{tab:ucA1}\\
 \hline
 Mã use case    & UC-A1 \\
+\hline
 Tên use case   & Cấu hình và bắt đầu ván chơi đơn \\
+\hline
 Tác nhân chính & Người chơi \\
+\hline
 Mô tả          & Người chơi chọn mẫu xe tăng, bản đồ và thuật toán AI rồi khởi động một ván chơi đơn chống các agent AI. \\
+\hline
 Tiền điều kiện & Ứng dụng đang ở menu chính. \\
+\hline
 Luồng sự kiện chính &
 1. Từ menu chính chọn SINGLE PLAY. \newline
 2. Chọn mẫu xe tăng. \newline
@@ -166,10 +171,12 @@ Luồng sự kiện chính &
 5. Bấm bắt đầu. \newline
 6. Hệ thống đọc tệp \texttt{.map}, dựng lưới ô và spawn xe tăng người chơi cùng Eagle Base. \newline
 7. \texttt{MapScenarioBootstrap} spawn các agent AI theo thuật toán đã chọn. \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Không chọn thủ công $\rightarrow$ dùng lựa chọn đã lưu (PlayerPrefs) hoặc mặc định Alpha32/A*. \newline
 4a. Chọn PIBT\_TCP nhưng máy chủ C++ chưa chạy $\rightarrow$ báo lỗi kết nối. \newline
 6a. Tệp \texttt{.map} không tìm thấy $\rightarrow$ dùng Alpha32. \\
+\hline
 Hậu điều kiện  & Ván chơi đơn bắt đầu; agent AI dùng đúng thuật toán đã chọn. \\
 \hline
 \end{longtable}
@@ -187,17 +194,24 @@ Hậu điều kiện  & Ván chơi đơn bắt đầu; agent AI dùng đúng thu
 \caption{Đặc tả use case UC-A2 -- Điều khiển xe tăng}\label{tab:ucA2}\\
 \hline
 Mã use case    & UC-A2 \\
+\hline
 Tên use case   & Điều khiển xe tăng \\
+\hline
 Tác nhân chính & Người chơi \\
+\hline
 Mô tả          & Trong trận, người chơi điều khiển thân xe, xoay tháp pháo và bắn đạn để phòng thủ Eagle Base. \\
+\hline
 Tiền điều kiện & Đang trong một ván chơi. \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi nhập lệnh di chuyển (bàn phím), xoay tháp (chuột) và bắn (chuột trái). \newline
 2. \texttt{PlayerInput} chuyển lệnh tới \texttt{TankController}. \newline
 3. \texttt{TankMover} áp dụng vật lý Rigidbody2D; \texttt{Turret} bắn đạn lấy từ object pool. \newline
 4. Đạn va chạm mục tiêu và gây sát thương qua \texttt{Damagable}. \\
+\hline
 Luồng thay thế / ngoại lệ &
 3a. Va chạm tường (lớp \texttt{ObstaclesMovement}) $\rightarrow$ xe tăng không đi xuyên. \\
+\hline
 Hậu điều kiện  & Trạng thái vị trí xe tăng và đạn được cập nhật. \\
 \hline
 \end{longtable}
@@ -215,15 +229,22 @@ Hậu điều kiện  & Trạng thái vị trí xe tăng và đạn được c�
 \caption{Đặc tả use case UC-A3 -- Kết thúc ván chơi}\label{tab:ucA3}\\
 \hline
 Mã use case    & UC-A3 \\
+\hline
 Tên use case   & Kết thúc ván chơi (thắng/thua) \\
+\hline
 Tác nhân chính & Người chơi, Agent AI \\
+\hline
 Mô tả          & Ván kết thúc khi Eagle Base bị phá hủy (agent thắng) hoặc người chơi tiêu diệt hết agent (người chơi thắng). \\
+\hline
 Tiền điều kiện & Đang trong một ván chơi. \\
+\hline
 Luồng sự kiện chính &
 1. Khi Eagle Base hết máu $\rightarrow$ \texttt{MapGameOverController} hiển thị màn hình thua. \newline
 2. Khi không còn agent sống và Eagle còn máu $\rightarrow$ \texttt{MapWinController} hiển thị màn hình thắng. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Trong backtest, run chạm ngưỡng thời gian (timeout) $\rightarrow$ ghi kết quả \texttt{Timeout}. \\
+\hline
 Hậu điều kiện  & Màn hình kết quả hiển thị; người chơi có thể chơi lại hoặc về menu. \\
 \hline
 \end{longtable}
@@ -264,16 +285,23 @@ môi trường dùng chung phòng chờ (B5), vòng chơi đồng bộ (B6) và 
 \caption{Đặc tả use case UC-B1 -- Tạo phòng LAN}\label{tab:ucB1}\\
 \hline
 Mã use case    & UC-B1 \\
+\hline
 Tên use case   & Tạo phòng LAN \\
+\hline
 Tác nhân chính & Chủ phòng (Host) \\
+\hline
 Mô tả          & Người chơi tạo một phòng trên mạng LAN, khởi tạo máy chủ Fish-Net và công bố phòng để các máy khác dò tìm. \\
+\hline
 Tiền điều kiện & Các máy ở cùng mạng LAN. \\
+\hline
 Luồng sự kiện chính &
 1. Chủ phòng chọn bản đồ/chế độ và màu xe tăng, rồi chọn "Host". \newline
 2. \texttt{LanSessionManager} khởi tạo \texttt{NetworkManager} (Fish-Net); \texttt{LanDiscovery} phát quảng bá phòng. \newline
 3. Giao diện chuyển sang màn Hosting, hiển thị thông tin phòng và nút START. \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Cổng mạng bị chiếm $\rightarrow$ báo lỗi và quay lại màn chọn chế độ. \\
+\hline
 Hậu điều kiện  & Phòng LAN đang chạy và chờ người tham gia. \\
 \hline
 \end{longtable}
@@ -291,17 +319,24 @@ Hậu điều kiện  & Phòng LAN đang chạy và chờ người tham gia. \\
 \caption{Đặc tả use case UC-B2 -- Tham gia phòng LAN}\label{tab:ucB2}\\
 \hline
 Mã use case    & UC-B2 \\
+\hline
 Tên use case   & Tham gia phòng LAN \\
+\hline
 Tác nhân chính & Người tham gia (Client) \\
+\hline
 Mô tả          & Người chơi dò tìm trong mạng LAN hoặc nhập địa chỉ để tham gia một phòng có sẵn. \\
+\hline
 Tiền điều kiện & Có một phòng LAN đang chạy trong cùng mạng. \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi chọn "Join". \newline
 2. \texttt{LanDiscovery} liệt kê các phòng tìm thấy, hoặc người chơi nhập địa chỉ thủ công. \newline
 3. Kết nối qua \texttt{LanNetworkBridge}; \texttt{JoinApprovalPayload} xác thực yêu cầu vào phòng. \newline
 4. Người chơi vào phòng chờ. \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Địa chỉ sai $\rightarrow$ báo lỗi kết nối, quay lại màn nhập địa chỉ. \\
+\hline
 Hậu điều kiện  & Người tham gia đang ở trong phòng chờ. \\
 \hline
 \end{longtable}
@@ -319,18 +354,26 @@ Hậu điều kiện  & Người tham gia đang ở trong phòng chờ. \\
 \caption{Đặc tả use case UC-B3 -- Tạo phòng Internet}\label{tab:ucB3}\\
 \hline
 Mã use case    & UC-B3 \\
+\hline
 Tên use case   & Tạo phòng Internet \\
+\hline
 Tác nhân chính & Chủ phòng (Host) \\
+\hline
 Tác nhân phụ   & Máy chủ Relay/Registry \\
+\hline
 Mô tả          & Tạo phòng chơi qua Internet bằng Unity Relay; hệ thống đăng ký vào registry và sinh mã phòng kèm đường dẫn tham gia. \\
+\hline
 Tiền điều kiện & Có kết nối Internet; dịch vụ Relay và registry khả dụng. \\
+\hline
 Luồng sự kiện chính &
 1. Chủ phòng chọn bản đồ/chế độ và màu xe tăng, rồi chọn tạo phòng Internet. \newline
 2. \texttt{RelayManager.CreateRoomAsync} cấp allocation và \texttt{joinCode}. \newline
 3. \texttt{InternetSessionClient} đăng ký registry, nhận về mã phòng, \texttt{joinUrl}, \texttt{webUrl}. \newline
 4. Hiển thị mã phòng; có thể sao chép qua \texttt{WebClipboard} (bản WebGL). \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Relay hoặc registry lỗi $\rightarrow$ báo lỗi và hủy thao tác. \\
+\hline
 Hậu điều kiện  & Phòng Internet sẵn sàng; mã phòng được công bố cho người tham gia. \\
 \hline
 \end{longtable}
@@ -348,19 +391,27 @@ Hậu điều kiện  & Phòng Internet sẵn sàng; mã phòng được công b
 \caption{Đặc tả use case UC-B4 -- Tham gia phòng Internet}\label{tab:ucB4}\\
 \hline
 Mã use case    & UC-B4 \\
+\hline
 Tên use case   & Tham gia phòng Internet \\
+\hline
 Tác nhân chính & Người tham gia (Client) \\
+\hline
 Tác nhân phụ   & Máy chủ Relay/Registry \\
+\hline
 Mô tả          & Người chơi tham gia phòng Internet bằng mã phòng hoặc URL chia sẻ. \\
+\hline
 Tiền điều kiện & Có mã phòng/URL hợp lệ; có kết nối Internet. \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi nhập mã phòng hoặc URL (\texttt{InternetJoinParser} tách mã). \newline
 2. \texttt{InternetSessionClient} tra cứu registry, lấy địa chỉ host và loại transport (ưu tiên \texttt{webHost} cho bản WebGL). \newline
 3. \texttt{RelayManager.JoinRoomAsync} kết nối bằng \texttt{joinCode}. \newline
 4. Người chơi vào phòng chờ. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Mã sai hoặc registry không tìm thấy phòng $\rightarrow$ báo lỗi. \newline
 2a. Bản WebGL dùng endpoint web qua \texttt{PIBTWebRelayClient}. \\
+\hline
 Hậu điều kiện  & Người tham gia đang ở trong phòng chờ Internet. \\
 \hline
 \end{longtable}
@@ -378,17 +429,24 @@ Hậu điều kiện  & Người tham gia đang ở trong phòng chờ Internet.
 \caption{Đặc tả use case UC-B5 -- Phòng chờ \& bắt đầu trận}\label{tab:ucB5}\\
 \hline
 Mã use case    & UC-B5 \\
+\hline
 Tên use case   & Phòng chờ và bắt đầu trận \\
+\hline
 Tác nhân chính & Chủ phòng, Người tham gia \\
+\hline
 Mô tả          & Trong phòng chờ, mỗi người chơi bật trạng thái sẵn sàng; chủ phòng bắt đầu trận khi tất cả đã sẵn sàng. \\
+\hline
 Tiền điều kiện & Người chơi đã ở trong phòng (LAN hoặc Internet). \\
+\hline
 Luồng sự kiện chính &
 1. Mỗi người chơi bấm READY (đảo trạng thái \texttt{\_localReady}). \newline
 2. Trạng thái sẵn sàng được đồng bộ tới mọi máy. \newline
 3. Chủ phòng bấm START (\texttt{RequestStartServerRpc}). \newline
 4. Hệ thống đồng bộ bản đồ, spawn xe tăng cho mọi người chơi và Eagle Base chung. \\
+\hline
 Luồng thay thế / ngoại lệ &
 3a. Còn người chưa sẵn sàng $\rightarrow$ nút START bị vô hiệu hóa. \\
+\hline
 Hậu điều kiện  & Trận nhiều người bắt đầu đồng bộ trên mọi máy. \\
 \hline
 \end{longtable}
@@ -406,18 +464,26 @@ Hậu điều kiện  & Trận nhiều người bắt đầu đồng bộ trên 
 \caption{Đặc tả use case UC-B6 -- Chơi mạng nhiều người}\label{tab:ucB6}\\
 \hline
 Mã use case    & UC-B6 \\
+\hline
 Tên use case   & Chơi mạng nhiều người \\
+\hline
 Tác nhân chính & Chủ phòng, Người tham gia \\
+\hline
 Tác nhân phụ   & Máy chủ Relay/PIBT \\
+\hline
 Mô tả          & Nhiều người chơi cùng phòng thủ Eagle Base; trạng thái xe tăng, đạn và Eagle được đồng bộ thời gian thực; số agent AI tỉ lệ theo số người chơi. \\
+\hline
 Tiền điều kiện & Trận đã được bắt đầu (UC-B5). \\
+\hline
 Luồng sự kiện chính &
 1. Mỗi người chơi điều khiển xe tăng của mình (UC-A2). \newline
 2. \texttt{LanGameCoordinator}/\texttt{NetworkManager} đồng bộ trạng thái qua Relay hoặc LAN. \newline
 3. Số agent bằng số người chơi nhân với hệ số; các agent tấn công Eagle Base chung. \newline
 4. Trận kết thúc đồng bộ trên mọi máy (UC-A3). \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Một người tham gia mất kết nối $\rightarrow$ chủ phòng nhận thông báo và tiếp tục với số người còn lại. \\
+\hline
 Hậu điều kiện  & Kết quả chung được hiển thị đồng bộ trên mọi máy. \\
 \hline
 \end{longtable}
@@ -435,15 +501,22 @@ Hậu điều kiện  & Kết quả chung được hiển thị đồng bộ tr�
 \caption{Đặc tả use case UC-B7 -- Rời phòng / Huỷ kết nối}\label{tab:ucB7}\\
 \hline
 Mã use case    & UC-B7 \\
+\hline
 Tên use case   & Rời phòng hoặc huỷ kết nối \\
+\hline
 Tác nhân chính & Chủ phòng, Người tham gia \\
+\hline
 Mô tả          & Người chơi huỷ thao tác kết nối hoặc rời phòng; hệ thống xử lý ngắt kết nối sạch và giải phóng tài nguyên. \\
+\hline
 Tiền điều kiện & Đang ở màn kết nối hoặc đang trong phòng. \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi bấm Cancel hoặc Rời phòng. \newline
 2. Hệ thống đóng kết nối, giải phóng allocation Relay (nếu có) và quay lại menu. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Chủ phòng rời $\rightarrow$ phòng đóng, các người tham gia nhận thông báo và trở về menu. \\
+\hline
 Hậu điều kiện  & Người chơi trở về menu; tài nguyên mạng được giải phóng. \\
 \hline
 \end{longtable}
@@ -474,16 +547,23 @@ biểu đồ use case nhóm này.
 \caption{Đặc tả use case UC-C1 -- Tạm dừng / Tiếp tục ván}\label{tab:ucC1}\\
 \hline
 Mã use case    & UC-C1 \\
+\hline
 Tên use case   & Tạm dừng và tiếp tục ván \\
+\hline
 Tác nhân chính & Người chơi \\
+\hline
 Mô tả          & Người chơi tạm dừng ván đang chơi và tiếp tục lại khi muốn. \\
+\hline
 Tiền điều kiện & Đang trong một ván chơi. \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi bấm nút tạm dừng. \newline
 2. Hệ thống hiển thị lớp phủ PAUSED với hai nút RESUME và MENU. \newline
 3. Bấm RESUME $\rightarrow$ ván chơi tiếp tục từ trạng thái trước đó. \\
+\hline
 Luồng thay thế / ngoại lệ &
 2a. Trong chế độ nhiều người, \texttt{ApplyNetworkPause} đồng bộ trạng thái tạm dừng phù hợp giữa các máy. \\
+\hline
 Hậu điều kiện  & Ván chơi tiếp tục bình thường. \\
 \hline
 \end{longtable}
@@ -501,15 +581,22 @@ Hậu điều kiện  & Ván chơi tiếp tục bình thường. \\
 \caption{Đặc tả use case UC-C2 -- Quay lại menu chính}\label{tab:ucC2}\\
 \hline
 Mã use case    & UC-C2 \\
+\hline
 Tên use case   & Quay lại menu chính \\
+\hline
 Tác nhân chính & Người chơi \\
+\hline
 Mô tả          & Từ lớp phủ tạm dừng, người chơi thoát ván hiện tại và trở về menu chính. \\
+\hline
 Tiền điều kiện & Đang ở lớp phủ tạm dừng (đã tạm dừng ván). \\
+\hline
 Luồng sự kiện chính &
 1. Người chơi bấm MENU trong lớp phủ tạm dừng. \newline
 2. Hệ thống kết thúc ván hiện tại và tải lại scene Menu. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Trong chế độ nhiều người, rời ván đồng nghĩa rời phòng (xem UC-B7). \\
+\hline
 Hậu điều kiện  & Người chơi trở về menu chính. \\
 \hline
 \end{longtable}
@@ -541,16 +628,23 @@ Hình~\ref{fig:uc_groupD} là biểu đồ use case nhóm backtest.
 \caption{Đặc tả use case UC-D1 -- Cấu hình backtest}\label{tab:ucD1}\\
 \hline
 Mã use case    & UC-D1 \\
+\hline
 Tên use case   & Cấu hình backtest \\
+\hline
 Tác nhân chính & Nghiên cứu viên \\
+\hline
 Mô tả          & Cấu hình ma trận thực nghiệm: chọn bản đồ, thuật toán, số lần lặp, bật/tắt chướng ngại động và số agent. \\
+\hline
 Tiền điều kiện & Chạy bản local/Editor; nếu chọn PIBT\_TCP thì máy chủ C++ đang chạy. \\
+\hline
 Luồng sự kiện chính &
 1. Mở \texttt{BacktestConfigUI} (nút BACKTEST chỉ hiện trong Editor). \newline
 2. Chọn tổ hợp bản đồ × thuật toán × số lần lặp, bật/tắt chướng ngại động, đặt số agent. \newline
 3. Lưu cấu hình vào \texttt{BacktestMode}. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Bản production không hiển thị nút BACKTEST $\rightarrow$ use case không khả dụng. \\
+\hline
 Hậu điều kiện  & Cấu hình thực nghiệm sẵn sàng để chạy. \\
 \hline
 \end{longtable}
@@ -568,19 +662,27 @@ Hậu điều kiện  & Cấu hình thực nghiệm sẵn sàng để chạy. \\
 \caption{Đặc tả use case UC-D2 -- Chạy backtest tự động}\label{tab:ucD2}\\
 \hline
 Mã use case    & UC-D2 \\
+\hline
 Tên use case   & Chạy backtest tự động \\
+\hline
 Tác nhân chính & Nghiên cứu viên \\
+\hline
 Tác nhân phụ   & Máy chủ PIBT (C++) \\
+\hline
 Mô tả          & Hệ thống lặp qua mọi tổ hợp cấu hình, mỗi run chạy kịch bản đến khi Eagle bị phá hoặc hết thời gian, thu thập chỉ số định lượng. \\
+\hline
 Tiền điều kiện & Đã cấu hình backtest (UC-D1). \\
+\hline
 Luồng sự kiện chính &
 1. Người dùng bấm Start. \newline
 2. \texttt{BacktestRunner} lặp qua từng tổ hợp (map × algorithm × rep). \newline
 3. Mỗi run spawn agent, chạy kịch bản, ghi chỉ số (replan, số ô đi, thời gian, kết quả). \newline
 4. Sau khi hết các run, xuất \texttt{backtest\_summary\_*.csv}, \texttt{backtest\_agents\_*.csv} và \texttt{backtest\_chart\_*.html}. \\
+\hline
 Luồng thay thế / ngoại lệ &
 3a. PIBT\_TCP mất kết nối $\rightarrow$ ghi \texttt{Outcome=ConnectionError} và tiếp tục. \newline
 3b. Run chạm timeout $\rightarrow$ ghi \texttt{Outcome=Timeout}. \\
+\hline
 Hậu điều kiện  & Tệp CSV và HTML chart xuất hiện trong thư mục \texttt{BacktestResults/}. \\
 \hline
 \end{longtable}
@@ -598,17 +700,24 @@ Hậu điều kiện  & Tệp CSV và HTML chart xuất hiện trong thư mục 
 \caption{Đặc tả use case UC-D3 -- Xem kết quả backtest}\label{tab:ucD3}\\
 \hline
 Mã use case    & UC-D3 \\
+\hline
 Tên use case   & Xem kết quả backtest \\
+\hline
 Tác nhân chính & Nghiên cứu viên \\
+\hline
 Mô tả          & Nghiên cứu viên xem kết quả định lượng qua tệp CSV và biểu đồ HTML. \\
+\hline
 Tiền điều kiện & Đã chạy ít nhất một đợt backtest và sinh tệp kết quả. \\
+\hline
 Luồng sự kiện chính &
 1. Mở thư mục \texttt{BacktestResults/}. \newline
 2. Xem \texttt{backtest\_summary\_*.csv} để nắm kết quả tổng hợp. \newline
 3. Mở \texttt{backtest\_chart\_*.html} để xem biểu đồ trực quan. \newline
 4. Mở \texttt{backtest\_agents\_*.csv} để xem chi tiết chỉ số từng agent. \\
+\hline
 Luồng thay thế / ngoại lệ &
 3a. Thiếu Python/matplotlib $\rightarrow$ không sinh được PNG nhưng HTML vẫn hiển thị bảng số liệu. \\
+\hline
 Hậu điều kiện  & Người dùng nắm được kết quả định lượng của đợt thực nghiệm. \\
 \hline
 \end{longtable}

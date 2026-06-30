@@ -488,13 +488,21 @@ dùng can thiệp. Bảng~\ref{tab:exp_config} liệt kê cấu hình đầy đ�
 \hline
 \textbf{Tham số} & \textbf{Giá trị} \\ \hline
 Bản đồ & Alpha32, Mansion, Chantry, Gallows, Maze128 \\
+\hline
 Thuật toán so sánh & A* (baseline), PIBT C\#, PIBT C++/TCP \\
+\hline
 Số agent (xe tăng địch) & 6, 12, 24, 36, 72 \\
+\hline
 Tốc độ xe tăng & Không đổi và đồng nhất cho cả người chơi lẫn xe tăng địch (dùng chung \texttt{TankMovementData}) \\
+\hline
 Số lần lặp mỗi tổ hợp & 6 \\
+\hline
 Timeout mỗi run & 180 giây \\
+\hline
 Tổng số run & 5 bản đồ \(\times\) 3 thuật toán \(\times\) 5 mức agent \(\times\) 6 lần \(\times\) 2 môi trường = 900 run \\
+\hline
 Môi trường tĩnh & Không có chướng ngại di chuyển \\
+\hline
 Môi trường động & \texttt{DynamicObstacleSpawner} sinh rồi hủy thùng theo nhịp cố định ngay trên đường đi của agent (tốc độ xuất hiện và biến mất không đổi), mỗi thùng tồn tại \texttt{crateLifetime}\,=\,8\,s \\
 \hline
 \end{tabular}
@@ -1064,17 +1072,21 @@ thành phần hạ tầng chính.
 \caption{Thành phần hạ tầng GCP}
 \label{tab:gcp_infra}
 \small
-\begin{tabular}{lp{9cm}}
+\begin{tabular}{|l|p{9cm}|}
 \hline
 \textbf{Thành phần} & \textbf{Mô tả} \\ \hline
 Máy ảo (VM)  & Compute Engine \texttt{e2-medium} (2~vCPU, 4\,GB RAM),
                chạy Ubuntu, đặt tại \texttt{asia-southeast1-b} \\
+\hline
 Địa chỉ IP tĩnh & \texttt{google\_compute\_address} cấp phát IP công khai
                    cố định, không đổi khi khởi động lại VM \\
+\hline
 Firewall     & Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443 (HTTPS),
                7777 (game UDP/TCP), 7778 (WebSocket nội bộ), 8080 (Registry nội bộ) \\
+\hline
 GCS Bucket   & \texttt{tankmapf-tank-mapf-artifacts} lưu trữ artifact build
                (server Linux, WebGL) theo mã commit \\
+\hline
 Terraform    & Toàn bộ hạ tầng được khai báo dưới dạng mã (Infrastructure as Code)
                trong thư mục \texttt{infra/gcp/*.tf}, cho phép tái tạo hoàn toàn
                bằng lệnh \texttt{terraform apply} \\
@@ -1192,18 +1204,21 @@ workflow cùng chức năng tương ứng.
 \caption{Các workflow CI/CD trên GitHub Actions}
 \label{tab:cicd_workflows}
 \small
-\begin{tabular}{lp{4.8cm}p{4.2cm}}
+\begin{tabular}{|l|p{4.8cm}|p{4.2cm}|}
 \hline
 \textbf{Workflow} & \textbf{Chức năng} & \textbf{Kích hoạt} \\ \hline
 \texttt{ci-validate}    & Kiểm tra định dạng Terraform, cú pháp Python
                           (Registry), cú pháp shell script; phát hiện tệp
                           nhạy cảm bị commit & Push, Pull Request \\
+\hline
 \texttt{terraform-plan} & Xác thực cấu hình hạ tầng, chạy
                           \texttt{terraform plan} để xem trước thay đổi
                           & Push, Pull Request \\
+\hline
 \texttt{unity-build}    & Build artifact Linux Dedicated Server và WebGL,
                           đóng gói theo mã commit, upload lên GCS bucket
                           & Push, Manual \\
+\hline
 \texttt{deploy-gcp}     & Triển khai artifact lên máy ảo GCP, khởi động lại
                           dịch vụ, kiểm tra sức khỏe (smoke test)
                           & Manual (có phê duyệt) \\ \hline

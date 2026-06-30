@@ -25,16 +25,23 @@ use case của nhóm.
 \caption{Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}\label{tab:ucE1}\\
 \hline
 Mã use case    & UC-E1 \\
+\hline
 Tên use case   & Triển khai máy chủ PIBT/Relay lên GCP \\
+\hline
 Tác nhân chính & Quản trị hệ thống (DevOps) \\
+\hline
 Mô tả          & Triển khai máy chủ PIBT/relay lên Google Cloud Platform với nginx, cấu hình endpoint và registry để client Internet/WebGL kết nối được. \\
+\hline
 Tiền điều kiện & Có tài khoản GCP và mã nguồn trong \texttt{infra/}, \texttt{services/}. \\
+\hline
 Luồng sự kiện chính &
 1. Build và triển khai service từ \texttt{infra/} và \texttt{services/} lên GCP. \newline
 2. Cấu hình nginx và endpoint mạng (\texttt{NetworkEndpointConfig}). \newline
 3. Đăng ký registry để client tra cứu phòng theo mã. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Triển khai thất bại (sai cấu hình/credential) $\rightarrow$ rollback và xem log. \\
+\hline
 Hậu điều kiện  & Máy chủ PIBT/relay sẵn sàng phục vụ các phòng Internet. \\
 \hline
 \end{longtable}
@@ -54,16 +61,23 @@ Hậu điều kiện  & Máy chủ PIBT/relay sẵn sàng phục vụ các phòn
 \caption{Đặc tả use case UC-E2 -- Chạy dedicated server}\label{tab:ucE2}\\
 \hline
 Mã use case    & UC-E2 \\
+\hline
 Tên use case   & Chạy dedicated server \\
+\hline
 Tác nhân chính & Quản trị hệ thống (DevOps) \\
+\hline
 Mô tả          & Khởi chạy chế độ máy chủ chuyên dụng (headless) để host trận mà không cần client đồ họa. \\
+\hline
 Tiền điều kiện & Đã triển khai hoặc đã có bản build máy chủ. \\
+\hline
 Luồng sự kiện chính &
 1. Chạy ứng dụng với \texttt{NetworkLaunchArgs} ở chế độ server. \newline
 2. \texttt{DedicatedServerBootstrap} khởi tạo \texttt{NetworkManager} và lắng nghe kết nối. \newline
 3. Client tham gia như UC-B2 hoặc UC-B4. \\
+\hline
 Luồng thay thế / ngoại lệ &
 1a. Cổng/endpoint không khả dụng $\rightarrow$ server thoát kèm log lỗi. \\
+\hline
 Hậu điều kiện  & Dedicated server đang chạy, sẵn sàng nhận client. \\
 \hline
 \end{longtable}
@@ -91,13 +105,17 @@ dịch vụ Registry đã khởi động.
 \captionof{table}{Năm giai đoạn của quy trình triển khai end-to-end}
 \label{tab:deploy_pipeline}
 \small
-\begin{tabular}{>{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}p{6.3cm}}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{6.3cm}|}
 \hline
 \textbf{Giai đoạn} & \textbf{Thành phần} & \textbf{Hành động chính} \\ \hline
 1. Khai báo hạ tầng & Terraform (\texttt{infra/gcp}) & \texttt{terraform apply} dựng máy ảo \texttt{e2-medium}, IP tĩnh, firewall và GCS bucket \\
+\hline
 2. Tích hợp \& đóng gói & GitHub Actions (CI/CD) & Build bản máy chủ Linux và bản WebGL nén Brotli theo mã commit, đẩy artifact lên GCS bucket \\
+\hline
 3. Triển khai (UC-E1) & Máy ảo GCP + Nginx & Tải artifact mới nhất về \texttt{/opt/tank-mapf/web}, nạp lại cấu hình Nginx và dịch vụ Registry \\
+\hline
 4. Phục vụ & Nginx (ba khối server) & Phục vụ WebGL qua HTTPS, proxy Registry (cổng 8080) và proxy WebSocket trò chơi (cổng 7778) qua \texttt{wss://} \\
+\hline
 5. Kết nối \& chơi & Trình duyệt + Registry + PIBT C++ & Người chơi tạo/tham gia phòng bằng mã; lệnh lập kế hoạch được chuyển tới máy chủ PIBT C++ trên cùng máy ảo \\
 \hline
 \end{tabular}
