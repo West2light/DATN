@@ -885,14 +885,15 @@ Bảng~\ref{tab:scaling_dynamic} tổng hợp kết quả môi trường động
 trúc cột như bảng tĩnh nhưng thay cột \emph{Cells} bằng cột \emph{Phục hồi TB} để làm rõ chiều khác
 biệt này.
 
-\begin{center}
-\captionof{table}{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
-\label{tab:scaling_dynamic}
-\small
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{rlrrrr}
+\begin{longtable}{rlrrrr}
+\caption{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
+\label{tab:scaling_dynamic} \\
 \hline
 \textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} \\ \hline
+\endfirsthead
+\multicolumn{6}{l}{\small (tiếp theo Bảng~\ref{tab:scaling_dynamic})} \\ \hline
+\textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} \\ \hline
+\endhead
  6 & A*           & 80,0 & 106,1 & 599 & 9 \\
  6 & PIBT C\#     & 80,0 & 127,7 & 700 & 48 \\
  6 & PIBT C++/TCP & 80,0 & 118,0 & 757 & 26 \\
@@ -913,9 +914,7 @@ biệt này.
 72 & PIBT C\#     & 80,0 & 115,7 & 9\,866 & 212 \\
 72 & PIBT C++/TCP & 20,0 & 149,3 & 10\,754 & 114 \\
 \hline
-\end{tabular}%
-}
-\end{center}
+\end{longtable}
 
 Bảng~\ref{tab:scaling_dynamic} cho thấy chướng ngại động giữ nguyên dạng ``cửa sổ mật độ'' của tỉ
 lệ phá Eagle (đỉnh ở 24--36 agent với A* và PIBT~C\#) nhưng làm xuất hiện rõ một chiều mới: số lần
