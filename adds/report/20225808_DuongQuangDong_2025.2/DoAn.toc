@@ -69,8 +69,8 @@
 \contentsline {section}{\numberline {6.1}Kết luận}{67}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Hạn chế của đồ án}{67}{section.6.2}%
 \contentsline {section}{\numberline {6.3}Hướng phát triển}{68}{section.6.3}%
-\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{69}{section*.54}%
-\contentsline {chapter}{PHỤ LỤC}{71}{section*.55}%
+\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{69}{section*.52}%
+\contentsline {chapter}{PHỤ LỤC}{71}{section*.53}%
 \ttl@change@i {\@ne }{chapter}{0.0cm}{\bfseries \vspace {0.3cm}}{{\bfseries {\scshape } \thecontentslabel .\ }}{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
 \ttl@change@v {chapter}{}{}{}\relax 
 \contentsline {chapter}{\numberline {A}KẾT QUẢ BACKTEST CHI TIẾT}{71}{appendix.1.A}%

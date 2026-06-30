@@ -246,7 +246,7 @@ Bảng~\ref{tab:tools} liệt kê các công cụ, thư viện và phiên bản 
 \caption{Công cụ và thư viện sử dụng}
 \label{tab:tools}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lll}
+\begin{tabular}{|l|l|l|}
 \hline
 \textbf{Mục đích}               & \textbf{Công cụ / Thư viện}          & \textbf{Phiên bản} \\ \hline
 Engine trò chơi                 & Unity Engine (URP 2D)                & 6000.3.10f1        \\
@@ -270,7 +270,7 @@ Bảng~\ref{tab:codestats} tổng hợp thống kê mã nguồn C\# của hệ t
 \centering
 \caption{Thống kê mã nguồn C\# (tháng 6/2026)}
 \label{tab:codestats}
-\begin{tabular}{lrr}
+\begin{tabular}{|l|r|r|}
 \hline
 \textbf{Mô-đun}                             & \textbf{Tệp} & \textbf{Dòng lệnh} \\ \hline
 Lõi MAPF AI (A*, PIBT, TCP client)          &  8           & 3\,572             \\
@@ -484,7 +484,7 @@ dùng can thiệp. Bảng~\ref{tab:exp_config} liệt kê cấu hình đầy đ�
 \centering
 \caption{Cấu hình thực nghiệm}
 \label{tab:exp_config}
-\begin{tabular}{l >{\raggedright\arraybackslash}p{8.4cm}}
+\begin{tabular}{|l|>{\raggedright\arraybackslash}p{8.4cm}|}
 \hline
 \textbf{Tham số} & \textbf{Giá trị} \\ \hline
 Bản đồ & Alpha32, Mansion, Chantry, Gallows, Maze128 \\
@@ -614,7 +614,7 @@ môi trường tĩnh (không có chướng ngại động).
 \caption{Kết quả thực nghiệm môi trường tĩnh (trung bình 6 lần lặp, 6 agent)}
 \label{tab:static_results}
 \small
-\begin{tabular}{llrrrl}
+\begin{tabular}{|l|l|r|r|r|l|}
 \hline
 \textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
 Alpha32  & A*            & 25,1  &   144  &    47  & EagleDestroyed \\
@@ -683,7 +683,7 @@ Bảng~\ref{tab:dynamic_results} tổng hợp kết quả khi bật chướng ng
 \footnotesize
 \setlength{\tabcolsep}{4pt}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{llrrrrl}
+\begin{tabular}{|l|l|r|r|r|r|l|}
 \hline
 \textbf{Bản đồ} & \textbf{Thuật toán} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} & \textbf{Cells TB} & \textbf{Kết quả} \\ \hline
 Alpha32  & A*            &  28,3 &   165  &    5  &    48  & EagleDestroyed \\
@@ -788,7 +788,7 @@ agent, lấy trung bình trên cả năm bản đồ.
 \caption{Kết quả theo số lượng agent, môi trường tĩnh (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
 \label{tab:scaling_results}
 \small
-\begin{tabular}{rlrrrr}
+\begin{tabular}{|r|l|r|r|r|r|}
 \hline
 \textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Cells TB} \\ \hline
  6 & A*           & 80,0 & 98,2 & 530 & 211 \\
@@ -886,13 +886,13 @@ trúc cột như bảng tĩnh nhưng thay cột \emph{Cells} bằng cột \emph{
 biệt này.
 
 {\footnotesize\setlength{\tabcolsep}{4pt}
-\begin{longtable}{rlrrrr}
+\begin{longtable}{|r|l|r|r|r|r|}
 \caption{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
 \label{tab:scaling_dynamic} \\
 \hline
 \textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} \\ \hline
 \endfirsthead
-\multicolumn{6}{l}{\small (tiếp theo Bảng~\ref{tab:scaling_dynamic})} \\ \hline
+\multicolumn{6}{|l|}{\small (tiếp theo Bảng~\ref{tab:scaling_dynamic})} \\ \hline
 \textbf{Số agent} & \textbf{Thuật toán} & \textbf{Phá Eagle (\%)} & \textbf{Thời gian (s)} & \textbf{Replan TB} & \textbf{Phục hồi TB} \\ \hline
 \endhead
  6 & A*           & 80,0 & 106,1 & 599 & 9 \\
@@ -943,13 +943,13 @@ thứ tự PIBT~C\# cao nhất, kế đến A*, thấp nhất là PIBT~C++/TCP t
 cách ``vách timeout'' lan dần từ những bản đồ khó (Chantry, Gallows) và xuất hiện sớm hơn ở
 PIBT~C++/TCP.
 
-\begin{longtable}{llrrr}
+\begin{longtable}{|l|l|r|r|r|}
 \caption{Số lần tái hoạch định theo bản đồ và số lượng agent (môi trường tĩnh); \(\dagger\) = lượt timeout}
 \label{tab:scaling_detail} \\
 \hline
 \textbf{Bản đồ} & \textbf{Số agent} & \textbf{A*} & \textbf{PIBT C\#} & \textbf{PIBT C++/TCP} \\ \hline
 \endfirsthead
-\multicolumn{5}{l}{\small (tiếp theo Bảng~\ref{tab:scaling_detail})} \\ \hline
+\multicolumn{5}{|l|}{\small (tiếp theo Bảng~\ref{tab:scaling_detail})} \\ \hline
 \textbf{Bản đồ} & \textbf{Số agent} & \textbf{A*} & \textbf{PIBT C\#} & \textbf{PIBT C++/TCP} \\ \hline
 \endhead
 Alpha32  &  6 & 144 & 196 & 177 \\

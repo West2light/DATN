@@ -49,13 +49,13 @@
 \contentsline {figure}{\numberline {4.24}{\ignorespaces Thời gian hoàn thành trung bình theo số lượng agent (môi trường tĩnh)}}{49}{figure.caption.40}%
 \contentsline {figure}{\numberline {4.25}{\ignorespaces Tổng số lần tái hoạch định trung bình theo số lượng agent, thang logarit (môi trường tĩnh)}}{49}{figure.caption.41}%
 \contentsline {figure}{\numberline {4.26}{\ignorespaces Tỉ lệ timeout theo số lượng agent (môi trường tĩnh)}}{50}{figure.caption.42}%
-\contentsline {figure}{\numberline {4.27}{\ignorespaces Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}}{51}{figure.caption.44}%
-\contentsline {figure}{\numberline {4.28}{\ignorespaces Sơ đồ triển khai hệ thống trên GCP với Nginx, Registry và các dịch vụ trò chơi}}{58}{figure.caption.48}%
+\contentsline {figure}{\numberline {4.27}{\ignorespaces Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}}{51}{figure.4.27}%
+\contentsline {figure}{\numberline {4.28}{\ignorespaces Sơ đồ triển khai hệ thống trên GCP với Nginx, Registry và các dịch vụ trò chơi}}{58}{figure.caption.46}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{60}{figure.caption.49}%
-\contentsline {figure}{\numberline {5.2}{\ignorespaces Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}}{61}{figure.caption.50}%
-\contentsline {figure}{\numberline {5.3}{\ignorespaces Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}}{62}{figure.caption.51}%
-\contentsline {figure}{\numberline {5.4}{\ignorespaces Lộ trình chuyển từ PIBT sang EPIBT cho Enemy Agent: khái niệm trong bài báo (vấn đề xoay hướng), phần thích ứng cho game (multi-action operation, kế thừa operation) và phần tích hợp máy chủ (phiên lập kế hoạch, trả về hành động đầu tiên)}}{63}{figure.caption.52}%
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Biểu đồ trình tự chu kỳ tái hoạch định của A*}}{60}{figure.caption.47}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Biểu đồ trình tự một tick lập kế hoạch của PIBT C\#}}{61}{figure.caption.48}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Biểu đồ trình tự trao đổi thông điệp PIBT qua TCP}}{62}{figure.caption.49}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Lộ trình chuyển từ PIBT sang EPIBT cho Enemy Agent: khái niệm trong bài báo (vấn đề xoay hướng), phần thích ứng cho game (multi-action operation, kế thừa operation) và phần tích hợp máy chủ (phiên lập kế hoạch, trả về hành động đầu tiên)}}{63}{figure.caption.50}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
