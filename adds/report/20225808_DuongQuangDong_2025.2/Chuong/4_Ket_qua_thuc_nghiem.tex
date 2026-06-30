@@ -674,7 +674,7 @@ phân tích ở mục khảo sát khả năng mở rộng.
 \subsection{Kết quả thực nghiệm -- Môi trường có chướng ngại động}
 
 Bảng~\ref{tab:dynamic_results} tổng hợp kết quả khi bật chướng ngại động
-(thùng xuất hiện ngay trên đường đi của agent trong 8~giây).
+(thùng xuất hiện ngay trên đường đi của agent).
 
 \begin{table}[htbp]
 \centering
@@ -707,15 +707,15 @@ Maze128  & PIBT C++/TCP  & 180,0 & 1\,300 &   44  &   568  & Timeout        \\ \
 
 Điểm mới của môi trường động là chiều \emph{số lần phục hồi sau kẹt} (Recoveries): khi thùng
 kim loại xuất hiện ngay trên đường đi, agent có thể bị kẹt và phải kích hoạt cơ chế phục hồi.
-Số liệu cho thấy PIBT~C\# phục hồi nhiều nhất (\(326\)--\(364\) lần trên các bản đồ hẹp) nhờ cơ
-chế thoát kẹt cục bộ, trong khi A* gần như không dùng cơ chế này (\(8\)--\(17\) lần) mà chủ yếu
-tái hoạch định lại đường, còn PIBT~C++/TCP ở mức trung gian.
+Số liệu cho thấy PIBT~C\# phục hồi nhiều nhất (\(31\)--\(62\) lần) nhờ cơ
+chế thoát kẹt cục bộ, trong khi A* gần như không dùng cơ chế này (\(5\)--\(22\) lần) mà chủ yếu
+tái hoạch định lại đường, còn PIBT~C++/TCP ở mức trung gian (\(10\)--\(49\) lần).
 
 Ở các chiều còn lại, Bảng~\ref{tab:dynamic_results} cho thấy chướng ngại động không làm đảo cục
 diện thắng -- thua: bốn trên năm bản đồ vẫn phá được Eagle, chỉ riêng mê cung Maze128 timeout
 giống hệt môi trường tĩnh, cho thấy giới hạn ở đây đến từ độ dài đường đi chứ không phải từ thùng
 động. Tuy nhiên thời gian hoàn thành và số lần tái hoạch định đều nhích lên so với môi trường
-tĩnh -- ví dụ PIBT~C\# trên Mansion tăng từ khoảng 103 lên 149 giây -- do mỗi lần thùng chắn đường
+tĩnh -- ví dụ PIBT~C\# trên Mansion tăng từ khoảng 121 lên 138 giây -- do mỗi lần thùng chắn đường
 buộc agent phải tính lại lộ trình. PIBT~C++/TCP tiếp tục đi qua nhiều ô nhất (cột \emph{Cells TB})
 vì độ trễ một nhịp của kênh mạng khiến agent thường xuyên đi vòng trước khi nhận được ô mục tiêu
 mới.
@@ -841,7 +841,7 @@ và Hình~\ref{fig:scaling_timeout}.
 
 Về thời gian (Hình~\ref{fig:scaling_duration}), cả ba thuật toán đều tăng nhẹ rồi bão hòa gần
 ngưỡng timeout 180 giây: với các lượt vẫn phá được Eagle, thời gian tăng từ khoảng 112 giây
-(6 agent) lên khoảng 155 giây (72 agent). PIBT~C++/TCP luôn cao hơn hai biến thể còn lại một chút
+(6 agent) lên khoảng 150 giây (72 agent). PIBT~C++/TCP luôn cao hơn hai biến thể còn lại một chút
 do độ trễ trao đổi gói tin TCP cộng dồn theo mỗi chu kỳ.
 
 \begin{figure}[!htb]
