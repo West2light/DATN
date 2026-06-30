@@ -40,8 +40,8 @@ Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 820$\pm$8 & 3\,732 \\ \hline
 Độ lệch chuẩn nhỏ trên hầu hết tổ hợp cho thấy kết quả ổn định qua các lần lặp. Khác với
 kỳ vọng theo lý thuyết, ba thuật toán có số lần tái hoạch định bám khá sát nhau ở mức sáu agent:
 hai biến thể PIBT (C\# và C++/TCP) chỉ chênh nhau ít và đều nhỉnh hơn A* trên các
-bản đồ hẹp, \emph{không} còn hiện tượng PIBT~C\# đột biến lên hàng nghìn như ở phiên bản
-trước khi hoàn thiện. Khác biệt giữa hai biến thể PIBT chủ yếu nằm ở số phát bắn và số ô
+bản đồ hẹp, \emph{không} xuất hiện hiện tượng PIBT~C\# đột biến số lần replan lên hàng nghìn lần.
+Khác biệt giữa hai biến thể PIBT chủ yếu nằm ở số phát bắn và số ô
 đã đi -- phản ánh độ trễ một nhịp của kênh TCP ở biến thể C++/TCP, khiến nó di chuyển và
 khai hỏa nhiều hơn. Trên bản đồ mê cung Maze128, cả ba thuật toán đều chạm trần thời gian
 180~giây ở mức sáu agent: quá ít xe tăng không kịp len qua mê cung lớn để tiếp cận và hạ
