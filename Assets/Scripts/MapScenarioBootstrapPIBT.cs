@@ -372,7 +372,15 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
                         continue;
                     }
 
-                    Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    bool shouldIgnore =
+                        enemyCollider.isTrigger                            ||
+                        otherCollider.isTrigger                            ||
+                        enemyCollider.gameObject.name == "PlayerBlocker"   ||
+                        otherCollider.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
+                    {
+                        Physics2D.IgnoreCollision(enemyCollider, otherCollider, true);
+                    }
                 }
             }
         }

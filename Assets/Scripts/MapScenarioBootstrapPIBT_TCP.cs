@@ -729,9 +729,20 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             if (!FactionMember.AreFriendly(faction, of)) continue;
             Collider2D[] theirs = other.GetComponentsInChildren<Collider2D>(true);
             foreach (var a in mine)
+            {
+                if (a == null) continue;
                 foreach (var b in theirs)
-                    if (a != null && b != null)
+                {
+                    if (b == null) continue;
+                    bool shouldIgnore =
+                        a.isTrigger                            ||
+                        b.isTrigger                            ||
+                        a.gameObject.name == "PlayerBlocker"   ||
+                        b.gameObject.name == "PlayerBlocker";
+                    if (shouldIgnore)
                         Physics2D.IgnoreCollision(a, b, true);
+                }
+            }
         }
     }
 
