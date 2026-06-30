@@ -97,8 +97,10 @@ Hình~\ref{fig:seq_pibt} mô tả luồng một tick lập kế hoạch của b�
 
 \subsection*{Kết quả}
 PIBT C\# hoàn thành nhiệm vụ trên 4/5 bản đồ với thời gian tương đương A* (chênh
-lệch < 10\%). Số lần replan chỉ nhỉnh hơn A* -- PIBT đếm mỗi bước phối hợp là một
-replan, song trong thực nghiệm không bùng nổ. Nhờ phối hợp ở lớp lập kế hoạch, PIBT
+lệch < 10\%). Số lần replan chỉ nhỉnh hơn A*: cả hai cùng tái hoạch định định kỳ mỗi
+0,75 giây, PIBT~C\# cộng thêm các lần replan khẩn cấp khi thoát kẹt cục bộ. Ở mật độ
+sáu agent, cơ chế thoát kẹt hầu như không kích hoạt (số lần phục hồi bằng 0) nên con số
+không bùng nổ như lý thuyết dự đoán mà bám sát A*. Nhờ phối hợp ở lớp lập kế hoạch, PIBT
 giảm được va chạm vật lý so với khi chạy nhiều A* độc lập, đồng thời dùng cơ chế thoát kẹt nhiều
 hơn khi có chướng ngại động.
 
