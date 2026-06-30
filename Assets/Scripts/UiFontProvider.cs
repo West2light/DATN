@@ -38,14 +38,30 @@ public static class UiFontProvider
 
     public static Font GetDefaultFont()
     {
+#if UNITY_EDITOR
+        // Trong Editor Game view, atlas của font động (Roboto) có thể chưa kịp dựng
+        // khiến UI.Text render trắng. Font builtin LegacyRuntime.ttf luôn sẵn sàng và
+        // hiển thị ổn định, nên dùng nó cho Editor (single mode test ở đây). Bản build
+        // WebGL vẫn dùng Roboto + FontPreloader như thiết kế.
+        Font editorFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (editorFont != null)
+        {
+            return editorFont;
+        }
+#endif
         if (_font == null)
         {
             _font = Resources.Load<Font>(FontResourcePath);
 
-            if (_font == null && !_warnedMissing)
+            if (_font == null)
             {
-                _warnedMissing = true;
-                Debug.LogWarning($"[UiFontProvider] Cannot find {FontResourcePath}. Texts might be blank.");
+                if (!_warnedMissing)
+                {
+                    _warnedMissing = true;
+                    Debug.LogWarning($"[UiFontProvider] Cannot find {FontResourcePath}. Falling back to LegacyRuntime.ttf.");
+                }
+                // Fallback runtime: không bao giờ trả null để Text khỏi bị trắng.
+                _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             }
 
             if (_font != null)
