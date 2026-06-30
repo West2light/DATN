@@ -885,9 +885,8 @@ Bảng~\ref{tab:scaling_dynamic} tổng hợp kết quả môi trường động
 trúc cột như bảng tĩnh nhưng thay cột \emph{Cells} bằng cột \emph{Phục hồi TB} để làm rõ chiều khác
 biệt này.
 
-\begin{table}[!ht]
-\centering
-\caption{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
+\begin{center}
+\captionof{table}{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
 \label{tab:scaling_dynamic}
 \small
 \resizebox{\textwidth}{!}{%
@@ -916,7 +915,7 @@ biệt này.
 \hline
 \end{tabular}%
 }
-\end{table}
+\end{center}
 
 Bảng~\ref{tab:scaling_dynamic} cho thấy chướng ngại động giữ nguyên dạng ``cửa sổ mật độ'' của tỉ
 lệ phá Eagle (đỉnh ở 24--36 agent với A* và PIBT~C\#) nhưng làm xuất hiện rõ một chiều mới: số lần
@@ -924,12 +923,11 @@ phục hồi sau kẹt. So với môi trường tĩnh, thời gian hoàn thành 
 thùng động liên tục chắn đường; khác biệt nổi bật nhất nằm ở số lần phục hồi -- nơi ba thuật toán
 tách biệt mạnh nhất -- được phân tích kỹ qua Hình~\ref{fig:scaling_recoveries}.
 
-\begin{figure}[!ht]
-    \centering
+\begin{center}
     \includegraphics[width=0.62\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
-    \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
+    \captionof{figure}{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
     \label{fig:scaling_recoveries}
-\end{figure}
+\end{center}
 
 Hình~\ref{fig:scaling_recoveries} cho thấy số lần phục hồi cao nhất ở PIBT~C\#: cơ chế thoát kẹt
 cục bộ của biến thể này kích hoạt thường xuyên khi thùng động liên tục chặn đường, cao hơn A*
