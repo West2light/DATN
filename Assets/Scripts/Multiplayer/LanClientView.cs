@@ -121,6 +121,10 @@ public class LanClientView : MonoBehaviour
 
     private void Start()
     {
+        // Disable MapLoader auto-fit on the client so the camera can zoom in on the player.
+        var ml = FindObjectOfType<MapLoader>();
+        if (ml != null) ml.fitCameraOnLoad = false;
+
         // Fallback: if NetworkManager wasn't ready in Awake, register now.
         var mgr = NetworkManager.Singleton?.CustomMessagingManager;
         if (mgr == null) return;
@@ -141,6 +145,21 @@ public class LanClientView : MonoBehaviour
     {
         reader.ReadValueSafe(out int playerCount);
         reader.ReadValueSafe(out int enemyCount);
+        reader.ReadValueSafe(out string serverMapFile);
+
+        if (serverMapFile != LanSessionManager.MapFile)
+        {
+            Debug.Log($"[LanClientView] Client map mismatch. Changing {LanSessionManager.MapFile} to {serverMapFile}");
+            LanSessionManager.MapFile = serverMapFile;
+            UnityEngine.PlayerPrefs.SetString("SelectedMapFile", serverMapFile);
+            
+            var ml = FindObjectOfType<MapLoader>();
+            if (ml != null)
+            {
+                ml.fitCameraOnLoad = false;
+                ml.LoadAndBuild();
+            }
+        }
 
         // Determine own slot and collect variant indices from the ownership map.
         ulong myClientId = NetworkManager.Singleton != null
@@ -885,7 +904,7 @@ public class LanClientView : MonoBehaviour
         rt.sizeDelta = new Vector2(700f, 50f);
         var t = go.AddComponent<Text>();
         t.text      = content;
-        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.font      = UiFontProvider.GetDefaultFont();
         t.fontSize  = size;
         t.fontStyle = style;
         t.color     = color;
@@ -961,7 +980,7 @@ public class LanClientView : MonoBehaviour
         tRect.pivot = new Vector2(0f, 1f);
         tRect.anchoredPosition = pos; tRect.sizeDelta = new Vector2(172f, 18f);
         var text = tGo.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UiFontProvider.GetDefaultFont();
         text.fontSize = 14; text.color = Color.white; text.alignment = TextAnchor.MiddleLeft;
         return text;
     }
@@ -987,7 +1006,7 @@ public class LanClientView : MonoBehaviour
         r.anchorMin = r.anchorMax = new Vector2(0f, 1f); r.pivot = new Vector2(0f, 1f);
         r.anchoredPosition = pos; r.sizeDelta = new Vector2(46f, 18f);
         var t = go.AddComponent<Text>();
-        t.text = labelText; t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.text = labelText; t.font = UiFontProvider.GetDefaultFont();
         t.fontSize = 14; t.color = Color.white; t.alignment = TextAnchor.MiddleLeft;
     }
 

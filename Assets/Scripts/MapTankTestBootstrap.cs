@@ -239,8 +239,6 @@ public class MapTankTestBootstrap : MonoBehaviour
         }
     }
 
-    // Returns one of 8 spread-out corner/midpoint cells for LAN player slot i.
-    // Avoids putting all players on the same edge column (old x=1 bug).
     private Vector2Int ComputeMultiplayerPlayerCell(int playerIndex)
     {
         int sx = mapLoader.BuildStartX;
@@ -248,20 +246,10 @@ public class MapTankTestBootstrap : MonoBehaviour
         int c = mapLoader.BuildWidth;
         int r = mapLoader.BuildHeight;
         int pad = Mathf.Clamp(3, 1, Mathf.Max(1, (Mathf.Min(c, r) - 1) / 2));
-        int right = sx + c - 1 - pad;
-        int bottom = sy + r - 1 - pad;
-        var preferred = new Vector2Int[]
-        {
-            new Vector2Int(sx + pad,       sy + pad),
-            new Vector2Int(right,          sy + pad),
-            new Vector2Int(sx + pad,       bottom),
-            new Vector2Int(right,          bottom),
-            new Vector2Int(sx + c / 4,     sy + r / 2),
-            new Vector2Int(sx + 3 * c / 4, sy + r / 2),
-            new Vector2Int(sx + c / 2,     sy + r / 4),
-            new Vector2Int(sx + c / 2,     sy + 3 * r / 4),
-        };
-        return preferred[playerIndex % preferred.Length];
+        
+        // Spawn all players near the Host (top-left) instead of spreading them to corners.
+        // TryFindAvailableSpawnNear will automatically space them out.
+        return new Vector2Int(sx + pad, sy + pad);
     }
 
     private List<Vector2Int> ComputeEnemySpawnCells()

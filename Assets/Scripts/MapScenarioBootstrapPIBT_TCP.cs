@@ -165,40 +165,60 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int width, int height, string symbols, int agentCount,
         System.Threading.CancellationToken cancel)
     {
-        bool done    = false;
+        int attempts = 0;
+        int maxAttempts = maxReconnectAttempts + 1;
         bool success = false;
 
-        var thread = new System.Threading.Thread(() =>
-        {
-            if (cancel.IsCancellationRequested) { done = true; return; }
-            if (!client.Connect())              { done = true; return; }
-            if (cancel.IsCancellationRequested) { client.Disconnect(); done = true; return; }
-            success = client.Hello(sessionId, width, height, symbols, agentCount);
-            done = true;
-        });
-        thread.IsBackground = true;
-        thread.Start();
-
-        while (!done)
+        while (attempts < maxAttempts && !success)
         {
             if (cancel.IsCancellationRequested) yield break;
-            yield return null;
-        }
+            
+            attempts++;
+            bool done = false;
 
-        if (cancel.IsCancellationRequested)
-        {
-            client?.Disconnect();
-            yield break;
+            var thread = new System.Threading.Thread(() =>
+            {
+                if (cancel.IsCancellationRequested) { done = true; return; }
+                if (!client.Connect())              { done = true; return; }
+                if (cancel.IsCancellationRequested) { client.Disconnect(); done = true; return; }
+                success = client.Hello(sessionId, width, height, symbols, agentCount);
+                done = true;
+            });
+            thread.IsBackground = true;
+            thread.Start();
+
+            while (!done)
+            {
+                if (cancel.IsCancellationRequested) yield break;
+                yield return null;
+            }
+
+            if (cancel.IsCancellationRequested)
+            {
+                client?.Disconnect();
+                yield break;
+            }
+
+            if (!success)
+            {
+                Debug.LogWarning($"[PIBT_TCP] Connect/Hello failed (Attempt {attempts}/{maxAttempts}): {client.LastError}");
+                client.Disconnect();
+                if (attempts < maxAttempts)
+                {
+                    ShowToast($"Connection failed. Retrying {attempts}/{maxAttempts}...", reconnectDelaySec);
+                    yield return new WaitForSeconds(reconnectDelaySec);
+                }
+            }
         }
 
         if (!success)
         {
             string err = client.LastError ?? "Unknown error";
-            client.Disconnect();
-            StopAgentsForConnectionFailure($"Connection/hello failed: {err}");
+            StopAgentsForConnectionFailure($"Connection/hello failed after {maxAttempts} attempts: {err}");
             yield break;
         }
 
+        _reconnectAttempts = 0; // Reset runtime reconnect attempts
         _serverReady      = true;
         _nextTickTime     = Time.time + tcpTickInterval;
         Debug.Log($"[PIBT_TCP] Connected and initialized. {agentCount} agents, map {width}×{height}. _serverReady=true");
@@ -267,6 +287,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private IEnumerator DoStepWeb()
     {
+        CleanupDeadAgents();
         int rows = mapLoader.BuildHeight;
         int cols = mapLoader.BuildWidth;
         var data = BuildStepData(rows, cols);
@@ -325,9 +346,25 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
     private bool _firstStepLogged;
 
+    private void CleanupDeadAgents()
+    {
+        for (int i = _agents.Count - 1; i >= 0; i--)
+        {
+            if (_agents[i] == null)
+            {
+                _agents.RemoveAt(i);
+                if (i < _agentOrientations.Count)
+                {
+                    _agentOrientations.RemoveAt(i);
+                }
+            }
+        }
+    }
+
     private IEnumerator DoStepAsync()
     {
         _stepInFlight = true;
+        CleanupDeadAgents();
 
         if (!_firstStepLogged)
         {
@@ -508,7 +545,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
                 Vector2Int cell = new Vector2Int(
                     mapLoader.BuildStartX + c,
                     mapLoader.BuildStartY + r);
-                sb.Append(mapLoader.IsWalkable(cell) ? '.' : '@');
+                sb.Append((mapLoader.IsWalkable(cell) || mapLoader.IsDestructibleBlocked(cell)) ? '.' : '@');
             }
         }
         return sb.ToString();
@@ -834,6 +871,9 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         agent.playerShootingRange   = enemyPlayerShootingRange;
         agent.lineOfSightMask       = LayerMask.GetMask("Agent", "Enemy", "Player", "Hittable",
                                           WallLayerName, LegacyMovementObstacleLayerName);
+        agent.obstacleContactMask   = obstacleContactMask.value != 0 
+                                        ? obstacleContactMask 
+                                        : LayerMask.GetMask("Hittable", "LegacyMovementObstacle");
         agent.btSpawnTime           = Time.time;
         _agents.Add(agent);
     }
@@ -848,19 +888,20 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             if (!FactionMember.AreFriendly(faction, of)) continue;
             Collider2D[] theirs = other.GetComponentsInChildren<Collider2D>(true);
             foreach (var a in mine)
+            {
+                if (a == null) continue;
                 foreach (var b in theirs)
                 {
-                    if (a == null || b == null) continue;
+                    if (b == null) continue;
                     bool shouldIgnore =
-                        a.isTrigger ||
-                        b.isTrigger ||
-                        a.gameObject.name == "PlayerBlocker" ||
+                        a.isTrigger                            ||
+                        b.isTrigger                            ||
+                        a.gameObject.name == "PlayerBlocker"   ||
                         b.gameObject.name == "PlayerBlocker";
                     if (shouldIgnore)
-                    {
                         Physics2D.IgnoreCollision(a, b, true);
-                    }
                 }
+            }
         }
     }
 
@@ -870,6 +911,11 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         if (d == null) return;
         d.MaxHealth = enemyMaxHealth;
         d.Health    = enemyMaxHealth;
+
+        DestroyUtil du = enemy.AddComponent<DestroyUtil>();
+        d.OnDead.AddListener(du.DestroyHelper);
+
+        TrackEnemyDeath(enemy);
     }
 
     private void ConfigureEnemyHealthBar(GameObject enemy)
@@ -1154,7 +1200,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         tr.offsetMax  = new Vector2(-12, -8);
         Text txt = textGO.AddComponent<Text>();
         txt.text      = message;
-        txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.font      = UiFontProvider.GetDefaultFont();
         txt.fontSize  = 18;
         txt.alignment = TextAnchor.MiddleCenter;
         txt.color     = new Color(1f, 0.35f, 0.35f, 1f);

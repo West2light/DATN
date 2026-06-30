@@ -584,20 +584,10 @@ public class LanLobbyController : MonoBehaviour
         rt.sizeDelta = new Vector2(FullW, rowH);
         row.SetActive(false);
 
-        // "Back" button (left ~15%)
-        var backGo = Mk(row, "Back", L);
-        var bkRt   = backGo.GetComponent<RectTransform>();
-        bkRt.anchorMin = new Vector2(0f, 0f); bkRt.anchorMax = new Vector2(0.13f, 1f);
-        bkRt.offsetMin = bkRt.offsetMax = Vector2.zero;
-        backGo.AddComponent<Image>().color = Slate;
-        var bkBtn = backGo.AddComponent<Button>(); bkBtn.targetGraphic = backGo.GetComponent<Image>();
-        bkBtn.onClick.AddListener(SwitchToChoose);
-        LblFill(backGo, "◀", 16, FontStyle.Bold, Muted, L);
-
-        // IP InputField (middle ~55%)
+        // IP InputField (left ~70%)
         var ifGo = Mk(row, "IpInput", L);
         var ifRt = ifGo.GetComponent<RectTransform>();
-        ifRt.anchorMin = new Vector2(0.14f, 0f); ifRt.anchorMax = new Vector2(0.70f, 1f);
+        ifRt.anchorMin = new Vector2(0f, 0f); ifRt.anchorMax = new Vector2(0.70f, 1f);
         ifRt.offsetMin = new Vector2(2f, 0f); ifRt.offsetMax = Vector2.zero;
         ifGo.AddComponent<Image>().color = new Color(0.10f, 0.12f, 0.16f, 1f);
         _ipInput = ifGo.AddComponent<InputField>();

@@ -378,9 +378,9 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
                     }
 
                     bool shouldIgnore =
-                        enemyCollider.isTrigger ||
-                        otherCollider.isTrigger ||
-                        enemyCollider.gameObject.name == "PlayerBlocker" ||
+                        enemyCollider.isTrigger                            ||
+                        otherCollider.isTrigger                            ||
+                        enemyCollider.gameObject.name == "PlayerBlocker"   ||
                         otherCollider.gameObject.name == "PlayerBlocker";
                     if (shouldIgnore)
                     {

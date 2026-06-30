@@ -186,11 +186,12 @@ public class LanGameCoordinator : MonoBehaviour
 
         int pc = _serverTanks.Count;
         int ec = _serverEnemies.Count;
-        // 4 (pc) + 4 (ec) + pc * (8 ownerClientId + 4 variantIndex) + 16 safety
-        int bufSize = 8 + pc * 12 + 16;
-        using var writer = new FastBufferWriter(bufSize, Allocator.Temp);
+        // 4 (pc) + 4 (ec) + string mapFile (~256) + pc * (8 ownerClientId + 4 variantIndex) + 16 safety
+        int bufSize = 8 + 256 + pc * 12 + 16;
+        using var writer = new FastBufferWriter(bufSize, Unity.Collections.Allocator.Temp);
         writer.WriteValueSafe(pc);
         writer.WriteValueSafe(ec);
+        writer.WriteValueSafe(LanSessionManager.MapFile ?? "random-32-32-10.map");
         for (int i = 0; i < pc; i++)
         {
             ulong ownerId   = (i < _bridges.Count) ? _bridges[i].ClientId          : ulong.MaxValue;

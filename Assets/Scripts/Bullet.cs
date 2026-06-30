@@ -54,11 +54,14 @@ public class Bullet : MonoBehaviour
     private void Update()
     {
         Vector2 currentPosition = transform.position;
-        RaycastHit2D hit = Physics2D.Linecast(previousPosition, currentPosition, hitDetectionMask);
-        if (hit.collider != null && !ShouldIgnore(hit.collider))
+        RaycastHit2D[] hits = Physics2D.LinecastAll(previousPosition, currentPosition, hitDetectionMask);
+        foreach (var hit in hits)
         {
-            OnTriggerEnter2D(hit.collider);
-            return;
+            if (hit.collider != null && !ShouldIgnore(hit.collider))
+            {
+                OnTriggerEnter2D(hit.collider);
+                return;
+            }
         }
 
         previousPosition = currentPosition;

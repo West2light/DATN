@@ -238,7 +238,7 @@ public class PauseMenuController : MonoBehaviour
         rt.pivot = pivot; rt.anchoredPosition = anchoredPos; rt.sizeDelta = sizeDelta;
         var txt = obj.AddComponent<Text>();
         txt.text = content;
-        txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.font = UiFontProvider.GetDefaultFont();
         txt.fontSize = fontSize; txt.fontStyle = style;
         txt.alignment = TextAnchor.MiddleCenter; txt.color = color;
     }
