@@ -885,7 +885,7 @@ Bảng~\ref{tab:scaling_dynamic} tổng hợp kết quả môi trường động
 trúc cột như bảng tĩnh nhưng thay cột \emph{Cells} bằng cột \emph{Phục hồi TB} để làm rõ chiều khác
 biệt này.
 
-\begin{table}[htbp]
+\begin{table}[!ht]
 \centering
 \caption{Kết quả theo số lượng agent, môi trường có chướng ngại động (trung bình trên 5 bản đồ \(\times\) 6 lần lặp)}
 \label{tab:scaling_dynamic}
@@ -924,19 +924,19 @@ phục hồi sau kẹt. So với môi trường tĩnh, thời gian hoàn thành 
 thùng động liên tục chắn đường; khác biệt nổi bật nhất nằm ở số lần phục hồi -- nơi ba thuật toán
 tách biệt mạnh nhất -- được phân tích kỹ qua Hình~\ref{fig:scaling_recoveries}.
 
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
+    \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
+    \label{fig:scaling_recoveries}
+\end{figure}
+
 Hình~\ref{fig:scaling_recoveries} cho thấy số lần phục hồi cao nhất ở PIBT~C\#: cơ chế thoát kẹt
 cục bộ của biến thể này kích hoạt thường xuyên khi thùng động liên tục chặn đường, cao hơn A*
 và PIBT~C++/TCP vài lần ở mọi mức agent. A* gần như không dùng cơ chế phục hồi
 (chỉ tái hoạch định lại đường), còn PIBT~C++/TCP ở mức trung gian nhờ máy chủ xử lý phần lớn xung
 đột. Đây vừa là điểm linh hoạt (thoát kẹt tốt) vừa là điểm yếu (chi phí phục hồi bùng nổ khi tải
 lớn) của kiến trúc cục bộ.
-
-\begin{figure}[!htb]
-    \centering
-    \includegraphics[width=0.62\textwidth]{Hinhve/backtest_recoveries_vs_agents.png}
-    \caption{Số lần phục hồi sau kẹt theo số lượng agent (môi trường động, thang logarit)}
-    \label{fig:scaling_recoveries}
-\end{figure}
 
 Bảng~\ref{tab:scaling_detail} trình bày chi tiết số lần tái hoạch định theo từng bản đồ và từng
 mức agent trong môi trường tĩnh, đánh dấu \(\dagger\) cho các lượt bị timeout. Có thể thấy rõ
