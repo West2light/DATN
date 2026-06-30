@@ -284,9 +284,10 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\leftmark}
-%\fancyhead[LE]{\rightmark}
+% Header chương: trang lẻ canh trái, trang chẵn canh phải (kiểu sách 2 mặt) + kẻ ngang dưới
+\fancyhead[L]{\ifodd\value{page}\makebox[\headwidth][l]{\small\leftmark}\else\makebox[\headwidth][r]{\small\leftmark}\fi}
 \fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
 
 \chapter{GIỚI THIỆU ĐỀ TÀI}
 \label{chapter:Introduction}

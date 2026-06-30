@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 11:44
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 12:11
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1395,26 +1395,26 @@ CHƯƠNG 1.
 ]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [2]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [3])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [4]
 CHƯƠNG 2.
@@ -1426,10 +1426,10 @@ LaTeX Font Info:    Calculating math sizes for size <11.86258> on input line 48
 ]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [6]
 File: Hinhve/uc_overview.png Graphic file (type bmp)
@@ -1437,10 +1437,10 @@ File: Hinhve/uc_overview.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [7]
 File: Hinhve/uc_groupA_single.png Graphic file (type bmp)
@@ -1451,10 +1451,10 @@ File: Hinhve/uc_A1.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [8]
 File: Hinhve/uc_A2.png Graphic file (type bmp)
@@ -1462,10 +1462,10 @@ File: Hinhve/uc_A2.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [9]
 File: Hinhve/uc_A3.png Graphic file (type bmp)
@@ -1475,10 +1475,10 @@ File: Hinhve/uc_groupB_lan.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [10]
 File: Hinhve/uc_groupB_internet.png Graphic file (type bmp)
@@ -1489,10 +1489,10 @@ File: Hinhve/uc_B1.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [11]
 File: Hinhve/uc_B2.png Graphic file (type bmp)
@@ -1502,10 +1502,10 @@ File: Hinhve/uc_B3.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [12]
 File: Hinhve/uc_B4.png Graphic file (type bmp)
@@ -1514,10 +1514,10 @@ File: Hinhve/uc_B4.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [13]
 File: Hinhve/uc_B5.png Graphic file (type bmp)
@@ -1527,10 +1527,10 @@ File: Hinhve/uc_B6.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [14]
 File: Hinhve/uc_B7.png Graphic file (type bmp)
@@ -1538,10 +1538,10 @@ File: Hinhve/uc_B7.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [15]
 File: Hinhve/uc_groupC.png Graphic file (type bmp)
@@ -1552,10 +1552,10 @@ File: Hinhve/uc_C1.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [16]
 File: Hinhve/uc_C2.png Graphic file (type bmp)
@@ -1565,10 +1565,10 @@ File: Hinhve/uc_groupD_backtest.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [17]
 File: Hinhve/uc_D1.png Graphic file (type bmp)
@@ -1579,10 +1579,10 @@ File: Hinhve/uc_D2.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [18]
 File: Hinhve/uc_D3.png Graphic file (type bmp)
@@ -1591,26 +1591,26 @@ File: Hinhve/uc_D3.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [19]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [20])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [21]
 CHƯƠNG 3.
@@ -1619,34 +1619,34 @@ CHƯƠNG 3.
 ]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [23]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [24]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [25])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [26]
 CHƯƠNG 4.
@@ -1658,10 +1658,10 @@ File: Hinhve/arch_packages.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [28]
 File: Hinhve/03_single_play_activity.drawio.png Graphic file (type bmp)
@@ -1671,10 +1671,10 @@ File: Hinhve/class_pathfinding.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [29]
 File: Hinhve/07_mapf_data_flow.drawio.png Graphic file (type bmp)
@@ -1682,18 +1682,18 @@ File: Hinhve/07_mapf_data_flow.drawio.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [30]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [31]
 File: Hinhve/04_internet_host_join_activity.drawio.png Graphic file (type bmp)
@@ -1703,10 +1703,10 @@ File: Hinhve/seq_internet_create_room.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [32]
 File: Hinhve/seq_internet_ready_start.png Graphic file (type bmp)
@@ -1714,18 +1714,18 @@ File: Hinhve/seq_internet_ready_start.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [33]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [34]
 File: Hinhve/Menu.png Graphic file (type bmp)
@@ -1733,10 +1733,10 @@ File: Hinhve/Menu.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [35]
 File: Hinhve/Single_play_to_select_color_tank.png Graphic file (type bmp)
@@ -1746,10 +1746,10 @@ File: Hinhve/Single_play_select_map.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [36]
 File: Hinhve/In_round_game.png Graphic file (type bmp)
@@ -1757,10 +1757,10 @@ File: Hinhve/In_round_game.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [37]
 File: Hinhve/Multiple_Select_Role.png Graphic file (type bmp)
@@ -1770,10 +1770,10 @@ File: Hinhve/MultiplaySelect_countEnemyAgent_map.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [38]
 File: Hinhve/host_game_multiple.png Graphic file (type bmp)
@@ -1783,10 +1783,10 @@ File: Hinhve/Inround_game_multiplayer.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [39]
 File: Hinhve/lose_scene.png Graphic file (type bmp)
@@ -1796,10 +1796,10 @@ File: Hinhve/win_scene.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [40]
 File: Hinhve/13_backtest_workflow.drawio.png Graphic file (type bmp)
@@ -1807,10 +1807,10 @@ File: Hinhve/13_backtest_workflow.drawio.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [41]
 File: Hinhve/Backtest_Select_map_dyn_on_off_count_agent.png Graphic file (type 
@@ -1819,77 +1819,74 @@ bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [42]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [43]
-Overfull \hbox (6.371pt too wide) in paragraph at lines 617--636
- [][] 
- []
-
 File: Hinhve/backtest_duration_static.png Graphic file (type bmp)
 <Hinhve/backtest_duration_static.png>
 File: Hinhve/backtest_replan_static.png Graphic file (type bmp)
 <Hinhve/backtest_replan_static.png>
 
+
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [44]
 LaTeX Font Info:    Calculating math sizes for size <10.83347> on input line 70
-5.
+6.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <7.58339> not available
-(Font)              size <8> substituted on input line 705.
+(Font)              size <8> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <5.41673> not available
-(Font)              size <5> substituted on input line 705.
+(Font)              size <5> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 705.
+(Font)              size <8> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 705.
+(Font)              size <5> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 705.
+(Font)              size <8> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `U/lasy/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 705.
+(Font)              size <5> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <7.58339> not available
-(Font)              size <8> substituted on input line 705.
+(Font)              size <8> substituted on input line 706.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <5.41673> not available
-(Font)              size <5> substituted on input line 705.
+(Font)              size <5> substituted on input line 706.
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [45]
 File: Hinhve/backtest_dyn_off.png Graphic file (type bmp)
@@ -1899,10 +1896,10 @@ File: Hinhve/backtest_dyn_on.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [46]
 File: Hinhve/backtest-dyn-on-2.png Graphic file (type bmp)
@@ -1912,22 +1909,18 @@ File: Hinhve/backtest_static_vs_dynamic.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [47]
-Overfull \hbox (3.45172pt too wide) in paragraph at lines 791--815
- [][] 
- []
-
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [48]
 File: Hinhve/backtest_duration_vs_agents.png Graphic file (type bmp)
@@ -1937,10 +1930,10 @@ File: Hinhve/backtest_replan_vs_agents.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [49]
 File: Hinhve/backtest_timeout_vs_agents.png Graphic file (type bmp)
@@ -1949,10 +1942,10 @@ File: Hinhve/backtest_timeout_vs_agents.png Graphic file (type bmp)
 ignored error: Infinite glue shrinkage found in box being split
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [50]
 File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
@@ -1960,107 +1953,107 @@ File: Hinhve/backtest_recoveries_vs_agents.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [51]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [52]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [53]
-Underfull \hbox (badness 1067) in paragraph at lines 1054--1059
+Underfull \hbox (badness 1067) in paragraph at lines 1056--1061
 []\TU/TimesNewRoman(0)/m/n/13 Để phục vụ người dùng cuối qua trình duyệt, hệ th
 ống được triển khai
  []
 
 
-Underfull \hbox (badness 1616) in paragraph at lines 1072--1074
+Underfull \hbox (badness 1616) in paragraph at lines 1074--1076
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443
 
  []
 
 
-Underfull \hbox (badness 2608) in paragraph at lines 1074--1076
+Underfull \hbox (badness 2608) in paragraph at lines 1076--1078
 []|\TU/lmtt/m/n/11.86258 tankmapf-tank-mapf-artifacts \TU/TimesNewRoman(0)/m/n/
 11.86258 lưu trữ artifact
  []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [54]
-Overfull \hbox (3.50667pt too wide) in paragraph at lines 1123--1128
+Overfull \hbox (3.50667pt too wide) in paragraph at lines 1125--1130
 []\TU/TimesNewRoman(0)/b/n/13 Proxy WebSocket cho máy chủ trò chơi. \TU/TimesNe
 wRoman(0)/m/n/13 Tên miền phụ \TU/lmtt/m/n/13 game.luminx.io.vn
  []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [55]
-Underfull \hbox (badness 5345) in paragraph at lines 1196--1198
+Underfull \hbox (badness 5345) in paragraph at lines 1198--1200
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Kiểm tra định dạng Ter-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1198
+Underfull \hbox (badness 10000) in paragraph at lines 1198--1200
 \TU/TimesNewRoman(0)/m/n/11.86258 raform, cú pháp Python
  []
 
 
-Underfull \hbox (badness 7081) in paragraph at lines 1196--1198
+Underfull \hbox (badness 7081) in paragraph at lines 1198--1200
 \TU/TimesNewRoman(0)/m/n/11.86258 (Registry), cú pháp shell
  []
 
 
-Underfull \hbox (badness 1552) in paragraph at lines 1196--1198
+Underfull \hbox (badness 1552) in paragraph at lines 1198--1200
 \TU/TimesNewRoman(0)/m/n/11.86258 script; phát hiện tệp nhạy
  []
 
 
-Underfull \hbox (badness 5862) in paragraph at lines 1199--1201
+Underfull \hbox (badness 5862) in paragraph at lines 1201--1203
 \TU/TimesNewRoman(0)/m/n/11.86258 chạy \TU/lmtt/m/n/11.86258 terraform plan \TU
 /TimesNewRoman(0)/m/n/11.86258 để
  []
 
 
-Underfull \hbox (badness 4366) in paragraph at lines 1202--1204
+Underfull \hbox (badness 4366) in paragraph at lines 1204--1206
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Build artifact Linux Ded-
  []
 
 
-Underfull \hbox (badness 5548) in paragraph at lines 1202--1204
+Underfull \hbox (badness 5548) in paragraph at lines 1204--1206
 \TU/TimesNewRoman(0)/m/n/11.86258 icated Server và WebGL,
  []
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [56]
 File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
@@ -2068,18 +2061,18 @@ File: Hinhve/14_gcp_nginx_deployment.drawio.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [57])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 31.86446pt, for example:
-(fancyhdr)                \setlength{\headheight}{31.86446pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [58]
 CHƯƠNG 5.
@@ -2091,10 +2084,10 @@ File: Hinhve/seq_astar_replan.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [60]
 File: Hinhve/seq_pibt_csharp.png Graphic file (type bmp)
@@ -2102,10 +2095,10 @@ File: Hinhve/seq_pibt_csharp.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [61]
 File: Hinhve/seq_pibt_tcp.png Graphic file (type bmp)
@@ -2113,10 +2106,10 @@ File: Hinhve/seq_pibt_tcp.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [62]
 File: Hinhve/12_pibt_to_epibt_path.drawio.png Graphic file (type bmp)
@@ -2124,34 +2117,34 @@ File: Hinhve/12_pibt_to_epibt_path.drawio.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [63]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [64]
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [65])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [66]
 CHƯƠNG 6.
@@ -2160,10 +2153,10 @@ CHƯƠNG 6.
 ])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [68] [69
 
@@ -2176,10 +2169,10 @@ PHỤ LỤC A.
 ])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [72]
 PHỤ LỤC B.
@@ -2196,18 +2189,18 @@ File: Hinhve/uc_E2.png Graphic file (type bmp)
 
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [74])
 
 Package fancyhdr Warning: \headheight is too small (10.0pt): 
-(fancyhdr)                Make it at least 16.2645pt, for example:
-(fancyhdr)                \setlength{\headheight}{16.2645pt}.
+(fancyhdr)                Make it at least 15.59995pt, for example:
+(fancyhdr)                \setlength{\headheight}{15.59995pt}.
 (fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-6.2645pt}.
+(fancyhdr)                \addtolength{\topmargin}{-5.59995pt}.
 
 [75] (DoAn.aux)
  ***********
@@ -2236,10 +2229,10 @@ Package logreq Info: Writing requests to 'DoAn.run.xml'.
 Here is how much of TeX's memory you used:
  35192 strings out of 402987
  708973 string characters out of 5448317
- 1674107 words of memory out of 5000000
+ 1674141 words of memory out of 5000000
  63388 multiletter control sequences out of 15000+600000
  639307 words of font info for 125 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 108i,12n,107p,2507b,5071s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 108i,14n,107p,2507b,5071s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 Output written on DoAn.pdf (88 pages).
