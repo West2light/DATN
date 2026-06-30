@@ -153,6 +153,12 @@ Người chơi vào chế độ chơi đơn bằng nút \textbf{SINGLE PLAY} ở
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-A1 -- Cấu hình \& bắt đầu ván chơi đơn}\label{tab:ucA1}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-A1 \\
 \hline
 Tên use case   & Cấu hình và bắt đầu ván chơi đơn \\
@@ -178,7 +184,6 @@ Luồng thay thế / ngoại lệ &
 6a. Tệp \texttt{.map} không tìm thấy $\rightarrow$ dùng Alpha32. \\
 \hline
 Hậu điều kiện  & Ván chơi đơn bắt đầu; agent AI dùng đúng thuật toán đã chọn. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -193,6 +198,12 @@ Hậu điều kiện  & Ván chơi đơn bắt đầu; agent AI dùng đúng thu
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-A2 -- Điều khiển xe tăng}\label{tab:ucA2}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-A2 \\
 \hline
 Tên use case   & Điều khiển xe tăng \\
@@ -213,7 +224,6 @@ Luồng thay thế / ngoại lệ &
 3a. Va chạm tường (lớp \texttt{ObstaclesMovement}) $\rightarrow$ xe tăng không đi xuyên. \\
 \hline
 Hậu điều kiện  & Trạng thái vị trí xe tăng và đạn được cập nhật. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -228,6 +238,12 @@ Hậu điều kiện  & Trạng thái vị trí xe tăng và đạn được c�
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-A3 -- Kết thúc ván chơi}\label{tab:ucA3}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-A3 \\
 \hline
 Tên use case   & Kết thúc ván chơi (thắng/thua) \\
@@ -246,7 +262,6 @@ Luồng thay thế / ngoại lệ &
 1a. Trong backtest, run chạm ngưỡng thời gian (timeout) $\rightarrow$ ghi kết quả \texttt{Timeout}. \\
 \hline
 Hậu điều kiện  & Màn hình kết quả hiển thị; người chơi có thể chơi lại hoặc về menu. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -284,6 +299,12 @@ môi trường dùng chung phòng chờ (B5), vòng chơi đồng bộ (B6) và 
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B1 -- Tạo phòng LAN}\label{tab:ucB1}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B1 \\
 \hline
 Tên use case   & Tạo phòng LAN \\
@@ -303,7 +324,6 @@ Luồng thay thế / ngoại lệ &
 2a. Cổng mạng bị chiếm $\rightarrow$ báo lỗi và quay lại màn chọn chế độ. \\
 \hline
 Hậu điều kiện  & Phòng LAN đang chạy và chờ người tham gia. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -318,6 +338,12 @@ Hậu điều kiện  & Phòng LAN đang chạy và chờ người tham gia. \\
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B2 -- Tham gia phòng LAN}\label{tab:ucB2}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B2 \\
 \hline
 Tên use case   & Tham gia phòng LAN \\
@@ -338,7 +364,6 @@ Luồng thay thế / ngoại lệ &
 2a. Địa chỉ sai $\rightarrow$ báo lỗi kết nối, quay lại màn nhập địa chỉ. \\
 \hline
 Hậu điều kiện  & Người tham gia đang ở trong phòng chờ. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -353,6 +378,12 @@ Hậu điều kiện  & Người tham gia đang ở trong phòng chờ. \\
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B3 -- Tạo phòng Internet}\label{tab:ucB3}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B3 \\
 \hline
 Tên use case   & Tạo phòng Internet \\
@@ -375,7 +406,6 @@ Luồng thay thế / ngoại lệ &
 2a. Relay hoặc registry lỗi $\rightarrow$ báo lỗi và hủy thao tác. \\
 \hline
 Hậu điều kiện  & Phòng Internet sẵn sàng; mã phòng được công bố cho người tham gia. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -390,6 +420,12 @@ Hậu điều kiện  & Phòng Internet sẵn sàng; mã phòng được công b
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B4 -- Tham gia phòng Internet}\label{tab:ucB4}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B4 \\
 \hline
 Tên use case   & Tham gia phòng Internet \\
@@ -413,7 +449,6 @@ Luồng thay thế / ngoại lệ &
 2a. Bản WebGL dùng endpoint web qua \texttt{PIBTWebRelayClient}. \\
 \hline
 Hậu điều kiện  & Người tham gia đang ở trong phòng chờ Internet. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -428,6 +463,12 @@ Hậu điều kiện  & Người tham gia đang ở trong phòng chờ Internet.
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B5 -- Phòng chờ \& bắt đầu trận}\label{tab:ucB5}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B5 \\
 \hline
 Tên use case   & Phòng chờ và bắt đầu trận \\
@@ -448,7 +489,6 @@ Luồng thay thế / ngoại lệ &
 3a. Còn người chưa sẵn sàng $\rightarrow$ nút START bị vô hiệu hóa. \\
 \hline
 Hậu điều kiện  & Trận nhiều người bắt đầu đồng bộ trên mọi máy. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -463,6 +503,12 @@ Hậu điều kiện  & Trận nhiều người bắt đầu đồng bộ trên 
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B6 -- Chơi mạng nhiều người}\label{tab:ucB6}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B6 \\
 \hline
 Tên use case   & Chơi mạng nhiều người \\
@@ -485,7 +531,6 @@ Luồng thay thế / ngoại lệ &
 2a. Một người tham gia mất kết nối $\rightarrow$ chủ phòng nhận thông báo và tiếp tục với số người còn lại. \\
 \hline
 Hậu điều kiện  & Kết quả chung được hiển thị đồng bộ trên mọi máy. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -500,6 +545,12 @@ Hậu điều kiện  & Kết quả chung được hiển thị đồng bộ tr�
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-B7 -- Rời phòng / Huỷ kết nối}\label{tab:ucB7}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-B7 \\
 \hline
 Tên use case   & Rời phòng hoặc huỷ kết nối \\
@@ -518,7 +569,6 @@ Luồng thay thế / ngoại lệ &
 1a. Chủ phòng rời $\rightarrow$ phòng đóng, các người tham gia nhận thông báo và trở về menu. \\
 \hline
 Hậu điều kiện  & Người chơi trở về menu; tài nguyên mạng được giải phóng. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -546,6 +596,12 @@ biểu đồ use case nhóm này.
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-C1 -- Tạm dừng / Tiếp tục ván}\label{tab:ucC1}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-C1 \\
 \hline
 Tên use case   & Tạm dừng và tiếp tục ván \\
@@ -565,7 +621,6 @@ Luồng thay thế / ngoại lệ &
 2a. Trong chế độ nhiều người, \texttt{ApplyNetworkPause} đồng bộ trạng thái tạm dừng phù hợp giữa các máy. \\
 \hline
 Hậu điều kiện  & Ván chơi tiếp tục bình thường. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -580,6 +635,12 @@ Hậu điều kiện  & Ván chơi tiếp tục bình thường. \\
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-C2 -- Quay lại menu chính}\label{tab:ucC2}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-C2 \\
 \hline
 Tên use case   & Quay lại menu chính \\
@@ -598,7 +659,6 @@ Luồng thay thế / ngoại lệ &
 1a. Trong chế độ nhiều người, rời ván đồng nghĩa rời phòng (xem UC-B7). \\
 \hline
 Hậu điều kiện  & Người chơi trở về menu chính. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -627,6 +687,12 @@ Hình~\ref{fig:uc_groupD} là biểu đồ use case nhóm backtest.
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-D1 -- Cấu hình backtest}\label{tab:ucD1}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-D1 \\
 \hline
 Tên use case   & Cấu hình backtest \\
@@ -646,7 +712,6 @@ Luồng thay thế / ngoại lệ &
 1a. Bản production không hiển thị nút BACKTEST $\rightarrow$ use case không khả dụng. \\
 \hline
 Hậu điều kiện  & Cấu hình thực nghiệm sẵn sàng để chạy. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -661,6 +726,12 @@ Hậu điều kiện  & Cấu hình thực nghiệm sẵn sàng để chạy. \\
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-D2 -- Chạy backtest tự động}\label{tab:ucD2}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-D2 \\
 \hline
 Tên use case   & Chạy backtest tự động \\
@@ -684,7 +755,6 @@ Luồng thay thế / ngoại lệ &
 3b. Run chạm timeout $\rightarrow$ ghi \texttt{Outcome=Timeout}. \\
 \hline
 Hậu điều kiện  & Tệp CSV và HTML chart xuất hiện trong thư mục \texttt{BacktestResults/}. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
@@ -699,6 +769,12 @@ Hậu điều kiện  & Tệp CSV và HTML chart xuất hiện trong thư mục 
 \begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
 \caption{Đặc tả use case UC-D3 -- Xem kết quả backtest}\label{tab:ucD3}\\
 \hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
 Mã use case    & UC-D3 \\
 \hline
 Tên use case   & Xem kết quả backtest \\
@@ -719,7 +795,6 @@ Luồng thay thế / ngoại lệ &
 3a. Thiếu Python/matplotlib $\rightarrow$ không sinh được PNG nhưng HTML vẫn hiển thị bảng số liệu. \\
 \hline
 Hậu điều kiện  & Người dùng nắm được kết quả định lượng của đợt thực nghiệm. \\
-\hline
 \end{longtable}
 }
 \vspace{16pt}
