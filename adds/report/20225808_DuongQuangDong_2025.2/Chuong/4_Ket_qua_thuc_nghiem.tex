@@ -569,7 +569,7 @@ lần replan của từng agent tương đối đồng đều và không xuất 
 chạy \emph{cục bộ trong tiến trình Unity} (lớp \texttt{GridEnemyAgentPIBT}). Mỗi bước phân giải
 xung đột giữa các agent được tính là một lần replan; ngoài ra, khi một agent bị kẹt, cơ chế thoát
 kẹt của riêng agent đó có thể phát sinh thêm vài replan. Tuy nhiên trên phiên bản đã hoàn thiện,
-mức tăng này nhỏ nên phân bố replan giữa các agent vẫn khá đều, chỉ nhỉnh hơn A* một chút thay vì
+mức tăng này nhỏ nên phân bố replan giữa các agent vẫn khá đều, chỉ nhỉnh hơn A* thay vì
 tạo ra đột biến lớn (Hình~\ref{fig:seq_pibt}).
 
 \textbf{PIBT C++/TCP.} Bộ giải PIBT chạy trên một \emph{máy chủ C++ tập trung} kết nối qua TCP
@@ -643,7 +643,7 @@ Xét chi tiết hơn, trên bản đồ thoáng Alpha32 cả ba thuật toán ho
 giây) với số lần tái hoạch định thấp, cho thấy khi không gian rộng thì khác biệt giữa chúng không
 đáng kể. Trên các bản đồ hẹp hơn (Mansion, Chantry, Gallows), thời gian tăng lên khoảng 90--120
 giây và số lần replan của cả ba cùng ở mức vài trăm nhưng bám sát nhau -- PIBT~C\# chỉ nhỉnh hơn A*
-một chút chứ không bùng nổ -- vì ở mật độ thấp (sáu agent) chưa phát sinh nhiều xung đột. Đáng chú
+chứ không bùng nổ -- vì ở mật độ thấp (sáu agent) chưa phát sinh nhiều xung đột. Đáng chú
 ý, PIBT~C++/TCP đi qua nhiều ô nhất ở hầu hết bản đồ (cột Cells TB) vì độ trễ một nhịp của kênh
 mạng khiến agent thỉnh thoảng chờ lệnh rồi phải điều chỉnh đường. Maze128 là trường hợp duy nhất cả
 ba cùng chạm trần 180 giây ở mức sáu agent, do quá ít xe tăng không kịp len qua mê cung lớn để tiếp
@@ -667,7 +667,7 @@ bản đồ mở và cùng chạm trần 180 giây trên bản đồ mê cung Ma
 \end{figure}
 
 Về số lần tái hoạch định, Hình~\ref{fig:replan_static} (thang logarit) cho thấy ở mức sáu agent ba
-thuật toán bám khá sát nhau trên mọi bản đồ -- PIBT~C\# và PIBT~C++/TCP chỉ nhỉnh hơn A* một chút,
+thuật toán bám khá sát nhau trên mọi bản đồ -- PIBT~C\# và PIBT~C++/TCP chỉ nhỉnh hơn A*,
 không tách thành các bậc cách biệt. Khác biệt giữa chúng chỉ nới rộng dần khi số agent tăng, được
 phân tích ở mục khảo sát khả năng mở rộng.
 
@@ -855,9 +855,9 @@ Về số lần tái hoạch định (Hình~\ref{fig:scaling_replan}, thang loga
 thuật toán bám khá sát nhau và cùng tăng \emph{gần tuyến tính} theo số agent -- mỗi agent tăng
 thêm đóng góp một lượng replan gần như cố định -- chứ không tách thành các bậc cách biệt. Ở mức 72
 agent, cả ba đều ở khoảng \(7\,500\)--\(8\,300\) lần. Đây là khác biệt quan trọng so với kỳ vọng
-ban đầu rằng PIBT~C\# sẽ ``bùng nổ'' số lần tái hoạch định do cơ chế thoát kẹt: trên phiên bản đã
+theo lý thuyết rằng PIBT~C\# sẽ ``bùng nổ'' số lần tái hoạch định do cơ chế thoát kẹt: trên phiên bản đã
 hoàn thiện, khâu phối hợp của PIBT~C\# hoạt động ổn định nên số lần replan của nó chỉ nhỉnh hơn A*
-một chút thay vì cao gấp nhiều lần~\cite{okumura2022pibt}. PIBT~C++/TCP cũng tăng tương tự; cần
+thay vì cao gấp nhiều lần~\cite{okumura2022pibt}. PIBT~C++/TCP cũng tăng tương tự; cần
 nhắc lại con số phía máy khách của biến thể này không bao gồm chi phí phối hợp bên trong máy chủ
 C++~\cite{sharon2015cbs}.
 
@@ -992,9 +992,10 @@ toán cho kết quả xấp xỉ nhau trên các bản đồ mở, với chênh 
 sáu agent; hành vi cuối cùng là phá hủy Eagle Base tương đương nhau giữa ba thuật toán.
 
 Về số lần tái hoạch định, ba thuật toán bám khá sát nhau và cùng tăng gần tuyến tính theo số agent,
-chứ không tách thành các bậc cách biệt như giả định ban đầu. PIBT~C\# -- vốn được kỳ vọng sẽ ``bùng
-nổ'' replan do cơ chế thoát kẹt -- trên phiên bản đã hoàn thiện chỉ nhỉnh hơn A* một chút (xem
-Bảng~\ref{tab:peragent_evidence}). A* replan khi bị chặn hoặc hết chu kỳ; PIBT~C++/TCP đếm theo nhịp
+chứ không tách thành các bậc cách biệt. Cơ chế thoát kẹt cục bộ của PIBT~C\# về lý thuyết có thể
+sinh thêm các lần replan khẩn cấp, và ở phiên bản trước khi hoàn thiện từng làm số lần replan đột
+biến lên hàng nghìn (Mục~\ref{subsec:three_algos}); nhưng trên phiên bản đã hoàn thiện hiện tượng
+này không còn, nên số lần replan của PIBT~C\# chỉ nhỉnh hơn A* (xem Bảng~\ref{tab:peragent_evidence}). A* replan khi bị chặn hoặc hết chu kỳ; PIBT~C++/TCP đếm theo nhịp
 phía máy khách. Cần nhấn mạnh rằng định nghĩa ``một lần replan'' khác nhau giữa ba thuật toán
 (Bảng~\ref{tab:replan_mechanism}), nên đây là so sánh về nhịp tái hoạch định \emph{phía máy khách},
 và con số của PIBT~C++/TCP không bao gồm chi phí phối hợp bên trong máy chủ; bởi vậy không thể kết
@@ -1020,7 +1021,7 @@ nó đều chạm trần thời gian, phản ánh giới hạn về tốc độ 
 
 Tổng hợp lại, mỗi thuật toán có thế mạnh riêng: A* đơn giản, ổn định và có số lần tái hoạch định
 thấp nhưng không phối hợp giữa các agent; PIBT~C\# phối hợp và thoát kẹt tốt với chi phí replan chỉ
-nhỉnh hơn A* một chút trên phiên bản đã hoàn thiện, đồng thời phục hồi tốt nhất trong môi trường
+nhỉnh hơn A* trên phiên bản đã hoàn thiện, đồng thời phục hồi tốt nhất trong môi trường
 động; PIBT~C++/TCP tách phần lập kế hoạch sang máy chủ C++ nhưng là biến thể nhạy cảm nhất với độ
 trễ kết nối, nên yếu hơn ở mật độ cao và môi trường động.
 

@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 02:32
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.19)  30 JUN 2026 09:08
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1981,19 +1981,19 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [53]
-Underfull \hbox (badness 1067) in paragraph at lines 1054--1059
+Underfull \hbox (badness 1067) in paragraph at lines 1055--1060
 []\TU/TimesNewRoman(0)/m/n/13 Để phục vụ người dùng cuối qua trình duyệt, hệ th
 ống được triển khai
  []
 
 
-Underfull \hbox (badness 1616) in paragraph at lines 1072--1074
+Underfull \hbox (badness 1616) in paragraph at lines 1073--1075
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Cho phép TCP cổng 22 (SSH), 80 (HTTP), 443
 
  []
 
 
-Underfull \hbox (badness 2608) in paragraph at lines 1074--1076
+Underfull \hbox (badness 2608) in paragraph at lines 1075--1077
 []|\TU/lmtt/m/n/11.86258 tankmapf-tank-mapf-artifacts \TU/TimesNewRoman(0)/m/n/
 11.86258 lưu trữ artifact
  []
@@ -2006,7 +2006,7 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [54]
-Overfull \hbox (3.50667pt too wide) in paragraph at lines 1123--1128
+Overfull \hbox (3.50667pt too wide) in paragraph at lines 1124--1129
 []\TU/TimesNewRoman(0)/b/n/13 Proxy WebSocket cho máy chủ trò chơi. \TU/TimesNe
 wRoman(0)/m/n/13 Tên miền phụ \TU/lmtt/m/n/13 game.luminx.io.vn
  []
@@ -2019,38 +2019,38 @@ Package fancyhdr Warning: \headheight is too small (10.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-21.86446pt}.
 
 [55]
-Underfull \hbox (badness 5345) in paragraph at lines 1196--1198
+Underfull \hbox (badness 5345) in paragraph at lines 1197--1199
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Kiểm tra định dạng Ter-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1196--1198
+Underfull \hbox (badness 10000) in paragraph at lines 1197--1199
 \TU/TimesNewRoman(0)/m/n/11.86258 raform, cú pháp Python
  []
 
 
-Underfull \hbox (badness 7081) in paragraph at lines 1196--1198
+Underfull \hbox (badness 7081) in paragraph at lines 1197--1199
 \TU/TimesNewRoman(0)/m/n/11.86258 (Registry), cú pháp shell
  []
 
 
-Underfull \hbox (badness 1552) in paragraph at lines 1196--1198
+Underfull \hbox (badness 1552) in paragraph at lines 1197--1199
 \TU/TimesNewRoman(0)/m/n/11.86258 script; phát hiện tệp nhạy
  []
 
 
-Underfull \hbox (badness 5862) in paragraph at lines 1199--1201
+Underfull \hbox (badness 5862) in paragraph at lines 1200--1202
 \TU/TimesNewRoman(0)/m/n/11.86258 chạy \TU/lmtt/m/n/11.86258 terraform plan \TU
 /TimesNewRoman(0)/m/n/11.86258 để
  []
 
 
-Underfull \hbox (badness 4366) in paragraph at lines 1202--1204
+Underfull \hbox (badness 4366) in paragraph at lines 1203--1205
 []|\TU/TimesNewRoman(0)/m/n/11.86258 Build artifact Linux Ded-
  []
 
 
-Underfull \hbox (badness 5548) in paragraph at lines 1202--1204
+Underfull \hbox (badness 5548) in paragraph at lines 1203--1205
 \TU/TimesNewRoman(0)/m/n/11.86258 icated Server và WebGL,
  []
 

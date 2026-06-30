@@ -38,8 +38,8 @@ Maze128 & PIBT C++/TCP & 180,0$\pm$0,0 & 820$\pm$8 & 3\,732 \\ \hline
 \end{table}
 
 Độ lệch chuẩn nhỏ trên hầu hết tổ hợp cho thấy kết quả ổn định qua các lần lặp. Khác với
-kỳ vọng ban đầu, ba thuật toán có số lần tái hoạch định bám khá sát nhau ở mức sáu agent:
-hai biến thể PIBT (C\# và C++/TCP) chỉ chênh nhau ít và đều nhỉnh hơn A* một chút trên các
+kỳ vọng theo lý thuyết, ba thuật toán có số lần tái hoạch định bám khá sát nhau ở mức sáu agent:
+hai biến thể PIBT (C\# và C++/TCP) chỉ chênh nhau ít và đều nhỉnh hơn A* trên các
 bản đồ hẹp, \emph{không} còn hiện tượng PIBT~C\# đột biến lên hàng nghìn như ở phiên bản
 trước khi hoàn thiện. Khác biệt giữa hai biến thể PIBT chủ yếu nằm ở số phát bắn và số ô
 đã đi -- phản ánh độ trễ một nhịp của kênh TCP ở biến thể C++/TCP, khiến nó di chuyển và
@@ -90,7 +90,7 @@ spawn của chướng ngại chứ không phải từ bản thân thuật toán.
 trần 180~giây ở cả ba thuật toán tại mức sáu agent, xác nhận giới hạn tại đây là độ khó
 tô-pô của bản đồ. Nhìn chung, dữ liệu chi tiết trong hai bảng củng cố nhận định ở
 Chương~\ref{chapter:Experiment}: số lần tái hoạch định của ba thuật toán bám sát nhau --
-PIBT chỉ nhỉnh hơn A* một chút chứ không cao gấp nhiều lần -- và khác biệt giữa chúng nới
+PIBT chỉ nhỉnh hơn A* chứ không cao gấp nhiều lần -- và khác biệt giữa chúng nới
 rộng dần khi môi trường trở nên động.
 
 \end{document}
