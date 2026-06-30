@@ -49,6 +49,14 @@ public class MapTankTestBootstrap : MonoBehaviour
     private bool    _spectating;
     private Vector2 _spectatorPos;
 
+    // ── Free-look (zoom + pan) ─────────────────────────────────────────────
+    private bool    _freeLook;
+    private bool    _camDragging;
+    private Vector3 _camDragOriginWorld;
+    private float   _defaultOrthoSize;
+    private float   _freeLookMaxOrtho = 20f;
+    private const float FreeLookMinOrtho = 1.5f;
+
     private IEnumerator Start()
     {
         if (mapLoader == null)
@@ -165,13 +173,94 @@ public class MapTankTestBootstrap : MonoBehaviour
             }
         }
 
+        HandleCameraZoom();
+
         if (_spectating)
         {
             HandleSpectatorCamera();
             return;
         }
 
+        HandleFreeLookDrag();
+
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            _freeLook = false;
+            _camDragging = false;
+            if (_defaultOrthoSize > 0f)
+                mainCamera.orthographicSize = _defaultOrthoSize;
+        }
+
+        if (_freeLook)
+        {
+            ClampCameraToMap();
+            return;
+        }
+
         UpdateCameraPosition();
+    }
+
+    // Scroll wheel zoom — always active, zooms toward the cursor position.
+    private void HandleCameraZoom()
+    {
+        if (mainCamera == null || PauseMenuController.IsLocalPauseActive) return;
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (Mathf.Abs(scroll) < 0.001f) return;
+
+        Vector3 worldBefore = CamScreenToWorld(Input.mousePosition);
+        mainCamera.orthographicSize = Mathf.Clamp(
+            mainCamera.orthographicSize * (1f - scroll * 1.2f),
+            FreeLookMinOrtho, _freeLookMaxOrtho);
+        Vector3 worldAfter = CamScreenToWorld(Input.mousePosition);
+        mainCamera.transform.position += worldBefore - worldAfter;
+        ClampCameraToMap();
+    }
+
+    // Right-click / middle-click drag to pan freely; sets _freeLook until Y is pressed.
+    private void HandleFreeLookDrag()
+    {
+        if (mainCamera == null || PauseMenuController.IsLocalPauseActive) return;
+
+        bool btn  = Input.GetMouseButton(1) || Input.GetMouseButton(2);
+        bool down = Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2);
+
+        if (down)
+        {
+            _camDragOriginWorld = CamScreenToWorld(Input.mousePosition);
+            _camDragging = true;
+            _freeLook    = true;
+        }
+
+        if (_camDragging && btn)
+        {
+            Vector3 current = CamScreenToWorld(Input.mousePosition);
+            mainCamera.transform.position += _camDragOriginWorld - current;
+            _camDragOriginWorld = CamScreenToWorld(Input.mousePosition);
+        }
+
+        if (!btn) _camDragging = false;
+    }
+
+    private void ClampCameraToMap()
+    {
+        if (mainCamera == null) return;
+        float halfH = mainCamera.orthographicSize;
+        float halfW = halfH * mainCamera.aspect;
+        float minX  = -mapWidthWorld  / 2f + halfW;
+        float maxX  =  mapWidthWorld  / 2f - halfW;
+        float minY  = -mapHeightWorld / 2f + halfH;
+        float maxY  =  mapHeightWorld / 2f - halfH;
+        Vector3 pos = mainCamera.transform.position;
+        pos.x = minX <= maxX ? Mathf.Clamp(pos.x, minX, maxX) : 0f;
+        pos.y = minY <= maxY ? Mathf.Clamp(pos.y, minY, maxY) : 0f;
+        mainCamera.transform.position = pos;
+    }
+
+    private Vector3 CamScreenToWorld(Vector3 screenPos)
+    {
+        Vector3 w = mainCamera.ScreenToWorldPoint(screenPos);
+        w.z = mainCamera.transform.position.z;
+        return w;
     }
 
     // Free-roam camera for spectators: WASD pans within map bounds.
@@ -675,6 +764,8 @@ public class MapTankTestBootstrap : MonoBehaviour
         const float MaxGameplayOrtho = 7f;
 
         mainCamera.orthographicSize = Mathf.Max(0.01f, Mathf.Min(fitSize * cameraZoom, MaxGameplayOrtho));
+        _defaultOrthoSize = mainCamera.orthographicSize;
+        _freeLookMaxOrtho = Mathf.Max(mapWidthWorld, mapHeightWorld) / 2f + 2f;
 
         UpdateCameraPosition();
     }
