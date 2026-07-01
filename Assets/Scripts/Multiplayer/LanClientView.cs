@@ -288,25 +288,43 @@ public class LanClientView : MonoBehaviour
                         _ownDied = true;
                         IsSpectating = true;
                         ShowDeadOverlay();
+                        // The real server-side tank is Destroy()-ed on death and never
+                        // respawns — hide the ghost so it doesn't keep sliding to the
+                        // stale (0,0) fallback position BroadcastWorldState sends once
+                        // _serverTanks[slot] becomes a destroyed/null reference.
+                        if (OwnGhost != null) OwnGhost.gameObject.SetActive(false);
                     }
                     _ownPrevHp = p.hp;
                 }
                 else if (i < _playerGhosts.Count && _playerGhosts[i] != null)
                 {
-                    if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                    Transform ghost = _playerGhosts[i];
+                    if (p.hp <= 0)
                     {
-                        _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
-                        _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        // Same reasoning as the enemy dead-branch below: once a player
+                        // tank dies it is destroyed server-side and never respawns, so
+                        // just hide the ghost instead of letting it snap to (0,0).
+                        if (ghost.gameObject.activeSelf) ghost.gameObject.SetActive(false);
                     }
                     else
                     {
-                        _playerGhosts[i].position = new Vector3(p.px, p.py, 0f);
-                        _playerGhosts[i].rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
-                    }
+                        if (!ghost.gameObject.activeSelf) ghost.gameObject.SetActive(true);
 
-                    if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
-                        _playerTargetTurretRot[i] = p.turretRot;
-                    SetTurretRot(_playerGhosts[i], p.turretRot);
+                        if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                        {
+                            _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
+                            _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        }
+                        else
+                        {
+                            ghost.position = new Vector3(p.px, p.py, 0f);
+                            ghost.rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        }
+
+                        if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
+                            _playerTargetTurretRot[i] = p.turretRot;
+                        SetTurretRot(ghost, p.turretRot);
+                    }
                 }
             }
 
