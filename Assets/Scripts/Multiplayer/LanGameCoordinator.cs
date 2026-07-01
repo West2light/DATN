@@ -52,8 +52,30 @@ public class LanGameCoordinator : MonoBehaviour
 
     // ── Bullet / explosion events (reliable [ClientRpc] — must not be dropped) ──
 
-    private void OnBulletFired(Vector2 pos, Vector2 dir, float speed, float maxDist)
-        => Relay()?.SpawnBulletEffectClientRpc(pos, dir, speed, maxDist);
+    // Lazy-loaded shoot SFX for the host's own local view. The host never gets a
+    // LanClientView (MapTankTestBootstrap only adds one for non-host clients), so it
+    // can't rely on LanClientView.PlayShootSfx via the ClientRpc relay below — that
+    // call is a no-op on the host/dedicated-server process. Play it directly here
+    // instead, once per player shot, on whichever machine is actually running the match.
+    // Enemy shots are excluded: the real enemy Turret already plays its own local
+    // shoot AudioSource (Turret.PrepareShootAudio/OnShoot), so adding this fallback
+    // for them too would double up enemy gunfire audio on the host.
+    private AudioClip _hostShootClip;
+    private bool      _hostShootClipLoaded;
+
+    private void OnBulletFired(Vector2 pos, Vector2 dir, float speed, float maxDist, bool isPlayerShot)
+    {
+        Relay()?.SpawnBulletEffectClientRpc(pos, dir, speed, maxDist);
+
+        if (!isPlayerShot || LanSessionManager.IsDedicatedServer) return; // no audio device / listener
+        if (!_hostShootClipLoaded)
+        {
+            _hostShootClipLoaded = true;
+            _hostShootClip = Resources.Load<AudioClip>("Audio/tank_shoot");
+        }
+        if (_hostShootClip != null)
+            AudioSource.PlayClipAtPoint(_hostShootClip, new Vector3(pos.x, pos.y, 0f), 0.5f);
+    }
 
     private void OnBulletHit(Vector2 pos)
         => Relay()?.SpawnExplosionClientRpc(pos);
