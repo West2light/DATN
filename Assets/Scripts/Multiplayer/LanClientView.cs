@@ -651,7 +651,10 @@ public class LanClientView : MonoBehaviour
         {
             if (mb == null) continue;
             // Keep Canvas-hierarchy components enabled so per-unit HP bars remain visible.
-            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is UiFollowTank) continue;
+            // Keep TrackMarksSpawner/ObjectPool enabled so ghosts still leave tread marks —
+            // both only read transform.position and don't need Rigidbody2D/Collider2D.
+            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is UiFollowTank
+                || mb is TrackMarksSpawner || mb is ObjectPool) continue;
             mb.enabled = false;
         }
     }
