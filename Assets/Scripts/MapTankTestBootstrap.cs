@@ -177,6 +177,14 @@ public class MapTankTestBootstrap : MonoBehaviour
 
         if (_spectating)
         {
+            // HandleCameraZoom() may have just shifted mainCamera.transform.position
+            // (zoom-toward-cursor + map clamp). Sync that into _spectatorPos before
+            // HandleSpectatorCamera() re-applies it below — otherwise it stomps the
+            // zoom's position shift back to the stale pre-zoom spot every frame,
+            // producing a visible stutter each time the player scrolls while dead.
+            _spectatorPos = mainCamera != null
+                ? (Vector2)mainCamera.transform.position
+                : _spectatorPos;
             HandleSpectatorCamera();
             return;
         }
