@@ -417,6 +417,10 @@ public class LanNetworkBridge : NetworkBehaviour
     [ClientRpc]
     public void SpawnBulletEffectClientRpc(Vector2 pos, Vector2 dir, float speed, float maxDist)
     {
+        // [ClientRpc] also runs on the host (server + client in one process), but the
+        // host has no LanClientView (MapTankTestBootstrap only adds one for non-host
+        // clients — the host renders the real, authoritative tanks directly). Its shoot
+        // SFX fallback is handled separately in LanGameCoordinator.OnBulletFired.
         if (IsServer) return;
         LanClientView.Instance?.SpawnMovingBullet(pos, dir, speed, maxDist);
     }

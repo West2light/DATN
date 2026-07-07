@@ -7,7 +7,10 @@ public class Bullet : MonoBehaviour
 {
     // Fired on the SERVER whenever any bullet is created. LanGameCoordinator uses this
     // to immediately RPC clients so they see bullets without positional-sync delay.
-    public static System.Action<Vector2, Vector2, float, float> OnAnyBulletFired; // pos, dir, speed, maxDist
+    // isPlayerShot lets the host (which has no LanClientView of its own — see
+    // MapTankTestBootstrap) play a fallback shoot SFX only for player shots, since
+    // enemy shots already get real local audio via Turret's own OnShoot AudioSource.
+    public static System.Action<Vector2, Vector2, float, float, bool> OnAnyBulletFired; // pos, dir, speed, maxDist, isPlayerShot
 
     // Fired on the SERVER whenever any bullet hits something. LanGameCoordinator relays
     // this to clients so they see the explosion effect at the correct world position.
@@ -47,8 +50,9 @@ public class Bullet : MonoBehaviour
         startPosition = transform.position;
         previousPosition = transform.position;
         rb2d.linearVelocity = transform.up * this.bulletData.speed;
+        bool isPlayerShot = ownerFaction != null && ownerFaction.CurrentFaction == Faction.Player;
         OnAnyBulletFired?.Invoke(transform.position, transform.up,
-            this.bulletData.speed, this.bulletData.maxDistance);
+            this.bulletData.speed, this.bulletData.maxDistance, isPlayerShot);
     }
 
     private void Update()

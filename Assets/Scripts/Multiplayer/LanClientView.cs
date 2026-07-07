@@ -43,6 +43,20 @@ public class LanClientView : MonoBehaviour
     private TankMovementData _moveData;
     private bool             _moveDataLoaded;
 
+    // One-shot SFX clips (loaded once from Resources — see MapTankTestBootstrap's
+    // ResolvePlayerEngineClip for the same lazy-load convention). These replicate the
+    // shoot/impact sounds that only exist server-side, since ghosts never run the real
+    // Turret/Bullet MonoBehaviours that would otherwise trigger them.
+    private AudioClip _shootClip;
+    private bool       _shootClipLoaded;
+    private AudioClip _impactClip;
+    private bool       _impactClipLoaded;
+
+    // Per-ghost engine sound (looping AudioSource whose volume ramps with observed
+    // per-frame movement, since ghosts have no TankMover to fire OnSpeedChange).
+    private readonly List<EngineAudio> _playerEngineAudio = new List<EngineAudio>();
+    private Vector3[] _playerEnginePrevPos;
+
     private Slider _ownHpSlider;
     private Slider _eagleHpSlider;
     private Text   _enemyCountText;
@@ -274,25 +288,43 @@ public class LanClientView : MonoBehaviour
                         _ownDied = true;
                         IsSpectating = true;
                         ShowDeadOverlay();
+                        // The real server-side tank is Destroy()-ed on death and never
+                        // respawns — hide the ghost so it doesn't keep sliding to the
+                        // stale (0,0) fallback position BroadcastWorldState sends once
+                        // _serverTanks[slot] becomes a destroyed/null reference.
+                        if (OwnGhost != null) OwnGhost.gameObject.SetActive(false);
                     }
                     _ownPrevHp = p.hp;
                 }
                 else if (i < _playerGhosts.Count && _playerGhosts[i] != null)
                 {
-                    if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                    Transform ghost = _playerGhosts[i];
+                    if (p.hp <= 0)
                     {
-                        _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
-                        _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        // Same reasoning as the enemy dead-branch below: once a player
+                        // tank dies it is destroyed server-side and never respawns, so
+                        // just hide the ghost instead of letting it snap to (0,0).
+                        if (ghost.gameObject.activeSelf) ghost.gameObject.SetActive(false);
                     }
                     else
                     {
-                        _playerGhosts[i].position = new Vector3(p.px, p.py, 0f);
-                        _playerGhosts[i].rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
-                    }
+                        if (!ghost.gameObject.activeSelf) ghost.gameObject.SetActive(true);
 
-                    if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
-                        _playerTargetTurretRot[i] = p.turretRot;
-                    SetTurretRot(_playerGhosts[i], p.turretRot);
+                        if (_playerTargetPos != null && i < _playerTargetPos.Length)
+                        {
+                            _playerTargetPos[i] = new Vector3(p.px, p.py, 0f);
+                            _playerTargetRot[i] = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        }
+                        else
+                        {
+                            ghost.position = new Vector3(p.px, p.py, 0f);
+                            ghost.rotation = Quaternion.Euler(0f, 0f, p.bodyRot);
+                        }
+
+                        if (_playerTargetTurretRot != null && i < _playerTargetTurretRot.Length)
+                            _playerTargetTurretRot[i] = p.turretRot;
+                        SetTurretRot(ghost, p.turretRot);
+                    }
                 }
             }
 
@@ -416,6 +448,26 @@ public class LanClientView : MonoBehaviour
             Transform canvas = ghost?.Find("Canvas");
             if (canvas != null) canvas.rotation = Quaternion.identity;
         }
+
+        UpdateGhostEngineAudio();
+    }
+
+    // Runs last (after prediction/correction/interpolation have all moved the ghosts
+    // for this frame) so the measured displacement reflects true on-screen movement.
+    private void UpdateGhostEngineAudio()
+    {
+        if (_playerEnginePrevPos == null) return;
+        float dt = Mathf.Max(Time.deltaTime, 0.0001f);
+        for (int i = 0; i < _playerGhosts.Count && i < _playerEnginePrevPos.Length; i++)
+        {
+            Transform ghost = _playerGhosts[i];
+            EngineAudio engine = i < _playerEngineAudio.Count ? _playerEngineAudio[i] : null;
+            if (ghost == null || engine == null) continue;
+
+            float speed = (ghost.position - _playerEnginePrevPos[i]).magnitude / dt;
+            _playerEnginePrevPos[i] = ghost.position;
+            engine.ControlEngineVolume(speed);
+        }
     }
 
     // ── Ghost initialisation ──────────────────────────────────────────────────
@@ -444,6 +496,7 @@ public class LanClientView : MonoBehaviour
         _enemyGhosts.Clear();
         _enemyHpSliders.Clear();
         _bulletGhosts.Clear();
+        _playerEngineAudio.Clear();
         _ownSlot      = -1;
         OwnGhost      = null;
         _ownTargetSet = false;
@@ -484,11 +537,14 @@ public class LanClientView : MonoBehaviour
         GameObject tankPrefab  = Resources.Load<GameObject>("Prefabs/Tank");
         GameObject enemyPrefab = Resources.Load<GameObject>("Prefabs/StaticEnemy");
 
+        _playerEnginePrevPos = new Vector3[playerCount];
         for (int i = 0; i < playerCount; i++)
         {
             int   vi = (variantIndices != null && i < variantIndices.Length) ? variantIndices[i] : 0;
             Transform g = SpawnPlayerGhost(tankPrefab, $"GhostPlayer_{i}", 1.3f, vi, i == _ownSlot);
             _playerGhosts.Add(g);
+            _playerEngineAudio.Add(SetupGhostEngineAudio(g));
+            _playerEnginePrevPos[i] = g.position;
             if (i == _ownSlot) OwnGhost = g;
         }
 
@@ -546,6 +602,30 @@ public class LanClientView : MonoBehaviour
 
         StripToDisplayOnly(go);
         return go.transform;
+    }
+
+    // Adds a looping engine-sound AudioSource to a player ghost, mirroring
+    // MapTankTestBootstrap.ConfigurePlayerEngineAudio — ghosts have no TankMover to
+    // fire OnSpeedChange, so LateUpdate() drives EngineAudio.ControlEngineVolume
+    // directly from observed per-frame displacement instead.
+    private static EngineAudio SetupGhostEngineAudio(Transform ghost)
+    {
+        if (ghost == null) return null;
+        EngineAudio engineAudio = ghost.gameObject.AddComponent<EngineAudio>();
+        AudioSource audioSource = ghost.GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = ghost.gameObject.AddComponent<AudioSource>();
+
+        engineAudio.minVloume      = 0.08f;
+        engineAudio.maxVolume      = 0.22f;
+        engineAudio.volumeIncrease = 0.18f;
+
+        audioSource.clip         = Resources.Load<AudioClip>("Audio/spaceEngineSmall_001");
+        audioSource.loop         = true;
+        audioSource.playOnAwake  = true;
+        audioSource.spatialBlend = 0f;
+        audioSource.volume       = engineAudio.minVloume;
+
+        return engineAudio;
     }
 
     private static void ApplyVariantToGhost(GameObject go, int variantIndex)
@@ -651,7 +731,10 @@ public class LanClientView : MonoBehaviour
         {
             if (mb == null) continue;
             // Keep Canvas-hierarchy components enabled so per-unit HP bars remain visible.
-            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is UiFollowTank) continue;
+            // Keep TrackMarksSpawner/ObjectPool enabled so ghosts still leave tread marks —
+            // both only read transform.position and don't need Rigidbody2D/Collider2D.
+            if (mb is UnityEngine.EventSystems.UIBehaviour || mb is UiFollowTank
+                || mb is TrackMarksSpawner || mb is ObjectPool) continue;
             mb.enabled = false;
         }
     }
@@ -768,6 +851,19 @@ public class LanClientView : MonoBehaviour
         // Register before starting so StopNearestBulletGhost can find it.
         _bulletGhosts.Add(go);
         StartCoroutine(MoveBulletRoutine(go, dir.normalized, speed, maxDist));
+
+        PlayShootSfx(pos);
+    }
+
+    private void PlayShootSfx(Vector2 pos)
+    {
+        if (!_shootClipLoaded)
+        {
+            _shootClipLoaded = true;
+            _shootClip = Resources.Load<AudioClip>("Audio/tank_shoot");
+        }
+        if (_shootClip != null)
+            AudioSource.PlayClipAtPoint(_shootClip, new Vector3(pos.x, pos.y, 0f), 0.5f);
     }
 
     // Non-static so it can remove the bullet from _bulletGhosts when it expires naturally.
@@ -804,6 +900,19 @@ public class LanClientView : MonoBehaviour
             foreach (var mb in go.GetComponentsInChildren<DestroyIfDisabled>(true))
                 mb.enabled = false;
         }
+
+        PlayImpactSfx(pos);
+    }
+
+    private void PlayImpactSfx(Vector2 pos)
+    {
+        if (!_impactClipLoaded)
+        {
+            _impactClipLoaded = true;
+            _impactClip = Resources.Load<AudioClip>("Audio/explosion_short");
+        }
+        if (_impactClip != null)
+            AudioSource.PlayClipAtPoint(_impactClip, new Vector3(pos.x, pos.y, 0f), 0.4f);
     }
 
     // Find and destroy the bullet ghost nearest to the explosion position.

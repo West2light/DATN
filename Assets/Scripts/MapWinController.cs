@@ -143,12 +143,6 @@ public class MapWinController : MonoBehaviour
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -140f), new Vector2(480f, 60f));
 
-        // Thin separator
-        MakeStretch(panel, "Sep",
-            new Vector2(0.1f, 1f), new Vector2(0.9f, 1f),
-            new Vector2(0f, -180f), new Vector2(0f, -178f),
-            new Color(1f, 1f, 1f, 0.13f));
-
         // ── Buttons (anchor bottom-centre, pivot bottom) ───────────────────────
         const float BtnW = 400f, BtnH = 52f, BtnGap = 12f, PadBottom = 30f;
 
