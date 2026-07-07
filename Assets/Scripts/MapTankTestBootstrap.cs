@@ -279,15 +279,16 @@ public class MapTankTestBootstrap : MonoBehaviour
         _spectatorPos.x += Input.GetAxisRaw("Horizontal") * speed * Time.deltaTime;
         _spectatorPos.y += Input.GetAxisRaw("Vertical")   * speed * Time.deltaTime;
 
-        float halfH = mainCamera.orthographicSize;
-        float halfW = halfH * mainCamera.aspect;
-        _spectatorPos.x = Mathf.Clamp(_spectatorPos.x,
-            -mapWidthWorld  / 2f + halfW, mapWidthWorld  / 2f - halfW);
-        _spectatorPos.y = Mathf.Clamp(_spectatorPos.y,
-            -mapHeightWorld / 2f + halfH, mapHeightWorld / 2f - halfH);
-
         mainCamera.transform.position = new Vector3(
             _spectatorPos.x, _spectatorPos.y, cameraOffset.z);
+
+        // Reuse the same clamp as HandleCameraZoom() (including its map-smaller-
+        // than-viewport centering guard). A separate hand-rolled Mathf.Clamp here
+        // previously disagreed with ClampCameraToMap() whenever the map was smaller
+        // than the viewport, so the two functions fought over the camera's x/y each
+        // scroll frame — a visible stutter when zooming while spectating.
+        ClampCameraToMap();
+        _spectatorPos = mainCamera.transform.position;
     }
 
     private void SpawnScenario()
