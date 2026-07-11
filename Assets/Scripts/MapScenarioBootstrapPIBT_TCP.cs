@@ -580,28 +580,76 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
                 break;
         }
 
+        Vector2Int goalCell = GoalCellFor(agentIdx, rows, cols);
+
         // Prefer the server-authoritative next cell when valid (same cell or a single 4-neighbour step).
         if (serverNextLoc >= 0)
         {
             Vector2Int serverCell = FlatToCell(serverNextLoc, cols);
             if (IsInsideBuild(serverCell, rows, cols) && IsStepValid(cell, serverCell)
-                && (serverCell == cell || mapLoader.IsWalkable(serverCell)))
+                && (serverCell == cell || IsPassableForAgent(serverCell)))
             {
                 return serverCell;
             }
+
+            // Server (static map) routed into a cell that is blocked LIVE — a dynamic crate
+            // (thùng nổi) the server can't see, or invalid geometry. Steer around it locally
+            // instead of ramming/stalling, mirroring A*'s dynamic replanning.
+            Vector2Int detour = LocalAvoidStep(cell, goalCell);
+            if (detour != cell) { CountLocalAvoid(agentIdx, cell, detour); return detour; }
+
             // F-U2: server geometry invalid — count for stall detection (F-U3)
             _invalidNextLocCount++;
             if (enableTcpTrace)
                 Debug.LogWarning($"[PIBT_TCP] F-U2 invalid serverNextLoc={serverNextLoc} agent={agentIdx} cell={cell} serverCell={FlatToCell(serverNextLoc, cols)} → dead-reckon (total={_invalidNextLocCount})");
         }
 
-        // Fallback: previous dead-reckon behaviour.
+        // Fallback: previous dead-reckon behaviour, now with live-obstacle avoidance.
         if (action == "FW")
         {
             Vector2Int next = cell + OrientationToDelta(_agentOrientations[agentIdx]);
-            if (IsInsideBuild(next, rows, cols) && mapLoader.IsWalkable(next)) return next;
+            if (IsInsideBuild(next, rows, cols) && IsPassableForAgent(next)) return next;
+            Vector2Int detour = LocalAvoidStep(cell, goalCell);
+            if (detour != cell) { CountLocalAvoid(agentIdx, cell, detour); return detour; }
         }
         return cell; // CR/CCR/W/unknown → stay (rotation handled logically above)
+    }
+
+    // A local detour is a NON-PIBT recovery (client-side A* around a crate the server can't
+    // see) — count it like the greedy fallback so backtest metrics don't credit it as pure
+    // TCP-PIBT movement.
+    private void CountLocalAvoid(int agentIdx, Vector2Int from, Vector2Int to)
+    {
+        if (agentIdx < _agents.Count && _agents[agentIdx] != null)
+            _agents[agentIdx].btRecoveryCount++;
+        if (enableTcpTrace)
+            Debug.Log($"[PIBT_TCP] agent={agentIdx} local avoid (dynamic obstacle) {from} → {to}");
+    }
+
+    // Passable = normal walkable cell OR destructible (thùng gỗ: agent drives up & shoots it).
+    // A dynamic crate (thùng nổi) is MarkCellBlocked-only → not walkable AND not destructible
+    // → NOT passable, so the agent must route around it.
+    private bool IsPassableForAgent(Vector2Int cell) =>
+        mapLoader.IsWalkable(cell) || mapLoader.IsDestructibleBlocked(cell);
+
+    // Local dynamic-obstacle avoidance: the static server map can't see runtime crates
+    // (thùng nổi), so when its next step is blocked LIVE we run A* on the current MapLoader
+    // grid (destructible=passable, crate=blocked — identical to the A* baseline) and take the
+    // first step, giving the TCP agent the same detour-around behaviour as A*/PIBT-C#.
+    // Only invoked when the server step is blocked, so global PIBT coordination is preserved.
+    private readonly List<Vector2Int> _avoidPath = new List<Vector2Int>();
+    private Vector2Int LocalAvoidStep(Vector2Int from, Vector2Int goal)
+    {
+        if (!GridAStarPathfinder.TryFindPath(mapLoader, from, goal, _avoidPath) || _avoidPath.Count < 2)
+            return from;
+        Vector2Int step = _avoidPath[1];
+        return IsStepValid(from, step) ? step : from;
+    }
+
+    private Vector2Int GoalCellFor(int agentIdx, int rows, int cols)
+    {
+        int goalFlat = (agentIdx < _agentGoalFlats.Count) ? _agentGoalFlats[agentIdx] : EagleFlat(rows, cols);
+        return FlatToCell(goalFlat, cols);
     }
 
     private static bool IsStepValid(Vector2Int from, Vector2Int to)

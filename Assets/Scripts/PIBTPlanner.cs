@@ -70,19 +70,31 @@ public static class PIBTPlanner
         for (int flat = 0; flat < _size; flat++)
         {
             int r = flat / _cols, c = flat % _cols;
-            if (!_ml.IsWalkable(new Vector2Int(c, r)))
+            if (!IsPassable(c, r))
             {
                 _nbrs[flat] = Array.Empty<int>();
                 continue;
             }
             var list = new List<int>(4);
-            if (c + 1 < _cols && _ml.IsWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
-            if (r + 1 < _rows && _ml.IsWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
-            if (c - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
-            if (r - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
+            if (c + 1 < _cols && IsPassable(c + 1, r)) list.Add(flat + 1);
+            if (r + 1 < _rows && IsPassable(c, r + 1)) list.Add(flat + _cols);
+            if (c - 1 >= 0 && IsPassable(c - 1, r)) list.Add(flat - 1);
+            if (r - 1 >= 0 && IsPassable(c, r - 1)) list.Add(flat - _cols);
             _nbrs[flat] = list.ToArray();
         }
     }
+
+    // Ô destructible (thùng gỗ/rào chắn) coi là passable để PIBT route xuyên qua
+    // giống A* — rồi agent bắn phá mở đường (shoot-to-clear), thay vì đi đường vòng.
+    // Ô bị chặn động (thùng nổi/dynamic crate: MarkCellBlocked → IsWalkable=false,
+    // KHÔNG phải destructible) → không passable → PIBT né tránh.
+    private static bool IsPassable(int c, int r)
+    {
+        var cell = new Vector2Int(c, r);
+        return _ml.IsWalkable(cell) || _ml.IsDestructibleBlocked(cell);
+    }
+
+    private static bool IsPassable(int flat) => IsPassable(flat % _cols, flat / _cols);
 
     // ── Registration ──────────────────────────────────────────────────────
 
@@ -252,6 +264,10 @@ public static class PIBTPlanner
             {
                 int next = nbrs[ni];
                 if (closed.Contains(next)) continue;
+                // Né vật cản động (thùng nổi/dynamic crate): _nbrs precompute lúc Init
+                // nên không phản ánh ô bị chặn runtime. Kiểm tra live để PIBT đi vòng
+                // giống A*. Ô destructible (thùng gỗ) vẫn passable → xuyên qua để bắn.
+                if (!IsPassable(next)) continue;
 
                 int d = GetDir(curr, next);
                 int newG = cn.G + 1;
