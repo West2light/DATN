@@ -35,7 +35,7 @@ public class GridEnemyAgentPIBT : MonoBehaviour
     public TankController tankController;
 
     [Header("PIBT")]
-    [Min(1f)] public float frankWolfeMs = 15f;
+    [Min(1f)] public float frankWolfeMs = 25f;
 
     [Header("Timing")]
     public float replanInterval = 0.75f;

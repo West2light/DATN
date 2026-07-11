@@ -118,6 +118,51 @@ public static class PIBTPlanner
 
     public static Vector2Int FromFlat(int f) => new Vector2Int(f % _cols, f / _cols);
 
+    // ── Flow inspection (read-only, cho visualizer/metrics) ─────────────────
+    // Chỉ ĐỌC _flow — không đổi thuật toán. dir: 0=E(+x),1=S(+y),2=W(-x),3=N(-y).
+
+    public static bool HasFlow => IsReady && _flow != null;
+    public static int GridCols => _cols;
+    public static int GridRows => _rows;
+
+    /// <summary>Lưu lượng trajectory đang dùng cạnh cell→dir.</summary>
+    public static int GetEdgeFlow(Vector2Int cell, int dir)
+    {
+        if (!HasFlow || dir < 0 || dir > 3) return 0;
+        if (cell.x < 0 || cell.x >= _cols || cell.y < 0 || cell.y >= _rows) return 0;
+        return _flow[(cell.y * _cols + cell.x) * 4 + dir];
+    }
+
+    /// <summary>vertex_flow: tổng lưu lượng đi ra khỏi ô (mức "đông" của ô, không phân chiều).</summary>
+    public static int GetVertexFlow(Vector2Int cell)
+    {
+        if (!HasFlow) return 0;
+        if (cell.x < 0 || cell.x >= _cols || cell.y < 0 || cell.y >= _rows) return 0;
+        int b = (cell.y * _cols + cell.x) * 4;
+        return _flow[b] + _flow[b + 1] + _flow[b + 2] + _flow[b + 3];
+    }
+
+    /// <summary>op_flow (độ đối đầu) trên cạnh cell→dir = flow[cell→d] × flow[neighbor→ngược].</summary>
+    public static int GetOpposingFlow(Vector2Int cell, int dir)
+    {
+        if (!HasFlow || dir < 0 || dir > 3) return 0;
+        int here = GetEdgeFlow(cell, dir);
+        if (here == 0) return 0;
+        return here * GetEdgeFlow(cell + DirToDelta(dir), (dir + 2) & 3);
+    }
+
+    /// <summary>Delta ô theo dir (0=E,1=S,2=W,3=N) — khớp GetDir/AStarFlow.</summary>
+    public static Vector2Int DirToDelta(int dir)
+    {
+        switch (dir & 3)
+        {
+            case 0: return new Vector2Int(1, 0);
+            case 1: return new Vector2Int(0, 1);
+            case 2: return new Vector2Int(-1, 0);
+            default: return new Vector2Int(0, -1);
+        }
+    }
+
     public static bool IsAgentWalkable(Vector2Int cell)
     {
         if (_ml == null || !_ml.IsWalkable(cell))

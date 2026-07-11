@@ -304,7 +304,7 @@ MonoBehaviour:
   enemyReplanInterval: 0.75
   enemyEagleShootingRange: 5
   enemyPlayerShootingRange: 7
-  frankWolfeMs: 15
+  frankWolfeMs: 25
   scuffTimeout: 0.4
   obstacleContactMask:
     serializedVersion: 2

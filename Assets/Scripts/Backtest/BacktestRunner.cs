@@ -32,9 +32,10 @@ public class BacktestRunner : MonoBehaviour
         "Assets/MapData/ht_chantry.map",
         "Assets/MapData/lt_gallowstemplar_n.map",
         "Assets/MapData/maze-128-128-10.map",
+        "Assets/MapData/room-32-32-4.map",
     };
     private static readonly string[] MapLabels =
-        { "Alpha32", "Mansion", "Chantry", "Gallows", "Maze128" };
+        { "Alpha32", "Mansion", "Chantry", "Gallows", "Maze128", "Rooms32" };
 
     // Expose map metadata for BacktestConfigUI
     public static int         MapCount                  => MapFiles.Length;

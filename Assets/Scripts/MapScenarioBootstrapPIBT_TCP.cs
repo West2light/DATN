@@ -73,6 +73,9 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     [Tooltip("Bật log chi tiết action/nextLoc mỗi tick cho TCP PIBT.")]
     public bool enableTcpTrace = false;
     private int _traceTickCount;
+    [Tooltip("Bật lớp trực quan hoá traffic flow (heatmap + mũi tên, phím F1/F2/F3). Flow được TÁI DỰNG client-side từ bước đi của agent vì _flow thật nằm trên server C++. Chỉ editor/dev build.")]
+    public bool showFlowVisualizer = true;
+    private TcpFlowTracker _flowTracker;
 
     [Header("Reconnect")]
     [Min(1)] public int   maxReconnectAttempts = 3;
@@ -125,6 +128,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         eagleBase = SpawnEagleBase();
         SpawnEnemies();
+        EnsureFlowVisualizer();
         Debug.Log($"[PIBT_TCP] Spawned TCP scenario objects. eagle={eagleBase != null}, agents={_agents.Count}, enemies={_enemyGOs.Count}");
 
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -452,13 +456,16 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private void ApplyStepActions(string[] actions, int[] nextLocs, int rows, int cols)
     {
         int invalidBefore = _invalidNextLocCount;
+        _flowTracker?.BeginTick();
         for (int i = 0; i < _agents.Count && i < actions.Length; i++)
         {
             if (_agents[i] == null) continue;
+            Vector2Int cur = _agents[i].CurrentCell;
             int nextLoc = (nextLocs != null && i < nextLocs.Length) ? nextLocs[i] : -1;
             Vector2Int nextCell = ApplyAction(i, actions[i], nextLoc, rows, cols);
             _agents[i].SetNextTarget(nextCell);
             _agents[i].NeedsForcedReplan = false;
+            _flowTracker?.RecordStep(cur, nextCell);   // tái dựng flow client-side cho visualizer
         }
 
         // F-U3: geometry stall detection — all agents had invalid serverNextLoc this tick
@@ -650,6 +657,26 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     {
         int goalFlat = (agentIdx < _agentGoalFlats.Count) ? _agentGoalFlats[agentIdx] : EagleFlat(rows, cols);
         return FlatToCell(goalFlat, cols);
+    }
+
+    // Trực quan hoá traffic flow cho PIBT-TCP. Vì _flow thật nằm trên server C++, ta TÁI
+    // DỰNG một flow field phía client (TcpFlowTracker) từ bước đi thực tế của agent mỗi
+    // tick, rồi cấp cho cùng PIBTFlowVisualizer dùng ở scene PIBT C# → F1/F2/F3 hoạt động
+    // giống hệt. Chỉ đọc/quan sát, không ảnh hưởng điều phối của server.
+    private void EnsureFlowVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!showFlowVisualizer) return;
+        _flowTracker = GetComponent<TcpFlowTracker>();
+        if (_flowTracker == null) _flowTracker = gameObject.AddComponent<TcpFlowTracker>();
+        _flowTracker.Init(mapLoader);
+
+        var viz = GetComponent<PIBTFlowVisualizer>();
+        if (viz == null) viz = gameObject.AddComponent<PIBTFlowVisualizer>();
+        viz.mapLoader = mapLoader;
+        viz.SetFlowSource(_flowTracker);
+        viz.enabled = true;
+#endif
     }
 
     private static bool IsStepValid(Vector2Int from, Vector2Int to)
