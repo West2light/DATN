@@ -101,7 +101,7 @@ public class BacktestRunner : MonoBehaviour
         runner._selectedMapIndices  = selectedMapIndices;
         runner._reps                = Mathf.Max(1, reps);
         runner._dynamicObstacles    = dynamicObstacles;
-        runner._agentCount          = Mathf.Clamp(agentCount, 1, 20);
+        runner._agentCount          = Mathf.Clamp(agentCount, 1, 72);
     }
 
     private List<int> _selectedMapIndices;

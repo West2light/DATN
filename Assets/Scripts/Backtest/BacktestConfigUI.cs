@@ -401,7 +401,7 @@ public static class BacktestConfigUI
 
     private static void ChangeAgents(int delta)
     {
-        _agentCount = Mathf.Clamp(_agentCount + delta, 1, 20);
+        _agentCount = Mathf.Clamp(_agentCount + delta, 1, 72);
         if (_agentTxt != null) _agentTxt.text = _agentCount.ToString();
     }
 

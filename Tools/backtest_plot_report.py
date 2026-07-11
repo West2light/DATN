@@ -67,6 +67,23 @@ def avg(sums, counts, map_name, algo, metric_idx):
     return sums[key][metric_idx] / count if count else 0.0
 
 
+# CSS class tô đậm/đổi màu ô thắng trong bảng (khớp màu ALGOS).
+WIN_CLASS = {"AStar": "win-a", "PIBT": "win-p", "PIBT_TCP": "win-t"}
+
+
+def best_algo(sums, counts, map_name, metric_idx, lower_better):
+    """Thuật toán tốt nhất cho (map, metric): min nếu lower_better, ngược lại max.
+    Bỏ qua giá trị <= 0 (không có dữ liệu)."""
+    best, best_val = None, None
+    for algo, _, _ in ALGOS:
+        v = avg(sums, counts, map_name, algo, metric_idx)
+        if v <= 0:
+            continue
+        if best is None or (v < best_val if lower_better else v > best_val):
+            best, best_val = algo, v
+    return best
+
+
 def fmt_value(value):
     return f"{value:.0f}" if value >= 100 else f"{value:.1f}"
 
@@ -87,7 +104,7 @@ def plot_png(maps, sums, counts, png_path):
     x = list(range(len(maps)))
     bar_width = 0.24
 
-    for metric_idx, (_, label, _) in enumerate(METRICS):
+    for metric_idx, (_, label, lower_better) in enumerate(METRICS):
         ax = axes[metric_idx]
         ax.set_facecolor("#161820")
 
@@ -96,9 +113,21 @@ def plot_png(maps, sums, counts, png_path):
             for algo, _, _ in ALGOS
         ]
 
+        # Thuật toán tốt nhất mỗi map (để tô viền trắng nổi bật cột thắng).
+        best_per_map = []
+        for mi in range(len(maps)):
+            col = [(a, values_by_algo[a][mi]) for a in range(len(ALGOS)) if values_by_algo[a][mi] > 0]
+            if col:
+                pick = min(col, key=lambda t: t[1]) if lower_better else max(col, key=lambda t: t[1])
+                best_per_map.append(pick[0])
+            else:
+                best_per_map.append(-1)
+
         offsets = [-(bar_width + 0.02), 0.0, bar_width + 0.02]
-        for (algo, display, color), values, offset in zip(ALGOS, values_by_algo, offsets):
-            ax.bar([i + offset for i in x], values, bar_width, label=display, color=color)
+        for a, ((algo, display, color), values, offset) in enumerate(zip(ALGOS, values_by_algo, offsets)):
+            edgecolors = ["#ffffff" if best_per_map[mi] == a else "none" for mi in range(len(maps))]
+            ax.bar([i + offset for i in x], values, bar_width, label=display,
+                   color=color, edgecolor=edgecolors, linewidth=1.6, zorder=3)
 
         all_values = [v for values in values_by_algo for v in values]
         max_val = max(all_values + [1.0])
@@ -117,17 +146,20 @@ def plot_png(maps, sums, counts, png_path):
                     continue
                 ax.text(
                     i + offset,
-                    value + max_val * 0.025,
+                    value + max_val * 0.03,
                     fmt_value(value),
                     ha="center",
                     va="bottom",
                     color="#c0c8d8",
-                    fontsize=8,
+                    fontsize=7,
+                    rotation=90,
                 )
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, labelcolor="#d0d8e8")
     fig.suptitle("Backtest Report - A* vs PIBT vs PIBT-C++", color="#f5d050", fontsize=18, fontweight="bold")
+    # Legend đặt NGOÀI lưới subplot (phía dưới) để không chồng chéo tiêu đề/cột.
+    # "outside" locs cần constrained_layout (đã bật ở subplots()).
+    fig.legend(handles, labels, loc="outside lower center", ncol=3, frameon=False, labelcolor="#d0d8e8")
     fig.savefig(png_path, dpi=160, facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -141,8 +173,10 @@ def build_html(maps, sums, counts, csv_path, png_path):
     for map_name in maps:
         for algo, display, _ in ALGOS:
             cells = []
-            for metric_idx, (_, _, _) in enumerate(METRICS):
-                cells.append(f"<td>{fmt_value(avg(sums, counts, map_name, algo, metric_idx))}</td>")
+            for metric_idx, (_, _, lower_better) in enumerate(METRICS):
+                v = avg(sums, counts, map_name, algo, metric_idx)
+                cls = WIN_CLASS[algo] if algo == best_algo(sums, counts, map_name, metric_idx, lower_better) else ""
+                cells.append(f'<td class="{cls}">{fmt_value(v)}</td>')
             rows.append(
                 "<tr>"
                 f"<td>{html.escape(map_name)}</td>"
@@ -167,6 +201,9 @@ def build_html(maps, sums, counts, csv_path, png_path):
     table{{width:100%;border-collapse:collapse;font-size:12px}}
     th{{background:#1e2128;color:#8a93a8;padding:8px 12px;text-align:left}}
     td{{padding:7px 12px;border-bottom:1px solid #1e2128;color:#c0c8d8}}
+    .win-a{{color:#4a96ff;font-weight:700}}
+    .win-p{{color:#ff8c24;font-weight:700}}
+    .win-t{{color:#66d98c;font-weight:700}}
   </style>
 </head>
 <body>

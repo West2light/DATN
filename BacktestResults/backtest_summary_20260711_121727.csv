@@ -1,0 +1,4 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Rooms32,AStar,1,EagleDestroyed,77.81,-1,500,0.0,12,12,18333,3,6348,114
+2,Rooms32,PIBT,1,EagleDestroyed,61.75,-1,500,0.0,12,12,8968,6,3430,147
+3,Rooms32,PIBT_TCP,1,EagleDestroyed,49.65,-1,500,0.0,12,12,736,1,7098,304
