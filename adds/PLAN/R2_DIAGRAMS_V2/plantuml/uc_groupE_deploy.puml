@@ -1,0 +1,22 @@
+@startuml uc_groupE_deploy
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Quản trị hệ thống\n(DevOps)" as Admin
+actor "Người chơi/Client" as User
+
+title Triển khai & vận hành
+rectangle " " as Sys {
+  usecase "E1. Triển khai PIBT/Relay\nlên GCP (nginx, endpoint)" as E1
+  usecase "E2. Chạy dedicated server" as E2
+}
+Admin --> E1
+Admin --> E2
+E1 ..> User : phục vụ
+E2 ..> User : phục vụ
+@enduml

@@ -52,5 +52,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "DATN.slnx"
+    "dotnet.defaultSolution": "DATN.slnx",
+    "dotnet.preferCSharpExtension": true
 }

@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Biểu đồ cột so sánh A*, PIBT và PIBT-C++ hiển thị sau khi backtest hoàn thành.
+/// Biểu đồ cột so sánh A*, PIBT, PIBT-C++ và Mixed hiển thị sau khi backtest hoàn thành.
 /// ESC hoặc nút [✕] để đóng.
 /// </summary>
 public class BacktestResultChart : MonoBehaviour
@@ -27,14 +27,16 @@ public class BacktestResultChart : MonoBehaviour
     private static readonly Color C_AStar   = new Color(0.28f, 0.60f, 1.00f, 1.00f);
     private static readonly Color C_PIBT    = new Color(1.00f, 0.55f, 0.15f, 1.00f);
     private static readonly Color C_TCP     = new Color(0.40f, 0.85f, 0.55f, 1.00f);
+    private static readonly Color C_Mixed   = new Color(0.69f, 0.49f, 1.00f, 1.00f);
     private static readonly Color C_Gold    = new Color(1.00f, 0.82f, 0.22f, 1.00f);
     private static readonly Color C_White   = new Color(0.93f, 0.95f, 1.00f, 1.00f);
     private static readonly Color C_Muted   = new Color(0.50f, 0.55f, 0.62f, 1.00f);
     private static readonly Color C_WinA    = new Color(0.18f, 0.70f, 0.35f, 0.22f); // A* wins tint
     private static readonly Color C_WinP    = new Color(0.80f, 0.45f, 0.10f, 0.18f); // PIBT wins tint
     private static readonly Color C_WinT    = new Color(0.15f, 0.65f, 0.30f, 0.18f); // PIBT-C++ wins tint
+    private static readonly Color C_WinM    = new Color(0.45f, 0.30f, 0.70f, 0.20f); // Mixed wins tint
     private static readonly Color C_Close   = new Color(0.50f, 0.10f, 0.10f, 1.00f);
-    private static readonly string[] AlgoKeys = { "AStar", "PIBT", "PIBT_TCP" };
+    private static readonly string[] AlgoKeys = { "AStar", "PIBT", "PIBT_TCP", "Mixed" };
 
     // ── Layout ─────────────────────────────────────────────────────────────
     private const float PanelW      = 940f;
@@ -62,9 +64,11 @@ public class BacktestResultChart : MonoBehaviour
 
     private static readonly Metric[] Metrics =
     {
-        new Metric { label="Average time (s)", get=r=>r.duration,    maxHint=120f, lowerBetter=true  },
+        new Metric { label="Average time (s)", get=r=>r.duration,    maxHint=180f, lowerBetter=true  },
         new Metric { label="Total replans",    get=r=>r.totalReplans,maxHint=0,    lowerBetter=false },
         new Metric { label="Total shots",      get=r=>r.totalShots,  maxHint=0,    lowerBetter=false },
+        new Metric { label="Cells traveled",   get=r=>r.totalCells,  maxHint=0,    lowerBetter=false },
+        new Metric { label="Final Eagle HP",   get=r=>r.eagleHpAtEnd,maxHint=0,    lowerBetter=false },
     };
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -149,7 +153,7 @@ public class BacktestResultChart : MonoBehaviour
 
         // Title — anchor top-left + pos (30,-18) so rect spans [30, PanelW-30], text centered within
         Lbl("Title", panel, new Vector2(0f,1f), new Vector2(30f,-18f),
-            new Vector2(PanelW-60f, 26f), "BACKTEST RESULTS — A* vs PIBT vs PIBT-C++",
+            new Vector2(PanelW-60f, 26f), "BACKTEST RESULTS — A* vs PIBT vs PIBT-C++ vs Mixed",
             18, FontStyle.Bold, C_Gold, TextAnchor.MiddleCenter);
 
         // Legend
@@ -287,6 +291,7 @@ public class BacktestResultChart : MonoBehaviour
             float aVal = avg(map, "AStar", mi);
             float pVal = avg(map, "PIBT",  mi);
             float tVal = avg(map, "PIBT_TCP", mi);
+            float mVal = avg(map, "Mixed", mi);
 
             // Win tint background behind the pair
             Color tint = Color.clear;
@@ -304,7 +309,7 @@ public class BacktestResultChart : MonoBehaviour
             }
             if (bestAlgo != null)
             {
-                tint = bestAlgo == "AStar" ? C_WinA : bestAlgo == "PIBT" ? C_WinP : C_WinT;
+                tint = bestAlgo == "AStar" ? C_WinA : bestAlgo == "PIBT" ? C_WinP : bestAlgo == "PIBT_TCP" ? C_WinT : C_WinM;
             }
             if (tint != Color.clear)
             {
@@ -317,6 +322,7 @@ public class BacktestResultChart : MonoBehaviour
             DrawBar($"BA{mi}_{i}", panel, startX, baseline, aVal, maxVal, C_AStar, chartTop, TextAnchor.LowerCenter);
             DrawBar($"BP{mi}_{i}", panel, startX + BarW + BarGap, baseline, pVal, maxVal, C_PIBT, chartTop, TextAnchor.LowerCenter);
             DrawBar($"BT{mi}_{i}", panel, startX + (BarW + BarGap) * 2f, baseline, tVal, maxVal, C_TCP, chartTop, TextAnchor.LowerCenter);
+            DrawBar($"BM{mi}_{i}", panel, startX + (BarW + BarGap) * 3f, baseline, mVal, maxVal, C_Mixed, chartTop, TextAnchor.LowerCenter);
 
             // Map label
             Lbl($"MapL{mi}_{i}", panel, new Vector2(0f,1f),
@@ -396,8 +402,9 @@ public class BacktestResultChart : MonoBehaviour
                 float a = avg(map, "AStar", mi);
                 float p = avg(map, "PIBT", mi);
                 float t = avg(map, "PIBT_TCP", mi);
-                string cell = $"A:{a:F0} P:{p:F0} T:{t:F0}";
-                Color txtCol = BestColor(a, p, t, Metrics[mi].lowerBetter);
+                float m = avg(map, "Mixed", mi);
+                string cell = $"A:{a:F0} P:{p:F0} T:{t:F0} M:{m:F0}";
+                Color txtCol = BestColor(a, p, t, m, Metrics[mi].lowerBetter);
 
                 Lbl($"Sr{mi}_{map}", panel, new Vector2(0f,1f),
                     new Vector2(PadX + colW*(mi+1), rowY),
@@ -413,11 +420,12 @@ public class BacktestResultChart : MonoBehaviour
         LegDot("LA", panel, anchor, pos,                    C_AStar, "A* (xanh)");
         LegDot("LP", panel, anchor, new Vector2(pos.x+120f, pos.y), C_PIBT,  "PIBT (cam)");
         LegDot("LT", panel, anchor, new Vector2(pos.x+245f, pos.y), C_TCP,   "PIBT-C++");
+        LegDot("LM", panel, anchor, new Vector2(pos.x+370f, pos.y), C_Mixed, "Mixed (tím)");
     }
 
-    private static Color BestColor(float a, float p, float t, bool lowerBetter)
+    private static Color BestColor(float a, float p, float t, float m, bool lowerBetter)
     {
-        if (a <= 0f && p <= 0f && t <= 0f) return C_Muted;
+        if (a <= 0f && p <= 0f && t <= 0f && m <= 0f) return C_Muted;
         float best = 0f;
         Color color = C_Muted;
         void Check(float value, Color c)
@@ -432,6 +440,7 @@ public class BacktestResultChart : MonoBehaviour
         Check(a, C_AStar);
         Check(p, C_PIBT);
         Check(t, C_TCP);
+        Check(m, C_Mixed);
         return color;
     }
 

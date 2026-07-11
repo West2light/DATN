@@ -1,0 +1,4 @@
+﻿Run,Map,Algorithm,Rep,Outcome,Duration_s,EagleHP,EagleHPMax,EagleHPLostPct,AgentCount,EnemiesAlive,TotalReplans,TotalRecoveries,TotalShots,TotalCells
+1,Mansion,AStar,1,EagleDestroyed,75.33,-1,500,0.0,72,72,9119,58,1226,2208
+2,Mansion,PIBT,1,EagleDestroyed,90.10,-1,500,0.0,72,72,8129,694,295,809
+3,Mansion,PIBT_TCP,1,Timeout,180.05,500,500,0.0,72,72,295,0,0,163

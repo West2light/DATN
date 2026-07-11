@@ -28,11 +28,13 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     public MapLoader mapLoader;
 
     [Header("TCP Server")]
-    public string serverHost          = "110.172.28.110";
+    // 127.0.0.1 -> local pibt_tcp_server (works with a WSL2 server bound on 0.0.0.0
+    // thanks to WSL2 localhost forwarding). Use a LAN IP / URL for a remote server.
+    public string serverHost          = "127.0.0.1";
     public int    serverPort          = 7777;
     [Min(0.05f)]
     [Tooltip("Interval in seconds between server calls. 0.5s is approximately 2 ticks/s.")]
-    public float  tcpTickInterval     = 0.5f;
+    public float  tcpTickInterval     = 0.25f;
 
     [Header("Eagle Base")]
     public Vector2Int eagleCell                 = new Vector2Int(16, 16);
@@ -67,6 +69,14 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
     [SerializeField] private LayerMask obstacleContactMask;
 
+    [Header("Debug")]
+    [Tooltip("Bật log chi tiết action/nextLoc mỗi tick cho TCP PIBT.")]
+    public bool enableTcpTrace = false;
+    private int _traceTickCount;
+    [Tooltip("Bật lớp trực quan hoá traffic flow (heatmap + mũi tên, phím F1/F2/F3). Flow được TÁI DỰNG client-side từ bước đi của agent vì _flow thật nằm trên server C++. Chỉ editor/dev build.")]
+    public bool showFlowVisualizer = true;
+    private TcpFlowTracker _flowTracker;
+
     [Header("Reconnect")]
     [Min(1)] public int   maxReconnectAttempts = 3;
     [Min(0f)] public float reconnectDelaySec   = 2f;
@@ -83,6 +93,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     private bool                       _webRequestInFlight;
     private readonly List<GridEnemyAgentPIBT_TCP> _agents = new();
     private readonly List<int> _agentOrientations = new();
+    private readonly List<int> _agentGoalFlats = new();
     private string _sessionId;
     private int   _frame;
     private float _nextTickTime;
@@ -117,6 +128,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
 
         eagleBase = SpawnEagleBase();
         SpawnEnemies();
+        EnsureFlowVisualizer();
         Debug.Log($"[PIBT_TCP] Spawned TCP scenario objects. eagle={eagleBase != null}, agents={_agents.Count}, enemies={_enemyGOs.Count}");
 
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -140,6 +152,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int height     = mapLoader.BuildHeight;
         int width      = mapLoader.BuildWidth;
         string symbols = BuildMapSymbols(width, height);
+        ComputeStagingGoals(height, width);   // rows=height, cols=width
         _sessionId     = $"unity-{System.Guid.NewGuid():N}";
         ResetAgentOrientations();
 
@@ -219,12 +232,14 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
         if (!_serverReady || _webClient == null || _webRequestInFlight) return;
-        if (Time.time < _nextTickTime) return;
+        bool readyWeb = Time.time >= _nextTickTime || AllAgentsCommitted() || AnyAgentNeedsForcedReplan();
+        if (!readyWeb) return;
         _nextTickTime = Time.time + tcpTickInterval;
         StartCoroutine(DoStepWeb());
 #else
         if (!_serverReady || _client == null || !_client.IsConnected || _stepInFlight) return;
-        if (Time.time < _nextTickTime) return;
+        bool ready = Time.time >= _nextTickTime || AllAgentsCommitted() || AnyAgentNeedsForcedReplan();
+        if (!ready) return;
         _nextTickTime = Time.time + tcpTickInterval;
         StartCoroutine(DoStepAsync());
 #endif
@@ -237,6 +252,7 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         int height = mapLoader.BuildHeight;
         int width = mapLoader.BuildWidth;
         string symbols = BuildMapSymbols(width, height);
+        ComputeStagingGoals(height, width);   // rows=height, cols=width
         _sessionId = $"unity-web-{System.Guid.NewGuid():N}";
         ResetAgentOrientations();
 
@@ -319,9 +335,18 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         }
 
         _reconnectAttempts = 0;
-        ApplyStepActions(actions, rows, cols);
+        ApplyStepActions(actions, null, rows, cols);
+        AccumulateReplanWindow();
     }
 #endif
+
+    // F-U2/F-U3: geometry stall detection counters
+    private int _invalidNextLocCount;  // total invalid server nextLoc since session start
+    private int _geometryStallTicks;   // consecutive ticks where ALL agents' serverNextLoc was invalid
+
+    // Replan cadence normalization: accumulate TCP tick time so btReplanCount increments
+    // once per enemyReplanInterval window (matching A*/PIBT-C# cadence for fair comparison).
+    private float _replanWindowAccum;
 
     private bool _firstStepLogged;
 
@@ -396,26 +421,115 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         }
 
         _reconnectAttempts = 0;
-        ApplyStepActions(actions, rows, cols);
+        int[] nextLocs = client != null ? client.LastNextLocs : null;
+        if (enableTcpTrace) LogTickTrace(actions, nextLocs, rows, cols);
+        ApplyStepActions(actions, nextLocs, rows, cols);
+        AccumulateReplanWindow();
         _stepInFlight = false;
     }
 
     private (int id, int loc, int orientation, int goalLoc)[] BuildStepData(int rows, int cols)
     {
-        int goalFlat = EagleFlat(rows, cols);
         var data = new (int id, int loc, int orientation, int goalLoc)[_agents.Count];
         for (int i = 0; i < _agents.Count; i++)
+        {
+            int goalFlat = (i < _agentGoalFlats.Count) ? _agentGoalFlats[i] : EagleFlat(rows, cols);
             data[i] = (i, AgentFlat(i, rows, cols), AgentOrientation(i), goalFlat);
+        }
         return data;
     }
 
-    private void ApplyStepActions(string[] actions, int rows, int cols)
+    private bool AllAgentsCommitted()
     {
+        foreach (var a in _agents)
+            if (a != null && !a.HasCommittedAction()) return false;
+        return true;
+    }
+
+    private bool AnyAgentNeedsForcedReplan()
+    {
+        foreach (var a in _agents)
+            if (a != null && a.NeedsForcedReplan) return true;
+        return false;
+    }
+
+    private void ApplyStepActions(string[] actions, int[] nextLocs, int rows, int cols)
+    {
+        int invalidBefore = _invalidNextLocCount;
+        _flowTracker?.BeginTick();
         for (int i = 0; i < _agents.Count && i < actions.Length; i++)
         {
             if (_agents[i] == null) continue;
-            Vector2Int nextCell = ApplyAction(i, actions[i], rows, cols);
+            Vector2Int cur = _agents[i].CurrentCell;
+            int nextLoc = (nextLocs != null && i < nextLocs.Length) ? nextLocs[i] : -1;
+            Vector2Int nextCell = ApplyAction(i, actions[i], nextLoc, rows, cols);
             _agents[i].SetNextTarget(nextCell);
+            _agents[i].NeedsForcedReplan = false;
+            _flowTracker?.RecordStep(cur, nextCell);   // tái dựng flow client-side cho visualizer
+        }
+
+        // F-U3: geometry stall detection — all agents had invalid serverNextLoc this tick
+        int activeAgents = 0;
+        foreach (var a in _agents) if (a != null) activeAgents++;
+        int invalidThisTick = _invalidNextLocCount - invalidBefore;
+        if (nextLocs != null && activeAgents > 0 && invalidThisTick >= activeAgents)
+        {
+            _geometryStallTicks++;
+            if (_geometryStallTicks == 5 || _geometryStallTicks % 60 == 0)
+                Debug.LogWarning(
+                    $"[PIBT_TCP] GEOMETRY STALL detected on map {mapLoader.BuildWidth}x{mapLoader.BuildHeight}: " +
+                    $"{_geometryStallTicks} consecutive ticks all {activeAgents} server nextLoc invalid " +
+                    $"(total invalidNextLoc={_invalidNextLocCount}) — possible static delta bug in server");
+        }
+        else
+        {
+            _geometryStallTicks = 0;
+        }
+    }
+
+    // Increment each agent's btReplanCount once per enemyReplanInterval window so the
+    // metric is on the same cadence as A*/PIBT-C# (both fire every replanInterval seconds).
+    // tcpTickInterval (0.25s) is faster than replanInterval (0.75s), so we accumulate and
+    // only fire when a full window has elapsed — avoiding the 3× inflation of raw tick counting.
+    private void AccumulateReplanWindow()
+    {
+        _replanWindowAccum += tcpTickInterval;
+        if (_replanWindowAccum < enemyReplanInterval) return;
+        _replanWindowAccum -= enemyReplanInterval;
+        foreach (var a in _agents)
+            if (a != null) a.btReplanCount++;
+    }
+
+    private void LogTickTrace(string[] actions, int[] nextLocs, int rows, int cols)
+    {
+        _traceTickCount++;
+        bool firstTen = _traceTickCount <= 10;
+        bool every30  = _traceTickCount % 30 == 0;
+        if (!firstTen && !every30) return;
+
+        int fw = 0, cr = 0, ccr = 0, w = 0, other = 0;
+        for (int i = 0; i < actions.Length; i++)
+        {
+            switch (actions[i])
+            {
+                case "FW": fw++; break;
+                case "CR": cr++; break;
+                case "CCR": ccr++; break;
+                case "W": w++; break;
+                default: other++; break;
+            }
+        }
+        Debug.Log($"[PIBT_TCP_TRACE] tick={_traceTickCount} FW={fw} CR={cr} CCR={ccr} W={w} other={other}");
+
+        int n = Mathf.Min(_agents.Count, actions.Length);
+        for (int i = 0; i < n; i++)
+        {
+            if (_agents[i] == null) continue;
+            Vector2Int cell = _agents[i].CurrentCell;
+            int nl = (nextLocs != null && i < nextLocs.Length) ? nextLocs[i] : -1;
+            string nlCell = nl >= 0 ? FlatToCell(nl, cols).ToString() : "n/a";
+            Debug.Log($"[PIBT_TCP_TRACE] a={i} cell={cell} ori={AgentOrientation(i)} " +
+                      $"action={actions[i]} nextLoc={nl} nextCell={nlCell}");
         }
     }
 
@@ -457,31 +571,118 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         return _agentOrientations[agentIdx];
     }
 
-    private Vector2Int ApplyAction(int agentIdx, string action, int rows, int cols)
+    private Vector2Int ApplyAction(int agentIdx, string action, int serverNextLoc, int rows, int cols)
     {
         int orientation = AgentOrientation(agentIdx);
         Vector2Int cell = _agents[agentIdx].CurrentCell;
 
+        // Keep LOGICAL orientation in sync so the server keeps emitting rotate-then-FW correctly.
         switch (action)
         {
-            case "FW":
-                Vector2Int delta = OrientationToDelta(orientation);
-                Vector2Int next = cell + delta;
-                if (IsInsideBuild(next, rows, cols) && mapLoader.IsWalkable(next))
-                    return next;
-                return cell;
-            case "CR":
-                _agentOrientations[agentIdx] = (orientation + 1) & 3;
-                return cell;
-            case "CCR":
-                _agentOrientations[agentIdx] = (orientation + 3) & 3;
-                return cell;
-            case "W":
-                return cell;
+            case "CR":  _agentOrientations[agentIdx] = (orientation + 1) & 3; break;
+            case "CCR": _agentOrientations[agentIdx] = (orientation + 3) & 3; break;
+            case "FW": case "W": break;
             default:
                 Debug.LogWarning($"[PIBT_TCP] Unknown action '{action}' for agent {agentIdx}; waiting.");
-                return cell;
+                break;
         }
+
+        Vector2Int goalCell = GoalCellFor(agentIdx, rows, cols);
+
+        // Prefer the server-authoritative next cell when valid (same cell or a single 4-neighbour step).
+        if (serverNextLoc >= 0)
+        {
+            Vector2Int serverCell = FlatToCell(serverNextLoc, cols);
+            if (IsInsideBuild(serverCell, rows, cols) && IsStepValid(cell, serverCell)
+                && (serverCell == cell || IsPassableForAgent(serverCell)))
+            {
+                return serverCell;
+            }
+
+            // Server (static map) routed into a cell that is blocked LIVE — a dynamic crate
+            // (thùng nổi) the server can't see, or invalid geometry. Steer around it locally
+            // instead of ramming/stalling, mirroring A*'s dynamic replanning.
+            Vector2Int detour = LocalAvoidStep(cell, goalCell);
+            if (detour != cell) { CountLocalAvoid(agentIdx, cell, detour); return detour; }
+
+            // F-U2: server geometry invalid — count for stall detection (F-U3)
+            _invalidNextLocCount++;
+            if (enableTcpTrace)
+                Debug.LogWarning($"[PIBT_TCP] F-U2 invalid serverNextLoc={serverNextLoc} agent={agentIdx} cell={cell} serverCell={FlatToCell(serverNextLoc, cols)} → dead-reckon (total={_invalidNextLocCount})");
+        }
+
+        // Fallback: previous dead-reckon behaviour, now with live-obstacle avoidance.
+        if (action == "FW")
+        {
+            Vector2Int next = cell + OrientationToDelta(_agentOrientations[agentIdx]);
+            if (IsInsideBuild(next, rows, cols) && IsPassableForAgent(next)) return next;
+            Vector2Int detour = LocalAvoidStep(cell, goalCell);
+            if (detour != cell) { CountLocalAvoid(agentIdx, cell, detour); return detour; }
+        }
+        return cell; // CR/CCR/W/unknown → stay (rotation handled logically above)
+    }
+
+    // A local detour is a NON-PIBT recovery (client-side A* around a crate the server can't
+    // see) — count it like the greedy fallback so backtest metrics don't credit it as pure
+    // TCP-PIBT movement.
+    private void CountLocalAvoid(int agentIdx, Vector2Int from, Vector2Int to)
+    {
+        if (agentIdx < _agents.Count && _agents[agentIdx] != null)
+            _agents[agentIdx].btRecoveryCount++;
+        if (enableTcpTrace)
+            Debug.Log($"[PIBT_TCP] agent={agentIdx} local avoid (dynamic obstacle) {from} → {to}");
+    }
+
+    // Passable = normal walkable cell OR destructible (thùng gỗ: agent drives up & shoots it).
+    // A dynamic crate (thùng nổi) is MarkCellBlocked-only → not walkable AND not destructible
+    // → NOT passable, so the agent must route around it.
+    private bool IsPassableForAgent(Vector2Int cell) =>
+        mapLoader.IsWalkable(cell) || mapLoader.IsDestructibleBlocked(cell);
+
+    // Local dynamic-obstacle avoidance: the static server map can't see runtime crates
+    // (thùng nổi), so when its next step is blocked LIVE we run A* on the current MapLoader
+    // grid (destructible=passable, crate=blocked — identical to the A* baseline) and take the
+    // first step, giving the TCP agent the same detour-around behaviour as A*/PIBT-C#.
+    // Only invoked when the server step is blocked, so global PIBT coordination is preserved.
+    private readonly List<Vector2Int> _avoidPath = new List<Vector2Int>();
+    private Vector2Int LocalAvoidStep(Vector2Int from, Vector2Int goal)
+    {
+        if (!GridAStarPathfinder.TryFindPath(mapLoader, from, goal, _avoidPath) || _avoidPath.Count < 2)
+            return from;
+        Vector2Int step = _avoidPath[1];
+        return IsStepValid(from, step) ? step : from;
+    }
+
+    private Vector2Int GoalCellFor(int agentIdx, int rows, int cols)
+    {
+        int goalFlat = (agentIdx < _agentGoalFlats.Count) ? _agentGoalFlats[agentIdx] : EagleFlat(rows, cols);
+        return FlatToCell(goalFlat, cols);
+    }
+
+    // Trực quan hoá traffic flow cho PIBT-TCP. Vì _flow thật nằm trên server C++, ta TÁI
+    // DỰNG một flow field phía client (TcpFlowTracker) từ bước đi thực tế của agent mỗi
+    // tick, rồi cấp cho cùng PIBTFlowVisualizer dùng ở scene PIBT C# → F1/F2/F3 hoạt động
+    // giống hệt. Chỉ đọc/quan sát, không ảnh hưởng điều phối của server.
+    private void EnsureFlowVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!showFlowVisualizer) return;
+        _flowTracker = GetComponent<TcpFlowTracker>();
+        if (_flowTracker == null) _flowTracker = gameObject.AddComponent<TcpFlowTracker>();
+        _flowTracker.Init(mapLoader);
+
+        var viz = GetComponent<PIBTFlowVisualizer>();
+        if (viz == null) viz = gameObject.AddComponent<PIBTFlowVisualizer>();
+        viz.mapLoader = mapLoader;
+        viz.SetFlowSource(_flowTracker);
+        viz.enabled = true;
+#endif
+    }
+
+    private static bool IsStepValid(Vector2Int from, Vector2Int to)
+    {
+        int d = Mathf.Abs(from.x - to.x) + Mathf.Abs(from.y - to.y);
+        return d <= 1; // same cell (rotate/wait) or one cardinal step (FW)
     }
 
     private bool IsInsideBuild(Vector2Int cell, int rows, int cols)
@@ -525,6 +726,34 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         localR = Mathf.Clamp(localR, 0, rows - 1);
         localC = Mathf.Clamp(localC, 0, cols - 1);
         return localR * cols + localC;
+    }
+
+    private int CellToFlat(Vector2Int cell, int rows, int cols)
+    {
+        int localR = Mathf.Clamp(cell.y - mapLoader.BuildStartY, 0, rows - 1);
+        int localC = Mathf.Clamp(cell.x - mapLoader.BuildStartX, 0, cols - 1);
+        return localR * cols + localC;
+    }
+
+    // One distinct walkable goal cell per agent, clustered around the eagle (same component preferred).
+    private void ComputeStagingGoals(int rows, int cols)
+    {
+        _agentGoalFlats.Clear();
+        if (eagleBase == null) return;
+        Vector2Int eagleCellGrid = mapLoader.WorldToCell(eagleBase.transform.position);
+        var reserved = new HashSet<Vector2Int> { eagleCellGrid };
+        for (int i = 0; i < _agents.Count; i++)
+        {
+            if (mapLoader.TryFindAvailableSpawnNear(eagleCellGrid, reserved, 1, out Vector2Int g))
+            {
+                reserved.Add(g);
+                _agentGoalFlats.Add(CellToFlat(g, rows, cols));
+            }
+            else
+            {
+                _agentGoalFlats.Add(EagleFlat(rows, cols));
+            }
+        }
     }
 
     private int EagleFlat(int rows, int cols)
@@ -656,10 +885,15 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
             if (fm.CurrentFaction == Faction.Player)
                 occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
-        for (int i = 0; i < enemySpawnCells.Count; i++)
+        List<Vector2Int> spawnSeeds =
+            (BacktestMode.IsActive && BacktestMode.AgentCount > 0)
+                ? BacktestSpawn.GenerateSpawnCells(mapLoader, BacktestMode.AgentCount)
+                : enemySpawnCells;
+
+        for (int i = 0; i < spawnSeeds.Count; i++)
         {
             if (!mapLoader.TryFindAvailableSpawnNear(
-                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+                    spawnSeeds[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
             occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell),
@@ -929,6 +1163,9 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _firstStepLogged    = false;
         _frame              = 0;
         _reconnectAttempts  = 0;
+        _invalidNextLocCount = 0;
+        _geometryStallTicks  = 0;
+        _replanWindowAccum   = 0f;
         _agents.Clear();
         _agentOrientations.Clear();
         _enemyGOs.Clear();
@@ -958,8 +1195,10 @@ public class MapScenarioBootstrapPIBT_TCP : MonoBehaviour
         _cancelSource?.Cancel();
         _cancelSource?.Dispose();
         _cancelSource = null;
-        // Close the stream so any background thread blocked on RecvLine() gets an exception
-        // and exits, rather than racing with PIBTTcpClient.OnDestroy().
+        // C-R2: send explicit shutdown so server resets state cleanly regardless of TCP timing.
+        // Fire-and-forget (no ack wait) to avoid blocking the main thread on scene unload.
+        // Disconnect() immediately after closes the stream, unblocking any background RecvLine().
+        _client?.SendShutdown();
         _client?.Disconnect();
     }
 

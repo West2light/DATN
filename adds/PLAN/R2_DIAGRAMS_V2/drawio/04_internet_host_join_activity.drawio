@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net" modified="2026-06-21T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="act_04" name="04_internet_host_join_activity">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="mp_frame" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="30" y="30" width="1320" height="780" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_title_row" value="Multiplayer Internet activity map" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="30" y="30" width="1320" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_h1" value="Host" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="30" y="70" width="330" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_h2" value="Guest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="360" y="70" width="330" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_h3" value="Registry" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="690" y="70" width="330" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_h4" value="Game server" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;fontColor=#111827;fontSize=15;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="70" width="330" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_b1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="30" y="100" width="330" height="710" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_b2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="360" y="100" width="330" height="710" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_b3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="690" y="100" width="330" height="710" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_b4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="100" width="330" height="710" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_start" value="" style="ellipse;shape=startState;fillColor=#111827;strokeColor=#111827;" vertex="1" parent="1">
+          <mxGeometry x="175" y="140" width="28" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_choose" value="Choose map and mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="90" y="205" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_create" value="Create room" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="760" y="205" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_ready" value="Room ready" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="205" width="170" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_link" value="Open room link" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="310" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_resolve" value="Resolve session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="760" y="310" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_join" value="Join lobby" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="430" y="430" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_wait" value="Wait in lobby" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="430" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_all" value="All ready?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1135" y="430" width="90" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_startmatch" value="Start match" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="590" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_load" value="Load gameplay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=2;fontColor=#111827;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="590" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_end" value="" style="ellipse;shape=endState;fillColor=#ffffff;strokeColor=#111827;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="175" y="770" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_start" target="mp_choose">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_choose" target="mp_create">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_create" target="mp_ready">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e4" value="room link" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;fontSize=12;" edge="1" parent="1" source="mp_create" target="mp_link">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_link" target="mp_resolve">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_resolve" target="mp_join">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_ready" target="mp_wait">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_join" target="mp_wait">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_wait" target="mp_all">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e10" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;fontSize=12;" edge="1" parent="1" source="mp_all" target="mp_wait">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e11" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;fontSize=12;" edge="1" parent="1" source="mp_all" target="mp_load">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_wait" target="mp_startmatch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_startmatch" target="mp_load">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="mp_e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#374151;strokeWidth=2;" edge="1" parent="1" source="mp_load" target="mp_end">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

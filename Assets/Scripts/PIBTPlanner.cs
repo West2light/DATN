@@ -70,19 +70,31 @@ public static class PIBTPlanner
         for (int flat = 0; flat < _size; flat++)
         {
             int r = flat / _cols, c = flat % _cols;
-            if (!_ml.IsWalkable(new Vector2Int(c, r)))
+            if (!IsPassable(c, r))
             {
                 _nbrs[flat] = Array.Empty<int>();
                 continue;
             }
             var list = new List<int>(4);
-            if (c + 1 < _cols && _ml.IsWalkable(new Vector2Int(c + 1, r))) list.Add(flat + 1);
-            if (r + 1 < _rows && _ml.IsWalkable(new Vector2Int(c, r + 1))) list.Add(flat + _cols);
-            if (c - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c - 1, r))) list.Add(flat - 1);
-            if (r - 1 >= 0 && _ml.IsWalkable(new Vector2Int(c, r - 1))) list.Add(flat - _cols);
+            if (c + 1 < _cols && IsPassable(c + 1, r)) list.Add(flat + 1);
+            if (r + 1 < _rows && IsPassable(c, r + 1)) list.Add(flat + _cols);
+            if (c - 1 >= 0 && IsPassable(c - 1, r)) list.Add(flat - 1);
+            if (r - 1 >= 0 && IsPassable(c, r - 1)) list.Add(flat - _cols);
             _nbrs[flat] = list.ToArray();
         }
     }
+
+    // Ô destructible (thùng gỗ/rào chắn) coi là passable để PIBT route xuyên qua
+    // giống A* — rồi agent bắn phá mở đường (shoot-to-clear), thay vì đi đường vòng.
+    // Ô bị chặn động (thùng nổi/dynamic crate: MarkCellBlocked → IsWalkable=false,
+    // KHÔNG phải destructible) → không passable → PIBT né tránh.
+    private static bool IsPassable(int c, int r)
+    {
+        var cell = new Vector2Int(c, r);
+        return _ml.IsWalkable(cell) || _ml.IsDestructibleBlocked(cell);
+    }
+
+    private static bool IsPassable(int flat) => IsPassable(flat % _cols, flat / _cols);
 
     // ── Registration ──────────────────────────────────────────────────────
 
@@ -97,6 +109,22 @@ public static class PIBTPlanner
 
     public static void SetCurrentPos(int id, int flat) => _currPos[id] = flat;
 
+    /// <summary>
+    /// Tạm dừng phối hợp của agent: xóa flow của trajectory hiện tại và bỏ agent khỏi
+    /// tập active (_trajs/_goals/_currPos) — nhưng KHÔNG trả lại id (id cấp phát tăng dần,
+    /// không tái dùng). Gọi lại PIBT (SetCurrentPos + FrankWolfe) sẽ tự tái nhập agent.
+    ///
+    /// Dùng bởi GridEnemyAgentMixed khi chuyển sang pha A* ở gần Eagle: agent không còn
+    /// đi theo trajectory PIBT nên phải rút flow ra để không bơm "flow ma" làm lệch đường
+    /// của đồng đội, và không bị FrankWolfe của agent khác replan hộ.
+    /// </summary>
+    public static void SuspendAgent(int id)
+    {
+        if (_trajs.TryGetValue(id, out var t)) { RemoveFlow(t); _trajs.Remove(id); }
+        _goals.Remove(id);
+        _currPos.Remove(id);
+    }
+
     // ── Public API ────────────────────────────────────────────────────────
 
     public static List<int> GetTraj(int id) =>
@@ -105,6 +133,66 @@ public static class PIBTPlanner
     public static int ToFlat(Vector2Int c) => c.y * _cols + c.x;
 
     public static Vector2Int FromFlat(int f) => new Vector2Int(f % _cols, f / _cols);
+
+    /// <summary>
+    /// Khoảng cách lưới CHÍNH XÁC (4-neighbor, né vật cản) từ start → goal, lấy từ
+    /// reverse-BFS đã cache theo goal (GetOrBuildH). Trả int.MaxValue/2 nếu không tới được
+    /// hoặc endpoint ngoài lưới. Gần như free vì goal (Eagle) cố định nên h cache dùng lại.
+    ///
+    /// Dùng cho tiêu chí switch của GridEnemyAgentMixed: PIBT khi còn xa, A* khi đã gần.
+    /// </summary>
+    public static int GetHeuristicDistance(Vector2Int start, Vector2Int goal)
+    {
+        if (!IsReady) return int.MaxValue / 2;
+        int gf = ToFlat(goal), sf = ToFlat(start);
+        if (gf < 0 || gf >= _size || sf < 0 || sf >= _size) return int.MaxValue / 2;
+        return GetOrBuildH(gf)[sf];
+    }
+
+    // ── Flow inspection (read-only, cho visualizer/metrics) ─────────────────
+    // Chỉ ĐỌC _flow — không đổi thuật toán. dir: 0=E(+x),1=S(+y),2=W(-x),3=N(-y).
+
+    public static bool HasFlow => IsReady && _flow != null;
+    public static int GridCols => _cols;
+    public static int GridRows => _rows;
+
+    /// <summary>Lưu lượng trajectory đang dùng cạnh cell→dir.</summary>
+    public static int GetEdgeFlow(Vector2Int cell, int dir)
+    {
+        if (!HasFlow || dir < 0 || dir > 3) return 0;
+        if (cell.x < 0 || cell.x >= _cols || cell.y < 0 || cell.y >= _rows) return 0;
+        return _flow[(cell.y * _cols + cell.x) * 4 + dir];
+    }
+
+    /// <summary>vertex_flow: tổng lưu lượng đi ra khỏi ô (mức "đông" của ô, không phân chiều).</summary>
+    public static int GetVertexFlow(Vector2Int cell)
+    {
+        if (!HasFlow) return 0;
+        if (cell.x < 0 || cell.x >= _cols || cell.y < 0 || cell.y >= _rows) return 0;
+        int b = (cell.y * _cols + cell.x) * 4;
+        return _flow[b] + _flow[b + 1] + _flow[b + 2] + _flow[b + 3];
+    }
+
+    /// <summary>op_flow (độ đối đầu) trên cạnh cell→dir = flow[cell→d] × flow[neighbor→ngược].</summary>
+    public static int GetOpposingFlow(Vector2Int cell, int dir)
+    {
+        if (!HasFlow || dir < 0 || dir > 3) return 0;
+        int here = GetEdgeFlow(cell, dir);
+        if (here == 0) return 0;
+        return here * GetEdgeFlow(cell + DirToDelta(dir), (dir + 2) & 3);
+    }
+
+    /// <summary>Delta ô theo dir (0=E,1=S,2=W,3=N) — khớp GetDir/AStarFlow.</summary>
+    public static Vector2Int DirToDelta(int dir)
+    {
+        switch (dir & 3)
+        {
+            case 0: return new Vector2Int(1, 0);
+            case 1: return new Vector2Int(0, 1);
+            case 2: return new Vector2Int(-1, 0);
+            default: return new Vector2Int(0, -1);
+        }
+    }
 
     public static bool IsAgentWalkable(Vector2Int cell)
     {
@@ -252,6 +340,10 @@ public static class PIBTPlanner
             {
                 int next = nbrs[ni];
                 if (closed.Contains(next)) continue;
+                // Né vật cản động (thùng nổi/dynamic crate): _nbrs precompute lúc Init
+                // nên không phản ánh ô bị chặn runtime. Kiểm tra live để PIBT đi vòng
+                // giống A*. Ô destructible (thùng gỗ) vẫn passable → xuyên qua để bắn.
+                if (!IsPassable(next)) continue;
 
                 int d = GetDir(curr, next);
                 int newG = cn.G + 1;

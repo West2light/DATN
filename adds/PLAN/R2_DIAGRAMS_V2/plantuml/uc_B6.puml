@@ -1,0 +1,17 @@
+@startuml uc_B6
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Chủ phòng\n(Host)" as Host
+actor "Người tham gia\n(Client)" as Client
+actor "Máy chủ\nRelay/PIBT" as Server
+usecase "B6. Chơi mạng nhiều người" as UC
+Host --> UC
+Client --> UC
+UC ..> Server
+@enduml

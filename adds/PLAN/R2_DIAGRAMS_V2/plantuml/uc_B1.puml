@@ -1,0 +1,13 @@
+@startuml uc_B1
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Chủ phòng\n(Host)" as Host
+usecase "B1. Tạo phòng LAN" as UC
+Host --> UC
+@enduml

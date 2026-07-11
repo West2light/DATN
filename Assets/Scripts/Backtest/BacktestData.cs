@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public struct BacktestRunRecord
 {
     public string map, algorithm, outcome;
-    public int    rep, eagleHpAtEnd, enemiesAliveAtEnd, agentCount;
+    public int    rep, eagleHpAtEnd, eagleHpMax, enemiesAliveAtEnd, agentCount;
     public float  duration;
     public int    totalReplans, totalRecoveries, totalShots, totalCells;
     public List<BacktestAgentRecord> agents;

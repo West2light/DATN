@@ -1,0 +1,30 @@
+@startuml uc_groupB_lan
+!pragma layout smetana
+skinparam dpi 220
+skinparam shadowing false
+left to right direction
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #B58900
+}
+actor "Chủ phòng\n(Host)" as Host
+actor "Người tham gia\n(Client)" as Client
+
+title Chơi nhiều người - LAN
+rectangle " " as Sys {
+  usecase "B1. Tạo phòng LAN" as B1
+  usecase "B2. Tham gia phòng LAN" as B2
+  usecase "B5. Phòng chờ & bắt đầu" as B5
+  usecase "B6. Chơi mạng nhiều người" as B6
+  usecase "B7. Rời phòng / Huỷ" as B7
+}
+Host --> B1
+Client --> B2
+Host --> B5
+Client --> B5
+Host --> B6
+Client --> B6
+Host --> B7
+Client --> B7
+B5 ..> B6 : <<include>>
+@enduml

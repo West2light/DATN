@@ -1,0 +1,72 @@
+classDiagram
+    class MapLoader {
+        +BuildGrid()
+        +WorldToCell()
+    }
+
+    class MapTankTestBootstrap {
+        +SelectMode()
+        +LoadScene()
+    }
+
+    class MapScenarioBootstrap {
+        +SpawnAgents()
+        +BindPlanner()
+    }
+
+    class GridEnemyAgent {
+        +Replan()
+        +FollowPath()
+    }
+
+    class GridEnemyAgentPIBT {
+        +RegisterAgent()
+        +PlanTick()
+    }
+
+    class GridEnemyAgentPIBT_TCP {
+        +SendPlanStep()
+        +ApplyAction()
+    }
+
+    class GridAStarPathfinder {
+        +FindPath()
+    }
+
+    class GridPIBTPathfinder {
+        +BuildPriorityMap()
+        +PlanStep()
+    }
+
+    class PIBTPlanner {
+        +Solve()
+        +CommitMoves()
+    }
+
+    class PIBTTcpClient {
+        +Hello()
+        +PlanStep()
+    }
+
+    class PIBTWebRelayClient {
+        +OpenSession()
+        +SendAction()
+    }
+
+    class PlannerSession {
+        +Tick()
+        +ReturnAction()
+    }
+
+    MapTankTestBootstrap --> MapLoader : uses
+    MapTankTestBootstrap --> MapScenarioBootstrap : creates
+    MapScenarioBootstrap --> GridEnemyAgent : spawns
+    MapScenarioBootstrap --> GridEnemyAgentPIBT : spawns
+    MapScenarioBootstrap --> GridEnemyAgentPIBT_TCP : spawns
+    GridEnemyAgent --> GridAStarPathfinder : calls
+    GridEnemyAgentPIBT --> GridPIBTPathfinder : calls
+    GridPIBTPathfinder --> PIBTPlanner : delegates
+    GridEnemyAgentPIBT_TCP --> PIBTTcpClient : native
+    GridEnemyAgentPIBT_TCP --> PIBTWebRelayClient : webgl
+    PIBTTcpClient ..> PlannerSession : requests
+    PIBTWebRelayClient ..> PlannerSession : relays

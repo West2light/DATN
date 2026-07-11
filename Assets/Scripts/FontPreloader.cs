@@ -64,6 +64,17 @@ public class FontPreloader : MonoBehaviour
         StartCoroutine(RefreshPass());
     }
 
+    private void Update()
+    {
+        // Drain deferred atlas-rebuild refreshes here. UiFontProvider.OnAtlasRebuilt
+        // cannot SetAllDirty directly (it fires inside the Canvas graphic-rebuild loop),
+        // so it queues a flag; Update() runs before the rebuild loop, making the refresh
+        // safe. This covers atlas rebuilds that happen AFTER the startup RefreshPass
+        // window (e.g. a glyph baked lazily when a HUD label first renders).
+        if (UiFontProvider.DequeueRefreshRequest())
+            UiFontProvider.ForceRefreshAllTexts();
+    }
+
     private IEnumerator RefreshPass()
     {
         // Frame 0: scene objects are Awake/Start but font atlas may still be empty.

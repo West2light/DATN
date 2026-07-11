@@ -60,7 +60,11 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
     [Header("PIBT")]
     [Tooltip("Time budget (ms) for Frank-Wolfe iterations on each replan.")]
-    [Min(1f)] public float frankWolfeMs = 15f;
+    [Min(1f)] public float frankWolfeMs = 25f;
+
+    [Header("Debug")]
+    [Tooltip("Bật lớp trực quan hoá traffic flow của PIBT (heatmap vertex_flow + mũi tên op_flow). Chỉ editor/dev build. Phím F1/F2/F3 trong game.")]
+    public bool showFlowVisualizer = true;
 
     [Header("Stuck recovery")]
     [SerializeField, Min(0f)] private float scuffTimeout = 0.4f;
@@ -97,6 +101,20 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
 
         eagleBase = SpawnEagleBase();
         SpawnEnemies();
+        EnsureFlowVisualizer();
+    }
+
+    // Lớp trực quan hoá traffic flow (heatmap vertex_flow + mũi tên op_flow). Chỉ đọc
+    // PIBTPlanner._flow → không ảnh hưởng thuật toán. Chỉ bật trong editor/dev build.
+    private void EnsureFlowVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!showFlowVisualizer) return;
+        var viz = GetComponent<PIBTFlowVisualizer>();
+        if (viz == null) viz = gameObject.AddComponent<PIBTFlowVisualizer>();
+        viz.mapLoader = mapLoader;
+        viz.enabled = true;
+#endif
     }
 
     // ── Eagle ──────────────────────────────────────────────────────────────
@@ -296,10 +314,15 @@ public class MapScenarioBootstrapPIBT : MonoBehaviour
             if (fm.CurrentFaction == Faction.Player)
                 occupiedSpawnCells.Add(mapLoader.WorldToCell(fm.GetWorldPosition()));
 
-        for (int i = 0; i < enemySpawnCells.Count; i++)
+        List<Vector2Int> spawnSeeds =
+            (BacktestMode.IsActive && BacktestMode.AgentCount > 0)
+                ? BacktestSpawn.GenerateSpawnCells(mapLoader, BacktestMode.AgentCount)
+                : enemySpawnCells;
+
+        for (int i = 0; i < spawnSeeds.Count; i++)
         {
             if (!mapLoader.TryFindAvailableSpawnNear(
-                    enemySpawnCells[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
+                    spawnSeeds[i], occupiedSpawnCells, 2, out Vector2Int spawnCell)) continue;
             occupiedSpawnCells.Add(spawnCell);
 
             GameObject enemy = Instantiate(prefab, mapLoader.CellToWorld(spawnCell), Quaternion.identity, scenarioRoot);

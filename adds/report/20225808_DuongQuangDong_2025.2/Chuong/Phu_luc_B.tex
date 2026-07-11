@@ -1,0 +1,152 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Phụ lục này đặc tả nhóm use case E -- triển khai và vận hành máy chủ relay/PIBT trên hạ
+tầng đám mây, do tác nhân Quản trị hệ thống (DevOps) thực hiện. Nhóm này không thuộc luồng
+chơi của người dùng cuối nên được tách khỏi Chương~2. Hình~\ref{fig:uc_groupE} là biểu đồ
+use case của nhóm.
+
+\begin{center}
+\includegraphics[width=0.72\textwidth]{Hinhve/uc_groupE_deploy.png}
+\captionof{figure}{Biểu đồ use case nhóm E -- Triển khai \& vận hành}
+\label{fig:uc_groupE}
+\end{center}
+
+\section{Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_E1.png}
+\captionof{figure}{Use case UC-E1 -- Triển khai PIBT/Relay lên GCP}
+\label{fig:ucE1}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
+\caption{Đặc tả use case UC-E1 -- Triển khai PIBT/Relay lên GCP}\label{tab:ucE1}\\
+\hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
+Mã use case    & UC-E1 \\
+\hline
+Tên use case   & Triển khai máy chủ PIBT/Relay lên GCP \\
+\hline
+Tác nhân chính & Quản trị hệ thống (DevOps) \\
+\hline
+Mô tả          & Triển khai máy chủ PIBT/relay lên Google Cloud Platform với nginx, cấu hình endpoint và registry để client Internet/WebGL kết nối được. \\
+\hline
+Tiền điều kiện & Có tài khoản GCP và mã nguồn trong \texttt{infra/}, \texttt{services/}. \\
+\hline
+Luồng sự kiện chính &
+1. Build và triển khai service từ \texttt{infra/} và \texttt{services/} lên GCP. \newline
+2. Cấu hình nginx và endpoint mạng (\texttt{NetworkEndpointConfig}). \newline
+3. Đăng ký registry để client tra cứu phòng theo mã. \\
+\hline
+Luồng thay thế / ngoại lệ &
+1a. Triển khai thất bại (sai cấu hình/credential) $\rightarrow$ rollback và xem log. \\
+\hline
+Hậu điều kiện  & Máy chủ PIBT/relay sẵn sàng phục vụ các phòng Internet. \\
+\end{longtable}
+}
+\vspace{16pt}
+
+\section{Đặc tả use case UC-E2 -- Chạy dedicated server}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Hinhve/uc_E2.png}
+\captionof{figure}{Use case UC-E2 -- Chạy dedicated server}
+\label{fig:ucE2}
+\end{center}
+\nopagebreak
+{\small
+\begin{longtable}{|>{\bfseries}l|>{\raggedright\arraybackslash}p{9.5cm}|}
+\caption{Đặc tả use case UC-E2 -- Chạy dedicated server}\label{tab:ucE2}\\
+\hline
+\endfirsthead
+\hline
+\endhead
+\endfoot
+\hline
+\endlastfoot
+Mã use case    & UC-E2 \\
+\hline
+Tên use case   & Chạy dedicated server \\
+\hline
+Tác nhân chính & Quản trị hệ thống (DevOps) \\
+\hline
+Mô tả          & Khởi chạy chế độ máy chủ chuyên dụng (headless) để host trận mà không cần client đồ họa. \\
+\hline
+Tiền điều kiện & Đã triển khai hoặc đã có bản build máy chủ. \\
+\hline
+Luồng sự kiện chính &
+1. Chạy ứng dụng với \texttt{NetworkLaunchArgs} ở chế độ server. \newline
+2. \texttt{DedicatedServerBootstrap} khởi tạo \texttt{NetworkManager} và lắng nghe kết nối. \newline
+3. Client tham gia như UC-B2 hoặc UC-B4. \\
+\hline
+Luồng thay thế / ngoại lệ &
+1a. Cổng/endpoint không khả dụng $\rightarrow$ server thoát kèm log lỗi. \\
+\hline
+Hậu điều kiện  & Dedicated server đang chạy, sẵn sàng nhận client. \\
+\end{longtable}
+}
+\vspace{16pt}
+
+\section{Tóm tắt quy trình triển khai và vận hành}
+
+Hai use case UC-E1 và UC-E2 mô tả các thao tác chính của tác nhân DevOps; mục này tổng hợp toàn
+bộ quy trình triển khai và vận hành thành một luồng xuyên suốt, giúp người đọc hình dung cách hệ
+thống đi từ mã nguồn tới sản phẩm chạy trực tuyến mà không cần xem demo. Các thành phần hạ tầng cụ
+thể đã được trình bày ở Mục~\ref{sec:deployment}; phần này sắp xếp lại chúng theo trục thời gian
+của quy trình. Bảng~\ref{tab:deploy_pipeline} tóm tắt năm giai đoạn, từ lúc lập trình viên đẩy
+commit cho tới khi trình duyệt người chơi vào được trận.
+
+Cách nhìn theo quy trình này bổ sung cho góc nhìn theo use case ở hai mục trên: trong khi UC-E1
+và UC-E2 nhấn mạnh \emph{ai làm gì} (vai trò và thao tác của tác nhân DevOps), bảng quy trình làm
+rõ \emph{thứ tự và sự phụ thuộc} giữa các bước -- một giai đoạn chỉ thực hiện được khi giai đoạn
+trước đã hoàn tất; chẳng hạn Nginx chỉ phục vụ được trận đấu khi artifact đã nằm trên máy ảo và
+dịch vụ Registry đã khởi động.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\centering
+\captionof{table}{Năm giai đoạn của quy trình triển khai end-to-end}
+\label{tab:deploy_pipeline}
+\small
+\begin{tabular}{|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{6.3cm}|}
+\hline
+\textbf{Giai đoạn} & \textbf{Thành phần} & \textbf{Hành động chính} \\ \hline
+1. Khai báo hạ tầng & Terraform (\texttt{infra/gcp}) & \texttt{terraform apply} dựng máy ảo \texttt{e2-medium}, IP tĩnh, firewall và GCS bucket \\
+\hline
+2. Tích hợp \& đóng gói & GitHub Actions (CI/CD) & Build bản máy chủ Linux và bản WebGL nén Brotli theo mã commit, đẩy artifact lên GCS bucket \\
+\hline
+3. Triển khai (UC-E1) & Máy ảo GCP + Nginx & Tải artifact mới nhất về \texttt{/opt/tank-mapf/web}, nạp lại cấu hình Nginx và dịch vụ Registry \\
+\hline
+4. Phục vụ & Nginx (ba khối server) & Phục vụ WebGL qua HTTPS, proxy Registry (cổng 8080) và proxy WebSocket trò chơi (cổng 7778) qua \texttt{wss://} \\
+\hline
+5. Kết nối \& chơi & Trình duyệt + Registry + PIBT C++ & Người chơi tạo/tham gia phòng bằng mã; lệnh lập kế hoạch được chuyển tới máy chủ PIBT C++ trên cùng máy ảo \\
+\hline
+\end{tabular}
+\end{minipage}
+\end{center}
+\vspace{8pt}
+
+Hai giai đoạn đầu diễn ra tự động: mỗi commit lên nhánh chính kích hoạt pipeline GitHub Actions
+build song song bản máy chủ Linux và bản WebGL, gắn kèm mã commit để truy vết rồi lưu vào GCS
+bucket. Giai đoạn triển khai (UC-E1) kéo artifact mới nhất về máy ảo và nạp lại cấu hình Nginx
+cùng dịch vụ Registry. Từ giai đoạn phục vụ trở đi, Nginx là điểm vào duy nhất: nó vừa trả tệp
+WebGL nén Brotli qua HTTPS, vừa proxy các yêu cầu quản lý phòng tới Registry, vừa chuyển tiếp kết
+nối WebSocket của trận đấu tới máy chủ trò chơi -- nhờ đó các tiến trình nội bộ không phải tự xử
+lý mã hóa TLS.
+
+Về vận hành, mỗi giai đoạn đều có nhánh xử lý sự cố tương ứng với luồng ngoại lệ của hai use case.
+Khi triển khai thất bại (UC-E1, nhánh 1a), hệ thống rollback về artifact ổn định trước đó và tra
+log để xác định nguyên nhân; khi cổng hoặc endpoint không khả dụng (UC-E2, nhánh 1a), dedicated
+server thoát ngay kèm log lỗi thay vì treo vô thời hạn. Chế độ dedicated server còn cho phép chạy
+headless để kiểm thử hoặc host trận trong mạng nội bộ mà không cần dựng toàn bộ hạ tầng đám mây.
+Việc tách Registry và máy chủ trò chơi thành hai tiến trình riêng, kết hợp cơ chế tự gia hạn chứng
+chỉ TLS bằng systemd timer, giúp hệ thống vận hành liên tục với mức can thiệp thủ công tối thiểu.
+
+\end{document}

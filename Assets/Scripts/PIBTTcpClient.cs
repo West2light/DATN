@@ -14,8 +14,8 @@ using UnityEngine;
 public class PIBTTcpClient : MonoBehaviour
 {
     [Header("Server")]
-    [Tooltip("Raw TCP host name/IP or URL. Example: 110.172.28.110 or http://110.172.28.110:7777/")]
-    public string host = "110.172.28.110";
+    [Tooltip("Raw TCP host name/IP or URL. Example: 127.0.0.1 (local server, incl. WSL2 localhost forwarding) or http://110.172.28.110:7777/")]
+    public string host = "127.0.0.1";
     public int port = 7777;
     [Min(1)] public int connectTimeoutMs = 10000;
     [Min(1000)] public int helloTimeoutMs = 10000;
@@ -28,6 +28,10 @@ public class PIBTTcpClient : MonoBehaviour
 
     public bool IsConnected => _client != null && _client.Connected;
     public string LastError { get; private set; }
+
+    // Server-authoritative next cell (build-local flat index) per agent id from the last plan_result.
+    // -1 means the server did not provide a usable nextLoc for that agent.
+    public int[] LastNextLocs { get; private set; }
 
     public bool Connect()
     {
@@ -132,6 +136,24 @@ public class PIBTTcpClient : MonoBehaviour
         if (ok)
         {
             _helloAccepted = true;
+            // F-U1: validate echoed map dims if server supports F-S2
+            try
+            {
+                HelloAckDto ack = JsonUtility.FromJson<HelloAckDto>(resp);
+                if (ack != null && ack.width > 0 && ack.height > 0)
+                {
+                    if (ack.width != width || ack.height != height)
+                    {
+                        Debug.LogError($"[PIBTTcpClient] hello_ack map dims MISMATCH! sent={width}x{height} server_acked={ack.width}x{ack.height} — aborting session");
+                        LastError = $"hello_ack dims mismatch: sent={width}x{height} acked={ack.width}x{ack.height}";
+                        _helloAccepted = false;
+                        return false;
+                    }
+                    Debug.Log($"[PIBTTcpClient] hello_ack dims validated OK: {ack.width}x{ack.height} ({ack.cellCount} cells)");
+                }
+            }
+            catch (Exception) { /* server without F-S2 — skip validation */ }
+
             Debug.Log("[PIBTTcpClient] Hello OK");
             return true;
         }
@@ -139,6 +161,60 @@ public class PIBTTcpClient : MonoBehaviour
         Debug.LogError($"[PIBTTcpClient] Hello failed: {resp}");
         LastError = $"Hello failed: {resp}";
         return false;
+    }
+
+    // C-R1: explicit reset — reuse a live connection for a new game without reconnecting.
+    // Server (S-R2) clears all planner globals and returns reset_ack.
+    // Caller must call Hello() with a new sessionId after this returns true.
+    // Falls back gracefully if server does not support reset (pre-S-R2 build).
+    public bool Reset()
+    {
+        if (!IsConnected)
+        {
+            LastError = "Not connected.";
+            return false;
+        }
+
+        string sid = _sessionId ?? string.Empty;
+        if (!SendLine($"{{\"type\":\"reset\",\"sessionId\":\"{Escape(sid)}\"}}"))
+        {
+            LastError = "Failed to send reset.";
+            return false;
+        }
+
+        if (_client != null) _client.ReceiveTimeout = planTimeoutMs;
+        string resp = RecvLine();
+        if (resp == null)
+        {
+            LastError = "No reset_ack received; server closed connection or timed out.";
+            Debug.LogError($"[PIBTTcpClient] {LastError}");
+            return false;
+        }
+
+        _helloAccepted = false;
+        _sessionId = null;
+
+        bool ok = resp.Contains("\"reset_ack\"") && resp.Contains("\"status\":\"ok\"");
+        if (!ok)
+        {
+            LastError = $"Reset not acknowledged (old server without S-R2?): {resp}";
+            Debug.LogWarning($"[PIBTTcpClient] {LastError}");
+            return false;
+        }
+
+        Debug.Log("[PIBTTcpClient] Reset OK");
+        LastError = null;
+        return true;
+    }
+
+    // C-R2: fire-and-forget shutdown line — used from OnDestroy to give server an explicit
+    // reset signal without blocking the main thread waiting for shutdown_ack.
+    // Always call Disconnect() after this.
+    public void SendShutdown()
+    {
+        if (!_helloAccepted || string.IsNullOrEmpty(_sessionId)) return;
+        try { SendLine($"{{\"type\":\"shutdown\",\"sessionId\":\"{Escape(_sessionId)}\"}}"); }
+        catch { /* ignore errors during teardown */ }
     }
 
     public string[] PlanStep(int requestId, int timestep, (int id, int loc, int orientation, int goalLoc)[] agents)
@@ -170,6 +246,7 @@ public class PIBTTcpClient : MonoBehaviour
         }
 
         string[] actions = ParseActions(resp, agents.Length);
+        LastNextLocs = ParseNextLocs(resp, agents.Length);
         if (actions == null)
         {
             Debug.LogError($"[PIBTTcpClient] Could not parse actions from plan_result: {resp}");
@@ -290,6 +367,16 @@ public class PIBTTcpClient : MonoBehaviour
     }
 
     [Serializable]
+    private class HelloAckDto
+    {
+        public string type;
+        public string status;
+        public int width;
+        public int height;
+        public int cellCount;
+    }
+
+    [Serializable]
     private class PlanResultDto
     {
         public string type;
@@ -336,6 +423,28 @@ public class PIBTTcpClient : MonoBehaviour
         }
 
         return ParseStringArray(json, "actions", expectedLength);
+    }
+
+    internal static int[] ParseNextLocs(string json, int expectedLength)
+    {
+        var result = new int[expectedLength];
+        for (int i = 0; i < expectedLength; i++) result[i] = -1;
+        try
+        {
+            PlanResultDto dto = JsonUtility.FromJson<PlanResultDto>(json);
+            if (dto?.actions != null)
+            {
+                for (int i = 0; i < dto.actions.Length; i++)
+                {
+                    PlanActionDto entry = dto.actions[i];
+                    if (entry == null) continue;
+                    int idx = entry.id >= 0 && entry.id < expectedLength ? entry.id : i;
+                    if (idx >= 0 && idx < expectedLength) result[idx] = entry.nextLoc;
+                }
+            }
+        }
+        catch (System.Exception) { /* leave as -1 → coordinator falls back to dead-reckon */ }
+        return result;
     }
 
     private static string[] ParseStringArray(string json, string property, int expectedLength)

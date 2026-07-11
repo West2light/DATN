@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor Host as Host
+    participant UI as Menu UI
+    participant Client as InternetSessionClient
+    participant Registry as Registry API
+    participant Helper as GCP Helper
+    participant Server as WS Game Server
+
+    Host->>UI: Choose map and mode
+    UI->>Client: Create room
+    Client->>Registry: POST /api/rooms
+    Registry->>Helper: Restart web room
+    Helper->>Server: Start with map and mode
+
+    alt Server ready
+        Server-->>Registry: Ready
+        Registry-->>Client: Room code and link
+        Client-->>UI: Show waiting lobby
+    else Create failed
+        Registry-->>Client: Error
+        Client-->>UI: Show retry state
+    end

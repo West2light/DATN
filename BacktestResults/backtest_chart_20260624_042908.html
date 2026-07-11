@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang='vi'><head><meta charset='UTF-8'>
+<title>Backtest Report — A* vs PIBT vs PIBT-C++</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0e1014;color:#d0d8e8;font-family:'Segoe UI',Arial,sans-serif;padding:32px}
+h1{color:#f5d050;font-size:22px;margin-bottom:4px}
+.subtitle{color:#6a7280;font-size:13px;margin-bottom:32px}
+.section{background:#161820;border-radius:10px;padding:24px;margin-bottom:24px}
+.section h2{font-size:14px;font-weight:600;color:#8a93a8;margin-bottom:20px;text-transform:uppercase;letter-spacing:.05em}
+.chart-wrap{display:flex;align-items:flex-end;gap:0;height:200px;border-bottom:1px solid #2a2d38;padding-bottom:8px;margin-bottom:8px}
+.group{display:flex;align-items:flex-end;gap:4px;margin-right:16px;flex-direction:column}
+.bars{display:flex;align-items:flex-end;gap:4px}
+.bar{width:28px;border-radius:3px 3px 0 0;position:relative;min-height:2px;transition:opacity .15s}
+.bar:hover{opacity:.8}
+.bar-a{background:#4a96ff}
+.bar-p{background:#ff8c24}
+.bar-t{background:#66d98c}
+.bar-val{display:none}
+.map-lbl{font-size:10px;color:#6a7280;text-align:center;margin-top:6px;width:62px}
+.legend{display:flex;gap:20px;margin-bottom:12px}
+.leg{display:flex;align-items:center;gap:6px;font-size:12px;color:#8a93a8}
+.dot{width:12px;height:12px;border-radius:2px}
+.win-a{color:#4a96ff;font-weight:700}
+.win-p{color:#ff8c24;font-weight:700}
+.win-t{color:#66d98c;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#1e2128;color:#6a7280;padding:8px 12px;text-align:left;font-weight:600}
+td{padding:7px 12px;border-bottom:1px solid #1e2128;color:#c0c8d8}
+tr:last-child td{border-bottom:none}
+</style></head><body>
+<h1>Backtest Report — A* vs PIBT vs PIBT-C++</h1>
+<p class='subtitle'>Run date: 24/06/2026 04:29  •  90 runs  •  5 map(s)</p>
+<div class='section'>
+<h2>Average time (s)</h2>
+<div class='legend'>
+  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>
+  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>
+  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>
+</div>
+<div class='chart-wrap'>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:35px' title='A*: 35.1'><span class='bar-val'>35.1</span></div>
+    <div class='bar bar-p' style='height:32px' title='PIBT: 32.3'><span class='bar-val'>32.3</span></div>
+    <div class='bar bar-t' style='height:35px' title='PIBT-C++: 35.5'><span class='bar-val'>35.5</span></div>
+  </div>
+  <div class='map-lbl'>Alpha32</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:98px' title='A*: 98.2'><span class='bar-val'>98.2</span></div>
+    <div class='bar bar-p' style='height:103px' title='PIBT: 103'><span class='bar-val'>103</span></div>
+    <div class='bar bar-t' style='height:103px' title='PIBT-C++: 103'><span class='bar-val'>103</span></div>
+  </div>
+  <div class='map-lbl'>Mansion</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:131px' title='A*: 131'><span class='bar-val'>131</span></div>
+    <div class='bar bar-p' style='height:128px' title='PIBT: 128'><span class='bar-val'>128</span></div>
+    <div class='bar bar-t' style='height:134px' title='PIBT-C++: 134'><span class='bar-val'>134</span></div>
+  </div>
+  <div class='map-lbl'>Chantry</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:112px' title='A*: 112'><span class='bar-val'>112</span></div>
+    <div class='bar bar-p' style='height:122px' title='PIBT: 122'><span class='bar-val'>122</span></div>
+    <div class='bar bar-t' style='height:116px' title='PIBT-C++: 116'><span class='bar-val'>116</span></div>
+  </div>
+  <div class='map-lbl'>Gallows</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:180px' title='A*: 180'><span class='bar-val'>180</span></div>
+    <div class='bar bar-p' style='height:180px' title='PIBT: 180'><span class='bar-val'>180</span></div>
+    <div class='bar bar-t' style='height:180px' title='PIBT-C++: 180'><span class='bar-val'>180</span></div>
+  </div>
+  <div class='map-lbl'>Maze128</div>
+</div>
+</div></div>
+<div class='section'>
+<h2>Total replans</h2>
+<div class='legend'>
+  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>
+  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>
+  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>
+</div>
+<div class='chart-wrap'>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:6px' title='A*: 159'><span class='bar-val'>159</span></div>
+    <div class='bar bar-p' style='height:5px' title='PIBT: 137'><span class='bar-val'>137</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 6.0'><span class='bar-val'>6.0</span></div>
+  </div>
+  <div class='map-lbl'>Alpha32</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:25px' title='A*: 672'><span class='bar-val'>672</span></div>
+    <div class='bar bar-p' style='height:129px' title='PIBT: 3408'><span class='bar-val'>3408</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 2.0'><span class='bar-val'>2.0</span></div>
+  </div>
+  <div class='map-lbl'>Mansion</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:35px' title='A*: 936'><span class='bar-val'>936</span></div>
+    <div class='bar bar-p' style='height:133px' title='PIBT: 3515'><span class='bar-val'>3515</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 4.8'><span class='bar-val'>4.8</span></div>
+  </div>
+  <div class='map-lbl'>Chantry</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:30px' title='A*: 788'><span class='bar-val'>788</span></div>
+    <div class='bar bar-p' style='height:180px' title='PIBT: 4769'><span class='bar-val'>4769</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 2.0'><span class='bar-val'>2.0</span></div>
+  </div>
+  <div class='map-lbl'>Gallows</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:54px' title='A*: 1439'><span class='bar-val'>1439</span></div>
+    <div class='bar bar-p' style='height:54px' title='PIBT: 1440'><span class='bar-val'>1440</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 0.0'><span class='bar-val'>0.0</span></div>
+  </div>
+  <div class='map-lbl'>Maze128</div>
+</div>
+</div></div>
+<div class='section'>
+<h2>Total shots</h2>
+<div class='legend'>
+  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>
+  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>
+  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>
+</div>
+<div class='chart-wrap'>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:170px' title='A*: 59182'><span class='bar-val'>59182</span></div>
+    <div class='bar bar-p' style='height:173px' title='PIBT: 60254'><span class='bar-val'>60254</span></div>
+    <div class='bar bar-t' style='height:174px' title='PIBT-C++: 60673'><span class='bar-val'>60673</span></div>
+  </div>
+  <div class='map-lbl'>Alpha32</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:137px' title='A*: 47810'><span class='bar-val'>47810</span></div>
+    <div class='bar bar-p' style='height:106px' title='PIBT: 36968'><span class='bar-val'>36968</span></div>
+    <div class='bar bar-t' style='height:180px' title='PIBT-C++: 62612'><span class='bar-val'>62612</span></div>
+  </div>
+  <div class='map-lbl'>Mansion</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:154px' title='A*: 53402'><span class='bar-val'>53402</span></div>
+    <div class='bar bar-p' style='height:104px' title='PIBT: 36023'><span class='bar-val'>36023</span></div>
+    <div class='bar bar-t' style='height:136px' title='PIBT-C++: 47211'><span class='bar-val'>47211</span></div>
+  </div>
+  <div class='map-lbl'>Chantry</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:140px' title='A*: 48593'><span class='bar-val'>48593</span></div>
+    <div class='bar bar-p' style='height:73px' title='PIBT: 25329'><span class='bar-val'>25329</span></div>
+    <div class='bar bar-t' style='height:164px' title='PIBT-C++: 57208'><span class='bar-val'>57208</span></div>
+  </div>
+  <div class='map-lbl'>Gallows</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:2px' title='A*: 302'><span class='bar-val'>302</span></div>
+    <div class='bar bar-p' style='height:32px' title='PIBT: 11261'><span class='bar-val'>11261</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: 0.0'><span class='bar-val'>0.0</span></div>
+  </div>
+  <div class='map-lbl'>Maze128</div>
+</div>
+</div></div>
+<div class='section'>
+<h2>Cells traveled</h2>
+<div class='legend'>
+  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>
+  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>
+  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>
+</div>
+<div class='chart-wrap'>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:12px' title='A*: 64.3'><span class='bar-val'>64.3</span></div>
+    <div class='bar bar-p' style='height:10px' title='PIBT: 57.3'><span class='bar-val'>57.3</span></div>
+    <div class='bar bar-t' style='height:19px' title='PIBT-C++: 104'><span class='bar-val'>104</span></div>
+  </div>
+  <div class='map-lbl'>Alpha32</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:59px' title='A*: 324'><span class='bar-val'>324</span></div>
+    <div class='bar bar-p' style='height:55px' title='PIBT: 304'><span class='bar-val'>304</span></div>
+    <div class='bar bar-t' style='height:86px' title='PIBT-C++: 472'><span class='bar-val'>472</span></div>
+  </div>
+  <div class='map-lbl'>Mansion</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:83px' title='A*: 458'><span class='bar-val'>458</span></div>
+    <div class='bar bar-p' style='height:72px' title='PIBT: 395'><span class='bar-val'>395</span></div>
+    <div class='bar bar-t' style='height:121px' title='PIBT-C++: 665'><span class='bar-val'>665</span></div>
+  </div>
+  <div class='map-lbl'>Chantry</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:71px' title='A*: 391'><span class='bar-val'>391</span></div>
+    <div class='bar bar-p' style='height:71px' title='PIBT: 388'><span class='bar-val'>388</span></div>
+    <div class='bar bar-t' style='height:102px' title='PIBT-C++: 561'><span class='bar-val'>561</span></div>
+  </div>
+  <div class='map-lbl'>Gallows</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:131px' title='A*: 721'><span class='bar-val'>721</span></div>
+    <div class='bar bar-p' style='height:119px' title='PIBT: 657'><span class='bar-val'>657</span></div>
+    <div class='bar bar-t' style='height:180px' title='PIBT-C++: 990'><span class='bar-val'>990</span></div>
+  </div>
+  <div class='map-lbl'>Maze128</div>
+</div>
+</div></div>
+<div class='section'>
+<h2>Final Eagle HP</h2>
+<div class='legend'>
+  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>
+  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>
+  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>
+</div>
+<div class='chart-wrap'>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:2px' title='A*: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-p' style='height:2px' title='PIBT: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: -1.0'><span class='bar-val'>-1.0</span></div>
+  </div>
+  <div class='map-lbl'>Alpha32</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:2px' title='A*: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-p' style='height:2px' title='PIBT: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: -1.0'><span class='bar-val'>-1.0</span></div>
+  </div>
+  <div class='map-lbl'>Mansion</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:2px' title='A*: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-p' style='height:2px' title='PIBT: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: -1.0'><span class='bar-val'>-1.0</span></div>
+  </div>
+  <div class='map-lbl'>Chantry</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:2px' title='A*: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-p' style='height:2px' title='PIBT: -1.0'><span class='bar-val'>-1.0</span></div>
+    <div class='bar bar-t' style='height:2px' title='PIBT-C++: -1.0'><span class='bar-val'>-1.0</span></div>
+  </div>
+  <div class='map-lbl'>Gallows</div>
+</div>
+<div class='group'>
+  <div class='bars'>
+    <div class='bar bar-a' style='height:180px' title='A*: 500'><span class='bar-val'>500</span></div>
+    <div class='bar bar-p' style='height:144px' title='PIBT: 399'><span class='bar-val'>399</span></div>
+    <div class='bar bar-t' style='height:180px' title='PIBT-C++: 500'><span class='bar-val'>500</span></div>
+  </div>
+  <div class='map-lbl'>Maze128</div>
+</div>
+</div></div>
+<div class='section'><h2>Summary (averages)</h2>
+<table><tr><th>Map</th><th>Algorithm</th>
+<th>Average time (s)</th>
+<th>Total replans</th>
+<th>Total shots</th>
+<th>Cells traveled</th>
+<th>Final Eagle HP</th>
+</tr>
+<tr><td>Alpha32</td><td>AStar</td><td class=''>35.1</td><td class='win-a'>159</td><td class=''>59182</td><td class=''>64.3</td><td class=''>-1.0</td></tr>
+<tr><td>Alpha32</td><td>PIBT</td><td class='win-p'>32.3</td><td class=''>137</td><td class=''>60254</td><td class=''>57.3</td><td class=''>-1.0</td></tr>
+<tr><td>Alpha32</td><td>PIBT_TCP</td><td class=''>35.5</td><td class=''>6.0</td><td class='win-t'>60673</td><td class='win-t'>104</td><td class=''>-1.0</td></tr>
+<tr><td>Mansion</td><td>AStar</td><td class='win-a'>98.2</td><td class=''>672</td><td class=''>47810</td><td class=''>324</td><td class=''>-1.0</td></tr>
+<tr><td>Mansion</td><td>PIBT</td><td class=''>103</td><td class='win-p'>3408</td><td class=''>36968</td><td class=''>304</td><td class=''>-1.0</td></tr>
+<tr><td>Mansion</td><td>PIBT_TCP</td><td class=''>103</td><td class=''>2.0</td><td class='win-t'>62612</td><td class='win-t'>472</td><td class=''>-1.0</td></tr>
+<tr><td>Chantry</td><td>AStar</td><td class=''>131</td><td class=''>936</td><td class='win-a'>53402</td><td class=''>458</td><td class=''>-1.0</td></tr>
+<tr><td>Chantry</td><td>PIBT</td><td class='win-p'>128</td><td class='win-p'>3515</td><td class=''>36023</td><td class=''>395</td><td class=''>-1.0</td></tr>
+<tr><td>Chantry</td><td>PIBT_TCP</td><td class=''>134</td><td class=''>4.8</td><td class=''>47211</td><td class='win-t'>665</td><td class=''>-1.0</td></tr>
+<tr><td>Gallows</td><td>AStar</td><td class='win-a'>112</td><td class=''>788</td><td class=''>48593</td><td class=''>391</td><td class=''>-1.0</td></tr>
+<tr><td>Gallows</td><td>PIBT</td><td class=''>122</td><td class='win-p'>4769</td><td class=''>25329</td><td class=''>388</td><td class=''>-1.0</td></tr>
+<tr><td>Gallows</td><td>PIBT_TCP</td><td class=''>116</td><td class=''>2.0</td><td class='win-t'>57208</td><td class='win-t'>561</td><td class=''>-1.0</td></tr>
+<tr><td>Maze128</td><td>AStar</td><td class=''>180</td><td class=''>1439</td><td class=''>302</td><td class=''>721</td><td class='win-a'>500</td></tr>
+<tr><td>Maze128</td><td>PIBT</td><td class=''>180</td><td class='win-p'>1440</td><td class='win-p'>11261</td><td class=''>657</td><td class=''>399</td></tr>
+<tr><td>Maze128</td><td>PIBT_TCP</td><td class='win-t'>180</td><td class=''>0.0</td><td class=''>0.0</td><td class='win-t'>990</td><td class=''>500</td></tr>
+</table></div>
+</body></html>

@@ -1,6 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -76,7 +79,8 @@ public class LanLobbyController : MonoBehaviour
     // Waiting-lobby refs (internet client flow)
     private GameObject _lobbyBox;       // content container with slot list + tank picker + code
     private Text       _lobbySlotsTxt;  // multi-line player/slot list
-    private Text       _lobbyCodeTxt;   // room code + invite hint
+    private Text       _lobbyCodeTxt;   // room code (client) / shareable LAN IP (host)
+    private Text       _copyLabel;      // COPY button label: "COPY LINK" (client) / "COPY IP" (host)
     private Button     _btnReadyLobby;  // y2: toggle local Ready
     private Button     _btnStartLobby;  // y1: owner-only START (RequestStartServerRpc)
     private Text       _btnReadyLabel, _btnStartLabel;
@@ -100,6 +104,7 @@ public class LanLobbyController : MonoBehaviour
 
     private readonly List<string> _clients = new List<string>();
     private string _pendingIp;
+    private string _shareIp = string.Empty;   // "ip:port" the LAN host shares (shown in the lobby UI)
     private string _autoJoinTarget;
     private bool   _connected;   // true between OnClientConnected and OnClientDisconnected
     private Screen _screen = Screen.Choose;
@@ -185,6 +190,12 @@ public class LanLobbyController : MonoBehaviour
         if (!EnsureNetworkManager()) return;
         LanSessionManager.ActivateClient(_mapFile, _algorithm, _enemyMultiplier);
         SwitchTo(Screen.Joining);
+#if !UNITY_WEBGL
+        // Desktop/LAN: start scanning for a host on the local network immediately, so the
+        // "JOIN ROOM" menu button auto-fills the host IP without the user having to detour
+        // through HOST GAME + map select first. WebGL has no LAN, so it stays code/link only.
+        StartAutoDiscover();
+#endif
     }
 
     private static void ShowInternal(string mapFile, string algorithm, string joinTarget, int enemyMultiplier)
@@ -503,6 +514,7 @@ public class LanLobbyController : MonoBehaviour
         var copyBtn = copy.AddComponent<Button>(); copyBtn.targetGraphic = copy.GetComponent<Image>();
         copyBtn.onClick.AddListener(CopyInvite);
         LblFill(copy, "COPY LINK", 11, FontStyle.Bold, White, L);
+        _copyLabel = copy.GetComponentInChildren<Text>();
 
         EnsureVariantSpritesLoaded();
         UpdateLobbyPreview(LanSessionManager.LocalVariantIndex);
@@ -675,12 +687,24 @@ public class LanLobbyController : MonoBehaviour
                 break;
             case Screen.Hosting:
                 HideAllScreenWidgets();
-                SetStatus("Waiting for players to connect…", Gold);
-                SetVis(_btnStart, true);
+                // Reuse the Internet lobby UI (tank preview + name + colour picker + slot
+                // list) so the host gets the SAME tank-selection experience as joiners.
+                // The room-code slot is repurposed to show the host's shareable LAN IP.
+                if (_statusTxt != null)
+                {
+                    var hrt = _statusTxt.GetComponent<RectTransform>();
+                    hrt.anchoredPosition = new Vector2(0f, -78f);
+                    hrt.sizeDelta = new Vector2(-PadX * 2f, 18f);
+                    _statusTxt.fontSize = 12;
+                }
+                SetStatus("Waiting for players…  ·  choose your tank", Gold);
+                if (string.IsNullOrEmpty(_shareIp))
+                    _shareIp = $"{GetLocalIP()}:{GamePort}";
+                _lobbyBox?.SetActive(true);
+                if (_copyLabel != null) _copyLabel.text = "COPY IP";
+                SetVis(_btnStart, true);   // host START is immediate (owner-driven, no ready gate)
                 SetVis(_btnJoin,  true);
-                _ipBox?.SetActive(true);
-                _playersTxt?.gameObject.SetActive(true);
-                RefreshPlayers();
+                InvokeRepeating(nameof(RefreshLobby), 0f, 0.3f);
                 break;
             case Screen.Joining:
                 HideAllScreenWidgets();
@@ -706,6 +730,7 @@ public class LanLobbyController : MonoBehaviour
                     _statusTxt.fontSize = 12;
                 }
                 SetStatus("Lobby — choose a tank and mark READY", Green);
+                if (_copyLabel != null) _copyLabel.text = "COPY LINK";
                 _lobbyBox?.SetActive(true);
                 SetVis(_btnReadyLobby, true);
                 // START (owner-only) visibility is managed each tick by RefreshLobby.
@@ -761,9 +786,38 @@ public class LanLobbyController : MonoBehaviour
         }
         _lobbySlotsTxt.text = sb.ToString();
 
-        string code = LanSessionManager.SessionCode;
         if (_lobbyCodeTxt != null)
-            _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Room code: {code}";
+        {
+            if (_screen == Screen.Hosting)
+            {
+                if (string.IsNullOrEmpty(_shareIp)) _shareIp = $"{GetLocalIP()}:{GamePort}";
+                _lobbyCodeTxt.text = $"Your IP:  {_shareIp}";
+            }
+            else
+            {
+                string code = LanSessionManager.SessionCode;
+                _lobbyCodeTxt.text = string.IsNullOrEmpty(code) ? "" : $"Room code: {code}";
+            }
+        }
+
+        // Host (Screen.Hosting): gate the immediate START on a minimum player count and
+        // reflect it on the button (bridges.Count includes the host, so 2 = host + 1 client).
+        if (_screen == Screen.Hosting && _btnStart != null)
+        {
+            int minStart =
+#if UNITY_EDITOR
+                1;
+#else
+                2;
+#endif
+            bool canStart = bridges.Count >= minStart;
+            _btnStart.interactable = canStart;
+            var startLbl = _btnStart.GetComponentInChildren<Text>();
+            if (startLbl != null)
+                startLbl.text = canStart
+                    ? "▶  START GAME"
+                    : $"START  (need ≥{minStart} players · {bridges.Count})";
+        }
 
         if (local != null && _btnReadyLabel != null)
         {
@@ -774,24 +828,30 @@ public class LanLobbyController : MonoBehaviour
         if (local != null && local.VariantIndex.Value != _shownVariant)
             UpdateLobbyPreview(local.VariantIndex.Value);
 
-        // START: only the room owner sees it; enabled when everyone is ready.
-        bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
-        SetVis(_btnStartLobby, isRoomOwner);
-        PositionCancelButton(compact: !isRoomOwner);
-        if (isRoomOwner && _btnStartLobby != null)
+        // Ready/owner-START gating applies only to the Internet lobby (Screen.Lobby).
+        // The LAN host (Screen.Hosting) uses the immediate _btnStart instead, so leave
+        // its footer untouched here.
+        if (_screen == Screen.Lobby)
         {
-            int minStart =
+            // START: only the room owner sees it; enabled when everyone is ready.
+            bool isRoomOwner = local != null && ownerId != ulong.MaxValue && localId == ownerId;
+            SetVis(_btnStartLobby, isRoomOwner);
+            PositionCancelButton(compact: !isRoomOwner);
+            if (isRoomOwner && _btnStartLobby != null)
+            {
+                int minStart =
 #if UNITY_EDITOR
-                1;
+                    1;
 #else
-                2;
+                    2;
 #endif
-            bool allReady = bridges.Count >= minStart && readyCount == bridges.Count;
-            _btnStartLobby.interactable = allReady;
-            if (_btnStartLabel != null)
-                _btnStartLabel.text = allReady
-                    ? "▶  START GAME"
-                    : $"START  ({readyCount}/{bridges.Count} · need ≥{minStart})";
+                bool allReady = bridges.Count >= minStart && readyCount == bridges.Count;
+                _btnStartLobby.interactable = allReady;
+                if (_btnStartLabel != null)
+                    _btnStartLabel.text = allReady
+                        ? "▶  START GAME"
+                        : $"START  ({readyCount}/{bridges.Count} · need ≥{minStart})";
+            }
         }
     }
 
@@ -818,6 +878,14 @@ public class LanLobbyController : MonoBehaviour
 
     private void CopyInvite()
     {
+        // LAN host: copy the shareable IP instead of an internet invite link.
+        if (_screen == Screen.Hosting)
+        {
+            if (string.IsNullOrEmpty(_shareIp)) return;
+            WebClipboard.Copy(_shareIp);
+            SetStatus("IP copied — share it with players!", Green);
+            return;
+        }
         string link = BuildInviteLink();
         if (string.IsNullOrEmpty(link)) return;
         WebClipboard.Copy(link);
@@ -889,11 +957,28 @@ public class LanLobbyController : MonoBehaviour
         SetStatus("Searching for a host on the LAN…", Muted);
         _discovery.OnHostFound += ip =>
         {
+            CancelInvoke(nameof(OnDiscoverTimeout));
             if (_ipInput != null) _ipInput.text = ip;
-            SetStatus($"Host found: {ip} — press CONNECT", new Color(0.3f, 0.9f, 0.4f));
+            SetStatus($"Host found: {ip} — press JOIN", new Color(0.3f, 0.9f, 0.4f));
             _discovery.StopListening();
         };
         _discovery.StartListening();
+
+        // Don't leave the user staring at "Searching…" forever. After a few seconds,
+        // switch to a hint to enter the IP manually — but keep listening, so a host that
+        // starts later still auto-fills the field.
+        CancelInvoke(nameof(OnDiscoverTimeout));
+        Invoke(nameof(OnDiscoverTimeout), 7f);
+    }
+
+    private void OnDiscoverTimeout()
+    {
+        if (_connected || _screen != Screen.Joining) return;
+        SetStatus(
+            "No host found on the LAN yet.\n" +
+            "Enter the host IP shown on the host's screen, then press JOIN.\n" +
+            "(This keeps scanning — it will auto-fill when a host appears.)",
+            new Color(1f, 0.75f, 0.35f));
     }
 
     // ── Host flow ─────────────────────────────────────────────────────────────
@@ -936,9 +1021,12 @@ public class LanLobbyController : MonoBehaviour
         // OnHostTransportFailure will handle retry; _hostRetryCount must NOT be reset here.
         if (!NetworkManager.Singleton.StartHost()) return;
 
-        string ip = GetLocalIP();
-        Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}  (LAN IP: {ip})");
-        if (_ipVal != null) _ipVal.text = $"{ip}:{GamePort}";
+        var lanIps = GetLanIPv4Candidates();
+        string ip = lanIps.Count > 0 ? lanIps[0] : GetLocalIP();
+        Debug.Log($"[LAN] Hosting on 0.0.0.0:{GamePort}. Primary LAN IP: {ip}. " +
+                  $"All candidates: [{string.Join(", ", lanIps)}]");
+        _shareIp = $"{ip}:{GamePort}";
+        if (_ipVal != null) _ipVal.text = _shareIp;
 
         _discovery = gameObject.AddComponent<LanDiscovery>();
         _discovery.StartBroadcasting(GamePort);
@@ -1215,8 +1303,23 @@ public class LanLobbyController : MonoBehaviour
     private void DoStartGame()
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
+        int minStart =
+#if UNITY_EDITOR
+            1;   // allow solo start in the Editor for quick testing
+#else
+            2;   // real builds require at least 2 players
+#endif
+        int players = NetworkManager.Singleton.ConnectedClients.Count;
+        if (players < minStart)
+        {
+            SetStatus($"Need at least {minStart} players to start  ({players}/{minStart}).",
+                new Color(1f, 0.75f, 0.35f));
+            return;
+        }
+
         _discovery?.Stop();
-        LanSessionManager.PlayerCount = NetworkManager.Singleton.ConnectedClients.Count;
+        LanSessionManager.PlayerCount = players;
         NetworkManager.Singleton.SceneManager.LoadScene(LanSessionManager.GameScene, LoadSceneMode.Single);
         Close();
     }
@@ -1234,24 +1337,81 @@ public class LanLobbyController : MonoBehaviour
         return NetworkManagerFactory.Ensure("0.0.0.0", GamePort, isServer: false, defaultTransportMode, out _);
     }
 
-    private static string GetLocalIP()
+    // Virtual/tunnel adapters whose IPv4 other LAN machines cannot reach. Matched against
+    // NIC Name + Description (lower-cased). WSL appears as "vEthernet (WSL ...)".
+    private static readonly string[] VirtualNicHints =
     {
+        "wsl", "hyper-v", "hyperv", "virtual", "vethernet", "vpn",
+        "loopback", "vmware", "virtualbox", "docker", "tap", "tunnel"
+    };
+
+    /// <summary>
+    /// Real LAN IPv4 addresses, best-first: 192.168.* &gt; 10.* &gt; 172.* , with
+    /// virtual/WSL/VPN adapters and APIPA (169.254.*) filtered out. May be empty.
+    /// </summary>
+    private static List<string> GetLanIPv4Candidates()
+    {
+        var scored = new List<KeyValuePair<int, string>>();
         try
         {
-            using var s = new System.Net.Sockets.Socket(
-                System.Net.Sockets.AddressFamily.InterNetwork,
-                System.Net.Sockets.SocketType.Dgram, 0);
-            s.Connect("8.8.8.8", 65530);
-            return ((System.Net.IPEndPoint)s.LocalEndPoint)?.Address.ToString() ?? "127.0.0.1";
+            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                try
+                {
+                    if (nic.OperationalStatus != OperationalStatus.Up) continue;
+                    if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+
+                    string desc = (nic.Name + " " + nic.Description).ToLowerInvariant();
+                    bool isVirtual = false;
+                    foreach (var hint in VirtualNicHints)
+                        if (desc.Contains(hint)) { isVirtual = true; break; }
+
+                    foreach (var ua in nic.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                        if (IPAddress.IsLoopback(ua.Address)) continue;
+                        string ip = ua.Address.ToString();
+                        if (ip.StartsWith("169.254.")) continue;   // APIPA (no DHCP lease)
+
+                        int score = 0;
+                        if      (ip.StartsWith("192.168.")) score += 100;
+                        else if (ip.StartsWith("10."))      score += 80;
+                        else if (ip.StartsWith("172."))     score += 40;   // often Docker/WSL
+                        else                                score += 20;
+                        if (isVirtual) score -= 200;                       // push virtual NICs last
+
+                        scored.Add(new KeyValuePair<int, string>(score, ip));
+                    }
+                }
+                catch { /* skip this NIC */ }
+            }
         }
-        catch
+        catch (Exception e) { Debug.LogWarning("[LAN] NIC enumerate failed: " + e.Message); }
+
+        scored.Sort((a, b) => b.Key.CompareTo(a.Key));
+        var result = new List<string>();
+        foreach (var kv in scored)
+            if (kv.Value != null && !result.Contains(kv.Value))
+                result.Add(kv.Value);
+        return result;
+    }
+
+    private static string GetLocalIP()
+    {
+        var candidates = GetLanIPv4Candidates();
+        if (candidates.Count > 0) return candidates[0];
+
+        // Fallback: the source IP the OS would use toward a public address. May be a
+        // virtual adapter, so it is only used when NIC enumeration yields nothing.
+        try
         {
-            foreach (var ip in System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName()))
-                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                    && !System.Net.IPAddress.IsLoopback(ip))
-                    return ip.ToString();
-            return "127.0.0.1";
+            using var s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
+            s.Connect("8.8.8.8", 65530);
+            var addr = ((IPEndPoint)s.LocalEndPoint)?.Address;
+            if (addr != null && !IPAddress.IsLoopback(addr)) return addr.ToString();
         }
+        catch { /* offline / no route */ }
+        return "127.0.0.1";
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

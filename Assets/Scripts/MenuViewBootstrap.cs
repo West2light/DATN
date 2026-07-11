@@ -74,6 +74,7 @@ public class MenuViewBootstrap : MonoBehaviour
         new MapDef { label = "Chantry",   sizeLabel = "162 × 141",                previewTint = new Color(0.20f, 0.40f, 0.65f), mapFile = "Assets/MapData/ht_chantry.map",         sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
         new MapDef { label = "Gallows",   sizeLabel = "251 × 180",                previewTint = new Color(0.60f, 0.18f, 0.18f), mapFile = "Assets/MapData/lt_gallowstemplar_n.map",sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
         new MapDef { label = "Maze-128",  sizeLabel = "128 × 128  •  10% walls",  previewTint = new Color(0.55f, 0.18f, 0.65f), mapFile = "Assets/MapData/maze-128-128-10.map",   sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
+        new MapDef { label = "Rooms-32",  sizeLabel = "32 × 32  •  cửa hẹp 1 ô",  previewTint = new Color(0.65f, 0.50f, 0.20f), mapFile = "Assets/MapData/room-32-32-4.map",       sceneAStar = "MapF_TankTest", scenePIBT = "MapF_TankTest_PIBT", available = true },
     };
 
     // ── Runtime state ──────────────────────────────────────────────────────
@@ -505,8 +506,8 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 1f), new Vector2(0f, -80f), new Vector2(640f, 24f));
 
         // 5 cards, CardW=210, Gap=10 → total=1090px, centred in 1280
-        // CardH increased to 300 to fit 3 mode buttons (A*, PIBT, PIBT-TCP)
-        const float CardW = 210f, CardH = 300f, Gap = 10f;
+        // CardH increased to 340 to fit 4 mode buttons (A*, PIBT, PIBT-TCP, Mixed)
+        const float CardW = 210f, CardH = 340f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
         float startX = -totalW / 2f + CardW / 2f;
 
@@ -587,17 +588,18 @@ public class MenuViewBootstrap : MonoBehaviour
                 9, FontStyle.Normal, TextMuted,
                 new Vector2(0.5f, 0.5f), new Vector2(0f, nameCentreY - 22f), new Vector2(w - 12f, 16f));
 
-        // ── Algorithm mode buttons (3 stacked vertically) ────────────────
-        // m=0 A*, m=1 PIBT (local), m=2 PIBT-TCP (server)
-        // PIBT-TCP reuses scenePIBT scene — distinguishes via PrefKeyAlgorithm.
-        string[] modeLabels  = { "A*", "PIBT", "PIBT-TCP" };
-        string[] modeAlgos   = { "AStar", "PIBT", "PIBT_TCP" };
-        string[] modeScenes  = { map.sceneAStar, map.scenePIBT, map.scenePIBT };
+        // ── Algorithm mode buttons (4 stacked vertically) ────────────────
+        // m=0 A*, m=1 PIBT (local), m=2 PIBT-TCP (server), m=3 Mixed (A*+PIBT)
+        // PIBT-TCP và Mixed dùng lại scenePIBT — phân biệt qua PrefKeyAlgorithm.
+        string[] modeLabels  = { "A*", "PIBT", "PIBT-TCP", "Mixed" };
+        string[] modeAlgos   = { "AStar", "PIBT", "PIBT_TCP", "Mixed" };
+        string[] modeScenes  = { map.sceneAStar, map.scenePIBT, map.scenePIBT, map.scenePIBT };
         Color[]  modeColors  =
         {
             new Color(0.20f, 0.52f, 0.88f, 1f),
             new Color(0.18f, 0.65f, 0.38f, 1f),
             new Color(0.72f, 0.38f, 0.10f, 1f),
+            new Color(0.69f, 0.49f, 1.00f, 1f),
         };
 
         const float BtnH   = 34f;
@@ -605,7 +607,7 @@ public class MenuViewBootstrap : MonoBehaviour
         float btnW         = w - 16f;
         float bottomY      = -h / 2f + 10f;
 
-        for (int m = 0; m < 3; m++)
+        for (int m = 0; m < modeLabels.Length; m++)
         {
             int    capturedM   = m;
             bool   avail       = !string.IsNullOrEmpty(modeScenes[m]);
@@ -807,7 +809,8 @@ public class MenuViewBootstrap : MonoBehaviour
             new Vector2(0.5f, 0f), new Vector2(0f, 58f), new Vector2(820f, 24f));
 
         // Keep multiplayer cards visually identical to the single-player cards.
-        const float CardW = 210f, CardH = 300f, Gap = 10f;
+        // CardH = 340 to fit 4 mode buttons (A*, PIBT, PIBT-TCP, Mixed).
+        const float CardW = 210f, CardH = 340f, Gap = 10f;
         float totalW = Maps.Length * CardW + (Maps.Length - 1) * Gap;
         float startX = -totalW / 2f + CardW / 2f;
 
@@ -904,13 +907,14 @@ public class MenuViewBootstrap : MonoBehaviour
         // All three algorithms use the same multiplayer lobby. PIBT-TCP is
         // executed by the authoritative host/server; clients only render the
         // synchronized world state like they do for the other algorithms.
-        string[] modeLabels = { "A*", "PIBT", "PIBT-TCP" };
-        string[] modeAlgos  = { "AStar", "PIBT", "PIBT_TCP" };
+        string[] modeLabels = { "A*", "PIBT", "PIBT-TCP", "Mixed" };
+        string[] modeAlgos  = { "AStar", "PIBT", "PIBT_TCP", "Mixed" };
         Color[]  modeColors =
         {
             new Color(0.20f, 0.52f, 0.88f),
             new Color(0.18f, 0.65f, 0.38f),
             new Color(0.72f, 0.38f, 0.10f),
+            new Color(0.69f, 0.49f, 1.00f),
         };
 
         const float BtnH   = 34f;
