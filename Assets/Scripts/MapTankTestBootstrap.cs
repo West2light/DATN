@@ -316,6 +316,26 @@ public class MapTankTestBootstrap : MonoBehaviour
             return;
         }
 
+        // Mode 4: MIXED (A* + PIBT) — chọn qua PlayerPrefs/LAN/BacktestMode như TCP.
+        // Dùng chung scene MapF_TankTest_PIBT; add bootstrap runtime và return sớm để
+        // MapScenarioBootstrapPIBT có sẵn trong scene không chạy.
+        bool isMixedMode = selectedAlgorithm == "Mixed"
+            || (LanSessionManager.IsActive && LanSessionManager.Algorithm == "Mixed")
+            || (BacktestMode.IsActive && BacktestMode.Algorithm == "Mixed");
+
+        MapScenarioBootstrapMixed mixedBootstrap = GetComponent<MapScenarioBootstrapMixed>();
+        if (isMixedMode && mixedBootstrap == null)
+            mixedBootstrap = gameObject.AddComponent<MapScenarioBootstrapMixed>();
+
+        if (isMixedMode && mixedBootstrap != null)
+        {
+            Debug.Log("[MapTankTestBootstrap] Spawning Mixed (A*+PIBT) scenario.");
+            mixedBootstrap.mapLoader = mapLoader;
+            if (spawnCells != null) mixedBootstrap.enemySpawnCells = spawnCells;
+            mixedBootstrap.SpawnScenario();
+            return;
+        }
+
         MapScenarioBootstrapPIBT pibtBootstrap = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibtBootstrap != null)
         {
@@ -495,6 +515,9 @@ public class MapTankTestBootstrap : MonoBehaviour
     {
         var tcp = GetComponent<MapScenarioBootstrapPIBT_TCP>();
         if (tcp != null) return new List<GameObject>(tcp.Enemies);
+
+        var mixed = GetComponent<MapScenarioBootstrapMixed>();
+        if (mixed != null) return new List<GameObject>(mixed.Enemies);
 
         var pibt = GetComponent<MapScenarioBootstrapPIBT>();
         if (pibt != null) return new List<GameObject>(pibt.Enemies);

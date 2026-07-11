@@ -69,6 +69,7 @@ public class BacktestRunner : MonoBehaviour
     private readonly List<GridEnemyAgent>     _agentsA = new List<GridEnemyAgent>();
     private readonly List<GridEnemyAgentPIBT> _agentsL = new List<GridEnemyAgentPIBT>();
     private readonly List<GridEnemyAgentPIBT_TCP> _agentsT = new List<GridEnemyAgentPIBT_TCP>();
+    private readonly List<GridEnemyAgentMixed> _agentsM = new List<GridEnemyAgentMixed>();
 
     private Text       _progressText;
     private Text       _statusText;
@@ -90,6 +91,7 @@ public class BacktestRunner : MonoBehaviour
     }
 
     public const int DefaultAgentCount = 4; // = số ô spawn cố định cũ
+    public const int AlgorithmCount    = 4; // AStar, PIBT, PIBT_TCP, Mixed (khớp BuildJobs)
 
     // selectedMapIndices: indices into MapFiles/MapLabels; null = run all maps
     public static void Launch(List<int> selectedMapIndices = null, int reps = Reps,
@@ -128,8 +130,8 @@ public class BacktestRunner : MonoBehaviour
     // ── Job list ───────────────────────────────────────────────────────────
     private void BuildJobs()
     {
-        string[] scenes = { "MapF_TankTest", "MapF_TankTest_PIBT", "MapF_TankTest_PIBT" };
-        string[] algos  = { "AStar", "PIBT", "PIBT_TCP" };
+        string[] scenes = { "MapF_TankTest", "MapF_TankTest_PIBT", "MapF_TankTest_PIBT", "MapF_TankTest_PIBT" };
+        string[] algos  = { "AStar", "PIBT", "PIBT_TCP", "Mixed" };
 
         // If no selection provided, run all maps
         var indices = _selectedMapIndices ?? AllMapIndices();
@@ -243,6 +245,7 @@ public class BacktestRunner : MonoBehaviour
         _agentsA.Clear();
         _agentsL.Clear();
         _agentsT.Clear();
+        _agentsM.Clear();
         _eagleDamagable  = null;
         _eagleDestroyed  = false;
         _allEnemiesDead  = false;
@@ -259,6 +262,10 @@ public class BacktestRunner : MonoBehaviour
         var scenarioTcp = FindFirstObjectByType<MapScenarioBootstrapPIBT_TCP>();
         if (_eagleDamagable == null && scenarioTcp != null && scenarioTcp.EagleBase != null)
             _eagleDamagable = scenarioTcp.EagleBase.GetComponentInChildren<Damagable>();
+
+        var scenarioMixed = FindFirstObjectByType<MapScenarioBootstrapMixed>();
+        if (_eagleDamagable == null && scenarioMixed != null && scenarioMixed.EagleBase != null)
+            _eagleDamagable = scenarioMixed.EagleBase.GetComponentInChildren<Damagable>();
 
         // Fallback: find by name
         if (_eagleDamagable == null)
@@ -287,18 +294,21 @@ public class BacktestRunner : MonoBehaviour
         _agentsA.AddRange(FindObjectsByType<GridEnemyAgent>(FindObjectsSortMode.None));
         _agentsL.AddRange(FindObjectsByType<GridEnemyAgentPIBT>(FindObjectsSortMode.None));
         _agentsT.AddRange(FindObjectsByType<GridEnemyAgentPIBT_TCP>(FindObjectsSortMode.None));
+        _agentsM.AddRange(FindObjectsByType<GridEnemyAgentMixed>(FindObjectsSortMode.None));
 
         // Subscribe to each agent's death to track all-dead condition
         foreach (var a in _agentsA) SubscribeAgentDeath(a.GetComponentInChildren<Damagable>());
         foreach (var a in _agentsL) SubscribeAgentDeath(a.GetComponentInChildren<Damagable>());
         foreach (var a in _agentsT) SubscribeAgentDeath(a.GetComponentInChildren<Damagable>());
+        foreach (var a in _agentsM) SubscribeAgentDeath(a.GetComponentInChildren<Damagable>());
 
         float t = Time.time;
         foreach (var a in _agentsA) a.btSpawnTime = t;
         foreach (var a in _agentsL) a.btSpawnTime = t;
         foreach (var a in _agentsT) a.btSpawnTime = t;
+        foreach (var a in _agentsM) a.btSpawnTime = t;
 
-        Debug.Log($"[BacktestRunner] Injected: eagle={_eagleDamagable != null}, agentsA={_agentsA.Count}, agentsL={_agentsL.Count}, agentsT={_agentsT.Count}");
+        Debug.Log($"[BacktestRunner] Injected: eagle={_eagleDamagable != null}, agentsA={_agentsA.Count}, agentsL={_agentsL.Count}, agentsT={_agentsT.Count}, agentsM={_agentsM.Count}");
 
         AttachCameraController();
     }
@@ -352,7 +362,7 @@ public class BacktestRunner : MonoBehaviour
         var go = new GameObject("DynamicObstacleSpawner");
         _obstacleSpawner = go.AddComponent<DynamicObstacleSpawner>();
         _obstacleSpawner.Init(mapLoader, navMask, _eagleDamagable.transform.position);
-        _obstacleSpawner.SetAgents(_agentsA, _agentsL, _agentsT);
+        _obstacleSpawner.SetAgents(_agentsA, _agentsL, _agentsT, _agentsM);
     }
 
     private void StopDynamicObstacles()
@@ -374,6 +384,7 @@ public class BacktestRunner : MonoBehaviour
         foreach (var a in _agentsA) totalReplans += a.btReplanCount;
         foreach (var a in _agentsL) totalReplans += a.btReplanCount;
         foreach (var a in _agentsT) totalReplans += a.btReplanCount;
+        foreach (var a in _agentsM) totalReplans += a.btReplanCount;
 
         string dynTag = _dynamicObstacles ? "  [DYN]" : "";
         _realtimeText.text =
@@ -404,9 +415,10 @@ public class BacktestRunner : MonoBehaviour
         foreach (var a in _agentsA) CollectAgent(a, ref rec, ref alive, a != null && IsAlive(a.GetComponentInChildren<Damagable>()));
         foreach (var a in _agentsL) CollectAgentLns2(a, ref rec, ref alive, a != null && IsAlive(a.GetComponentInChildren<Damagable>()));
         foreach (var a in _agentsT) CollectAgentTcp(a, ref rec, ref alive, a != null && IsAlive(a.GetComponentInChildren<Damagable>()));
+        foreach (var a in _agentsM) CollectAgentMixed(a, ref rec, ref alive, a != null && IsAlive(a.GetComponentInChildren<Damagable>()));
 
         rec.enemiesAliveAtEnd = alive;
-        rec.agentCount        = _agentsA.Count + _agentsL.Count + _agentsT.Count;
+        rec.agentCount        = _agentsA.Count + _agentsL.Count + _agentsT.Count + _agentsM.Count;
         rec.totalReplans      = 0; rec.totalRecoveries = 0; rec.totalShots = 0; rec.totalCells = 0;
         foreach (var ar in rec.agents)
         {
@@ -454,6 +466,22 @@ public class BacktestRunner : MonoBehaviour
     }
 
     private static void CollectAgentTcp(GridEnemyAgentPIBT_TCP a, ref BacktestRunRecord rec, ref int alive, bool isAlive)
+    {
+        if (a == null) return;
+        if (isAlive) alive++;
+        rec.agents.Add(new BacktestAgentRecord
+        {
+            agentName         = a.name,
+            replanCount       = a.btReplanCount,
+            recoveryCount     = a.btRecoveryCount,
+            shotCount         = a.btShotCount,
+            cellsVisited      = a.btCellsVisited,
+            initialPathLength = a.btInitialPathLength,
+            deadAtEnd         = !isAlive,
+        });
+    }
+
+    private static void CollectAgentMixed(GridEnemyAgentMixed a, ref BacktestRunRecord rec, ref int alive, bool isAlive)
     {
         if (a == null) return;
         if (isAlive) alive++;
@@ -733,7 +761,7 @@ public class BacktestRunner : MonoBehaviour
     // ── HTML chart builder ─────────────────────────────────────────────────
     private static string BuildHTML(List<BacktestRunRecord> results)
     {
-        string[] algos = { "AStar", "PIBT", "PIBT_TCP" };
+        string[] algos = { "AStar", "PIBT", "PIBT_TCP", "Mixed" };
 
         // Collect unique maps preserving insertion order
         var maps = new List<string>();
@@ -788,7 +816,7 @@ public class BacktestRunner : MonoBehaviour
         // ── HTML head ──────────────────────────────────────────────────────
         sb.AppendLine("<!DOCTYPE html>");
         sb.AppendLine("<html lang='vi'><head><meta charset='UTF-8'>");
-        sb.AppendLine("<title>Backtest Report — A* vs PIBT vs PIBT-C++</title>");
+        sb.AppendLine("<title>Backtest Report — A* vs PIBT vs PIBT-C++ vs Mixed</title>");
         sb.AppendLine("<style>");
         sb.AppendLine("*{box-sizing:border-box;margin:0;padding:0}");
         sb.AppendLine("body{background:#0e1014;color:#d0d8e8;font-family:'Segoe UI',Arial,sans-serif;padding:32px}");
@@ -804,6 +832,7 @@ public class BacktestRunner : MonoBehaviour
         sb.AppendLine(".bar-a{background:#4a96ff}");
         sb.AppendLine(".bar-p{background:#ff8c24}");
         sb.AppendLine(".bar-t{background:#66d98c}");
+        sb.AppendLine(".bar-m{background:#b07cff}");
         sb.AppendLine(".bar-val{display:none}");
         sb.AppendLine(".map-lbl{font-size:10px;color:#6a7280;text-align:center;margin-top:6px;width:62px}");
         sb.AppendLine(".legend{display:flex;gap:20px;margin-bottom:12px}");
@@ -812,6 +841,7 @@ public class BacktestRunner : MonoBehaviour
         sb.AppendLine(".win-a{color:#4a96ff;font-weight:700}");
         sb.AppendLine(".win-p{color:#ff8c24;font-weight:700}");
         sb.AppendLine(".win-t{color:#66d98c;font-weight:700}");
+        sb.AppendLine(".win-m{color:#b07cff;font-weight:700}");
         sb.AppendLine("table{width:100%;border-collapse:collapse;font-size:12px}");
         sb.AppendLine("th{background:#1e2128;color:#6a7280;padding:8px 12px;text-align:left;font-weight:600}");
         sb.AppendLine("td{padding:7px 12px;border-bottom:1px solid #1e2128;color:#c0c8d8}");
@@ -819,7 +849,7 @@ public class BacktestRunner : MonoBehaviour
         sb.AppendLine("</style></head><body>");
 
         // ── Title ──────────────────────────────────────────────────────────
-        sb.AppendLine($"<h1>Backtest Report — A* vs PIBT vs PIBT-C++</h1>");
+        sb.AppendLine($"<h1>Backtest Report — A* vs PIBT vs PIBT-C++ vs Mixed</h1>");
         sb.AppendLine($"<p class='subtitle'>Run date: {DateTime.Now:dd/MM/yyyy HH:mm}  •  {results.Count} runs  •  {maps.Count} map(s)</p>");
 
         // ── One bar-chart section per metric ───────────────────────────────
@@ -839,6 +869,7 @@ public class BacktestRunner : MonoBehaviour
             sb.AppendLine("  <span class='leg'><span class='dot' style='background:#4a96ff'></span>A*</span>");
             sb.AppendLine("  <span class='leg'><span class='dot' style='background:#ff8c24'></span>PIBT</span>");
             sb.AppendLine("  <span class='leg'><span class='dot' style='background:#66d98c'></span>PIBT-C++</span>");
+            sb.AppendLine("  <span class='leg'><span class='dot' style='background:#b07cff'></span>Mixed</span>");
             sb.AppendLine("</div>");
             sb.AppendLine("<div class='chart-wrap'>");
 
@@ -847,18 +878,22 @@ public class BacktestRunner : MonoBehaviour
                 float aVal = Avg(map, "AStar", mi);
                 float pVal = Avg(map, "PIBT",  mi);
                 float tVal = Avg(map, "PIBT_TCP", mi);
+                float mVal = Avg(map, "Mixed", mi);
                 int   aH   = Mathf.Max(2, Mathf.RoundToInt(aVal * scale));
                 int   pH   = Mathf.Max(2, Mathf.RoundToInt(pVal * scale));
                 int   tH   = Mathf.Max(2, Mathf.RoundToInt(tVal * scale));
+                int   mH   = Mathf.Max(2, Mathf.RoundToInt(mVal * scale));
                 string aFmt = aVal >= 100 ? aVal.ToString("F0") : aVal.ToString("F1");
                 string pFmt = pVal >= 100 ? pVal.ToString("F0") : pVal.ToString("F1");
                 string tFmt = tVal >= 100 ? tVal.ToString("F0") : tVal.ToString("F1");
+                string mFmt = mVal >= 100 ? mVal.ToString("F0") : mVal.ToString("F1");
 
                 sb.AppendLine($"<div class='group'>");
                 sb.AppendLine($"  <div class='bars'>");
                 sb.AppendLine($"    <div class='bar bar-a' style='height:{aH}px' title='A*: {aFmt}'><span class='bar-val'>{aFmt}</span></div>");
                 sb.AppendLine($"    <div class='bar bar-p' style='height:{pH}px' title='PIBT: {pFmt}'><span class='bar-val'>{pFmt}</span></div>");
                 sb.AppendLine($"    <div class='bar bar-t' style='height:{tH}px' title='PIBT-C++: {tFmt}'><span class='bar-val'>{tFmt}</span></div>");
+                sb.AppendLine($"    <div class='bar bar-m' style='height:{mH}px' title='Mixed: {mFmt}'><span class='bar-val'>{mFmt}</span></div>");
                 sb.AppendLine($"  </div>");
                 sb.AppendLine($"  <div class='map-lbl'>{map}</div>");
                 sb.AppendLine($"</div>");
@@ -882,7 +917,7 @@ public class BacktestRunner : MonoBehaviour
                 {
                     float v    = Avg(map, algo,    mi);
                     string bestAlgo = BestAlgo(map, mi);
-                    string cls  = algo == bestAlgo ? (algo == "AStar" ? "win-a" : algo == "PIBT" ? "win-p" : "win-t") : "";
+                    string cls  = algo == bestAlgo ? (algo == "AStar" ? "win-a" : algo == "PIBT" ? "win-p" : algo == "PIBT_TCP" ? "win-t" : "win-m") : "";
                     string fmt  = v >= 100 ? v.ToString("F0") : v.ToString("F1");
                     sb.Append($"<td class='{cls}'>{fmt}</td>");
                 }

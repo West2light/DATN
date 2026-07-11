@@ -29,6 +29,7 @@ ALGOS = [
     ("AStar", "A*", "#4a96ff"),
     ("PIBT", "PIBT", "#ff8c24"),
     ("PIBT_TCP", "PIBT-C++", "#66d98c"),
+    ("Mixed", "Mixed", "#b07cff"),
 ]
 
 
@@ -68,7 +69,7 @@ def avg(sums, counts, map_name, algo, metric_idx):
 
 
 # CSS class tô đậm/đổi màu ô thắng trong bảng (khớp màu ALGOS).
-WIN_CLASS = {"AStar": "win-a", "PIBT": "win-p", "PIBT_TCP": "win-t"}
+WIN_CLASS = {"AStar": "win-a", "PIBT": "win-p", "PIBT_TCP": "win-t", "Mixed": "win-m"}
 
 
 def best_algo(sums, counts, map_name, metric_idx, lower_better):
@@ -102,7 +103,12 @@ def plot_png(maps, sums, counts, png_path):
         axes[j].set_visible(False)
 
     x = list(range(len(maps)))
-    bar_width = 0.24
+    # Chia đều N cột thuật toán quanh mỗi vạch map (tự co theo số ALGOS).
+    n_algos = len(ALGOS)
+    group_span = 0.82
+    bar_gap = 0.02
+    bar_width = max(0.08, (group_span - (n_algos - 1) * bar_gap) / n_algos)
+    offsets = [(a - (n_algos - 1) / 2.0) * (bar_width + bar_gap) for a in range(n_algos)]
 
     for metric_idx, (_, label, lower_better) in enumerate(METRICS):
         ax = axes[metric_idx]
@@ -123,7 +129,6 @@ def plot_png(maps, sums, counts, png_path):
             else:
                 best_per_map.append(-1)
 
-        offsets = [-(bar_width + 0.02), 0.0, bar_width + 0.02]
         for a, ((algo, display, color), values, offset) in enumerate(zip(ALGOS, values_by_algo, offsets)):
             edgecolors = ["#ffffff" if best_per_map[mi] == a else "none" for mi in range(len(maps))]
             ax.bar([i + offset for i in x], values, bar_width, label=display,
@@ -156,10 +161,10 @@ def plot_png(maps, sums, counts, png_path):
                 )
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.suptitle("Backtest Report - A* vs PIBT vs PIBT-C++", color="#f5d050", fontsize=18, fontweight="bold")
+    fig.suptitle("Backtest Report - A* vs PIBT vs PIBT-C++ vs Mixed", color="#f5d050", fontsize=18, fontweight="bold")
     # Legend đặt NGOÀI lưới subplot (phía dưới) để không chồng chéo tiêu đề/cột.
     # "outside" locs cần constrained_layout (đã bật ở subplots()).
-    fig.legend(handles, labels, loc="outside lower center", ncol=3, frameon=False, labelcolor="#d0d8e8")
+    fig.legend(handles, labels, loc="outside lower center", ncol=len(ALGOS), frameon=False, labelcolor="#d0d8e8")
     fig.savefig(png_path, dpi=160, facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -189,7 +194,7 @@ def build_html(maps, sums, counts, csv_path, png_path):
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Backtest Report - A* vs PIBT vs PIBT-C++</title>
+  <title>Backtest Report - A* vs PIBT vs PIBT-C++ vs Mixed</title>
   <style>
     *{{box-sizing:border-box}}
     body{{margin:0;background:#0e1014;color:#d0d8e8;font-family:Segoe UI,Arial,sans-serif;padding:32px}}
@@ -204,10 +209,11 @@ def build_html(maps, sums, counts, csv_path, png_path):
     .win-a{{color:#4a96ff;font-weight:700}}
     .win-p{{color:#ff8c24;font-weight:700}}
     .win-t{{color:#66d98c;font-weight:700}}
+    .win-m{{color:#b07cff;font-weight:700}}
   </style>
 </head>
 <body>
-  <h1>Backtest Report - A* vs PIBT vs PIBT-C++</h1>
+  <h1>Backtest Report - A* vs PIBT vs PIBT-C++ vs Mixed</h1>
   <p class="subtitle">Ngay chay: {generated_at} &bull; CSV: {html.escape(Path(csv_path).name)} &bull; {len(maps)} map(s)</p>
   <div class="panel"><img alt="Backtest chart" src="data:image/png;base64,{image_data}"></div>
   <div class="panel">

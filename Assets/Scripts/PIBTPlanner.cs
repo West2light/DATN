@@ -109,6 +109,22 @@ public static class PIBTPlanner
 
     public static void SetCurrentPos(int id, int flat) => _currPos[id] = flat;
 
+    /// <summary>
+    /// Tạm dừng phối hợp của agent: xóa flow của trajectory hiện tại và bỏ agent khỏi
+    /// tập active (_trajs/_goals/_currPos) — nhưng KHÔNG trả lại id (id cấp phát tăng dần,
+    /// không tái dùng). Gọi lại PIBT (SetCurrentPos + FrankWolfe) sẽ tự tái nhập agent.
+    ///
+    /// Dùng bởi GridEnemyAgentMixed khi chuyển sang pha A* ở gần Eagle: agent không còn
+    /// đi theo trajectory PIBT nên phải rút flow ra để không bơm "flow ma" làm lệch đường
+    /// của đồng đội, và không bị FrankWolfe của agent khác replan hộ.
+    /// </summary>
+    public static void SuspendAgent(int id)
+    {
+        if (_trajs.TryGetValue(id, out var t)) { RemoveFlow(t); _trajs.Remove(id); }
+        _goals.Remove(id);
+        _currPos.Remove(id);
+    }
+
     // ── Public API ────────────────────────────────────────────────────────
 
     public static List<int> GetTraj(int id) =>
@@ -117,6 +133,21 @@ public static class PIBTPlanner
     public static int ToFlat(Vector2Int c) => c.y * _cols + c.x;
 
     public static Vector2Int FromFlat(int f) => new Vector2Int(f % _cols, f / _cols);
+
+    /// <summary>
+    /// Khoảng cách lưới CHÍNH XÁC (4-neighbor, né vật cản) từ start → goal, lấy từ
+    /// reverse-BFS đã cache theo goal (GetOrBuildH). Trả int.MaxValue/2 nếu không tới được
+    /// hoặc endpoint ngoài lưới. Gần như free vì goal (Eagle) cố định nên h cache dùng lại.
+    ///
+    /// Dùng cho tiêu chí switch của GridEnemyAgentMixed: PIBT khi còn xa, A* khi đã gần.
+    /// </summary>
+    public static int GetHeuristicDistance(Vector2Int start, Vector2Int goal)
+    {
+        if (!IsReady) return int.MaxValue / 2;
+        int gf = ToFlat(goal), sf = ToFlat(start);
+        if (gf < 0 || gf >= _size || sf < 0 || sf >= _size) return int.MaxValue / 2;
+        return GetOrBuildH(gf)[sf];
+    }
 
     // ── Flow inspection (read-only, cho visualizer/metrics) ─────────────────
     // Chỉ ĐỌC _flow — không đổi thuật toán. dir: 0=E(+x),1=S(+y),2=W(-x),3=N(-y).

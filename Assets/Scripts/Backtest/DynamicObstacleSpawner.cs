@@ -35,6 +35,7 @@ public class DynamicObstacleSpawner : MonoBehaviour
     private List<GridEnemyAgent>     _agentsA;
     private List<GridEnemyAgentPIBT> _agentsL;
     private List<GridEnemyAgentPIBT_TCP> _agentsT;
+    private List<GridEnemyAgentMixed> _agentsM;
 
     private readonly List<CrateEntry> _active = new List<CrateEntry>();
     private float _nextSpawn;
@@ -56,13 +57,15 @@ public class DynamicObstacleSpawner : MonoBehaviour
         _nextSpawn = Time.time + spawnInterval;
     }
 
-    public void SetAgents(List<GridEnemyAgent> agentsA, List<GridEnemyAgentPIBT> agentsL, List<GridEnemyAgentPIBT_TCP> agentsT = null)
+    public void SetAgents(List<GridEnemyAgent> agentsA, List<GridEnemyAgentPIBT> agentsL,
+                          List<GridEnemyAgentPIBT_TCP> agentsT = null, List<GridEnemyAgentMixed> agentsM = null)
     {
         _agentsA = agentsA;
         _agentsL = agentsL;
         _agentsT = agentsT;
+        _agentsM = agentsM;
 
-        int totalAgents = (agentsA?.Count ?? 0) + (agentsL?.Count ?? 0) + (agentsT?.Count ?? 0);
+        int totalAgents = (agentsA?.Count ?? 0) + (agentsL?.Count ?? 0) + (agentsT?.Count ?? 0) + (agentsM?.Count ?? 0);
         if (totalAgents <= 0) return;
 
         maxActiveCrates = totalAgents * cratesPerAgent;
@@ -167,6 +170,7 @@ public class DynamicObstacleSpawner : MonoBehaviour
 
         if (_agentsA != null) foreach (var a in _agentsA) if (a != null) AddPath(a.CurrentPath);
         if (_agentsL != null) foreach (var a in _agentsL) if (a != null) AddPath(a.CurrentPath);
+        if (_agentsM != null) foreach (var a in _agentsM) if (a != null) AddPath(a.CurrentPath);
         // TCP agents don't hold a full path — the server gives only one step at a time.
         // MovementTarget itself is excluded by IsValidSpawnCell (agent is mid-move there).
         // Instead, do a greedy lookahead from MovementTarget toward the eagle (6 steps)
@@ -262,6 +266,9 @@ public class DynamicObstacleSpawner : MonoBehaviour
                 if (a != null && ManhattanDist(_mapLoader.WorldToCell(a.transform.position), cell) <= 1) return true;
         if (_agentsL != null)
             foreach (var a in _agentsL)
+                if (a != null && ManhattanDist(_mapLoader.WorldToCell(a.transform.position), cell) <= 1) return true;
+        if (_agentsM != null)
+            foreach (var a in _agentsM)
                 if (a != null && ManhattanDist(_mapLoader.WorldToCell(a.transform.position), cell) <= 1) return true;
         // TCP: CurrentCell is exposed; also check MovementTarget (cell agent is actively moving toward).
         if (_agentsT != null)
